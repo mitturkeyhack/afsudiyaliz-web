@@ -1,846 +1,1251 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Activity,
-  BookOpen,
-  Calculator,
-  Check,
-  ChevronDown,
-  ClipboardList,
-  Droplets,
-  GraduationCap,
-  RotateCcw,
-  ShieldAlert,
-  ShieldCheck,
-  Stethoscope,
-  X,
+  Activity, ArrowUpRight, Check, ChevronDown, ClipboardList, Download, Droplets, Eye,
+  GraduationCap, HeartPulse, Link2, Mail, MessageCircle, Plus, Presentation, RotateCw,
+  Search, Send, Upload, X, FileText, Lightbulb, Play, Users, LogOut, Shield, Trash2,
 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
 
-/* ------------------------------------------------------------------ */
-/*  Sabitler                                                           */
-/* ------------------------------------------------------------------ */
+const IG_URL = "https://instagram.com/afsudiyalizteam";
+const IG_DM = "https://ig.me/m/afsudiyalizteam";
+const YT_URL = "https://youtube.com/@afsudiyalizteam"; // Boş bırakırsan simge görünmez.
+const FEEDBACK_EMAIL = "afsudiyalizteam@gmail.com";
+const WEB3FORMS_KEY = ""; // web3forms.com anahtarı. Boşsa e-posta uygulaması hazır mesajla açılır.
+// Sunucu bağlantısı. İstersen .env.local ile değiştirilebilir.
+// Publishable anahtar herkese açık olacak şekilde tasarlanmıştır; yetkiyi RLS kuralları belirler.
+const SB_URL = import.meta.env.VITE_SUPABASE_URL || "https://dhkhlptixkbyennclhji.supabase.co";
+const SB_KEY = import.meta.env.VITE_SUPABASE_KEY || "sb_publishable_TSKGByByQcjLoa5F7FseeQ_bMDGErae";
+const sb = SB_URL && SB_KEY ? createClient(SB_URL, SB_KEY) : null;
+const SHOW_SEED_NOTES = false; // Gerçek notlar gelince false yap, örnek kartlar kalkar.
+// Logo gömülü (webp). Dosya yolu sorunlarından etkilenmez.
+const LOGO_SRC = "data:image/webp;base64,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";
 
-const INSTAGRAM_URL = "https://instagram.com/afsudiyalizteam";
-const UF_LIMIT = 12; // ml/kg/saat
+/* ---------- Yardımcılar ---------- */
+const load = (k, f) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : f; } catch { return f; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sessizce geç */ } };
+const parseIg = (u) => {
+  const m = String(u).trim().match(/instagram\.com\/(?:[A-Za-z0-9._]+\/)?(p|reels?|tv)\/([A-Za-z0-9_-]{5,20})/i);
+  if (!m) return null;
+  const k = m[1].toLowerCase();
+  return { kind: k === "reels" ? "reel" : k, code: m[2] };
+};
+const isUrl = (s) => { try { return /^https?:$/.test(new URL(s).protocol); } catch { return false; } };
 
-const TABS = [
-  { id: "uf", label: "UF Hesaplayıcı", icon: Calculator },
-  { id: "alarm", label: "Makine Alarmları", icon: ShieldAlert },
-  { id: "quiz", label: "Vaka Quiz", icon: Stethoscope },
-  { id: "student", label: "Öğrenci Köşesi", icon: GraduationCap },
+const Insta = ({ className = "h-5 w-5" }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
+  </svg>
+);
+
+const YouTube = ({ className = "h-5 w-5" }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="2.5" y="5" width="19" height="14" rx="4" /><path d="M10 9.5v5l4.5-2.5z" fill="currentColor" />
+  </svg>
+);
+
+/* ---------- Veri ---------- */
+/* ---------- Dersler (müfredat) ---------- */
+const slug = (t) => t.toLocaleLowerCase("tr").replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i").replace(/ö/g, "o").replace(/ş/g, "s").replace(/ü/g, "u").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+// Ders eklemek ya da çıkarmak için ilgili satırı değiştir: ["kısa ad / kod", "Dersin tam adı"]
+const TERM_DEFS = [
+  { id: "s1", label: "1. Sınıf Güz", chip: "bg-teal-500/25 text-teal-100 ring-teal-400/50", courses: [
+    ["AİİT101", "Atatürk İlkeleri ve İnkılap Tarihi I"], ["TDİ101", "Türk Dili I"], ["YAD101", "Yabancı Dil I (İngilizce)"],
+    ["DİZ107", "Biyokimya"], ["DİZ109", "Mesleki Temel Kavramlar ve Uygulamalar I"], ["DİZ112", "Tıbbi Terminoloji"],
+    ["Anatomi-Fizyoloji", "Temel Anatomi ve Fizyoloji Bilgisi"] ] },
+  { id: "s2", label: "1. Sınıf Bahar", chip: "bg-sky-500/25 text-sky-100 ring-sky-400/50", courses: [
+    ["AİİT102", "Atatürk İlkeleri ve İnkılap Tarihi II"], ["TDİ102", "Türk Dili II"], ["YAD102", "Yabancı Dil II (İngilizce)"],
+    ["DİZ104", "Diyaliz Uygulamaları I"], ["DİZ106", "Mesleki Temel Kavramlar ve Uygulamalar II"],
+    ["Farmakoloji-Mikrobiyoloji", "Genel Farmakoloji ve Mikrobiyoloji"] ] },
+  { id: "s3", label: "2. Sınıf Güz", chip: "bg-indigo-500/25 text-indigo-100 ring-indigo-400/50", courses: [
+    ["DİZ201", "Diyaliz Uygulamaları II"], ["DİZ211", "Hematoloji"], ["DİZ200", "Kronik Hasta Psikolojisi"],
+    ["DİZ203", "Nefroloji ve İç Hastalıkları"] ] },
+  { id: "s4", label: "2. Sınıf Bahar", chip: "bg-cyan-500/25 text-cyan-100 ring-cyan-400/50", courses: [
+    ["DİZ202", "Diyaliz Uygulamaları III"], ["DİZ204", "Hastalıklar Bilgisi ve Klinik Araştırmalar"],
+    ["DİZ206", "Enfeksiyon Hastalıkları ve Sterilizasyon"] ] },
+  { id: "sec", label: "Seçmeli", chip: "bg-amber-500/25 text-amber-100 ring-amber-400/50", courses: [["Seçmeli", "Seçmeli Dersler"]] },
+  { id: "kpt", label: "KPSS", chip: "bg-rose-500/25 text-rose-100 ring-rose-400/50", courses: [["KPSS", "KPSS Önlisans"]] },
+];
+const TERMS = TERM_DEFS.map((t) => ({ ...t, courses: t.courses.map(([short, name]) => ({ id: slug(short), short, name, term: t.id, chip: t.chip })) }));
+const COURSES = TERMS.flatMap((t) => t.courses);
+const catOf = (id) => COURSES.find((c) => c.id === id) || { id, short: "Diğer", name: "Diğer", term: "", chip: "bg-white/10 text-slate-300 ring-white/20" };
+
+// Örnek kartlar: gerçek notlar gelince `url` ekle ya da sil.
+const SEED_NOTES = []; // Örnek kartlar kaldırıldı.
+
+/* ---------- Doğru mu, yanlış mı? soru bankası ---------- */
+const LEVELS = [
+  { id: 1, label: "Kolay", desc: "Herkesin bilmesi gereken temel bilgiler", chip: "bg-teal-500/25 text-teal-100 ring-teal-400/50" },
+  { id: 2, label: "Orta", desc: "Seans ve salon pratiğinden sorular", chip: "bg-amber-500/25 text-amber-100 ring-amber-400/50" },
+  { id: 3, label: "Zor", desc: "Mekanizma ve klinik karar gerektiren sorular", chip: "bg-rose-500/25 text-rose-100 ring-rose-400/50" },
+];
+const levelOf = (id) => LEVELS.find((l) => l.id === id);
+const TF_ROUND = 10; // her turdaki soru sayısı
+const shuffle = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+};
+
+// Yeni soru eklemek için aynı biçimde bir satır ekle. level: 1 kolay, 2 orta, 3 zor.
+const QUESTIONS = [
+  /* ---- Kolay ---- */
+  { id: 1, level: 1, topic: "Genel", isTrue: false, text: "Diyalize girmek, hayattan vazgeçmek demektir.",
+    fact: "Birçok hasta düzenli diyalizle yıllarca çalışmaya, okumaya ve seyahat etmeye devam eder. Bazı hastalar böbrek nakliyle diyalizi bırakabilir." },
+  { id: 2, level: 1, topic: "Genel", isTrue: false, text: "Böbrek hastalığı erken dönemde mutlaka belirti verir.",
+    fact: "Böbrek hastalıkları çoğu zaman sessiz ilerler. Kan basıncı takibi ile kan ve idrar tahlilleri erken tanıda en önemli adımlardır." },
+  { id: 3, level: 1, topic: "Genel", isTrue: false, text: "Diyaliz, böbrek hastalığını tamamen iyileştirir.",
+    fact: "Diyaliz, böbreğin süzme, sıvı ve elektrolit dengesi gibi işlevlerinin bir kısmını üstlenir. Hastalığı iyileştirmez; uygun hastalarda kalıcı seçenek böbrek naklidir." },
+  { id: 4, level: 1, topic: "Meslek", isTrue: false, text: "Diyaliz teknikerliği sadece makineyi açıp kapatmaktır.",
+    fact: "Makine hazırlığı işin bir parçası. Seans boyunca hasta takibi, alarm yönetimi, enfeksiyon kontrolü, dezenfeksiyon ve hastayla iletişim de teknikerin sorumluluğundadır." },
+  { id: 5, level: 1, topic: "Genel", isTrue: true, text: "Ağrı kesici ve romatizma ilaçlarının (NSAİİ) uzun süreli, kontrolsüz kullanımı böbreğe zarar verebilir.",
+    fact: "Bu ilaçlar böbrek kan akımını azaltabilir. İlaç kullanımında hekim ve eczacıya danışmak gerekir." },
+  { id: 6, level: 1, topic: "Genel", isTrue: true, text: "Diyabet ve yüksek tansiyon, kronik böbrek hastalığının en sık nedenleri arasındadır.",
+    fact: "Kan şekerini ve tansiyonu kontrol altında tutmak, böbrekleri korumanın en önemli yollarından biridir." },
+  { id: 7, level: 1, topic: "Genel", isTrue: false, text: "Böbrek hastalığı sadece yaşlılarda görülür.",
+    fact: "Her yaşta görülebilir. Doğuştan yapı bozuklukları, glomerülonefrit, genetik hastalıklar ve diyabet gibi pek çok neden vardır." },
+  { id: 8, level: 1, topic: "Hasta eğitimi", isTrue: true, text: "Diyaliz hastaları için sıvı ve beslenme düzenine uymak çok önemlidir.",
+    fact: "Sıvı, potasyum ve fosfor gibi sınırlar hastaya göre değişir; hekim ve diyetisyen planına uymak seansların güvenliğini artırır." },
+  { id: 9, level: 1, topic: "Fistül", isTrue: true, text: "Hemodiyaliz hastasının fistül koluna tansiyon manşonu bağlanmamalı ve o koldan kan alınmamalıdır.",
+    fact: "Fistül hastanın 'yaşam hattı'dır. Kolda baskı, sıkan giysi veya gereksiz girişim fistülün tıkanma riskini artırır." },
+  { id: 10, level: 1, topic: "Staj", isTrue: false, text: "Stajın ilk gününden itibaren hastaya tek başına iğne takılır.",
+    fact: "Staj genellikle gözlem, hazırlık, cihaz kurulumu ve vital bulgu takibiyle başlar. Uygulamalar kurumun protokolüne göre, sorumlu personelin gözetiminde ve kademeli olarak yapılır." },
+
+  /* ---- Orta ---- */
+  { id: 11, level: 2, topic: "Fistül", isTrue: true, text: "Fistülde thrill (titreşim) ve ses (bruit), her seansta kontrol edilmelidir.",
+    fact: "Thrill ve bruit, fistül çalışmasının en basit göstergesidir. Kaybolmuşsa hemen sorumlu hekime bildirilir." },
+  { id: 12, level: 2, topic: "Alarmlar", isTrue: false, text: "Hava dedektörü alarmında kan pompası çalışmaya devam eder, sadece ses çıkar.",
+    fact: "Hava dedektörü alarmında kan pompası durur ve venöz klemp kapanır. Hava kaynağı bulunup giderilmeden sistem yeniden başlatılmaz." },
+  { id: 13, level: 2, topic: "Seans", isTrue: true, text: "Seans sırasında tansiyon belirgin düşüp terleme başlarsa ilk adımlardan biri UF'yi azaltmak veya durdurmaktır.",
+    fact: "Amaç dolaşımı desteklemektir: UF azaltılır ya da durdurulur, hasta sırtüstü yatırılıp ayakları yükseltilir, gerekirse hekim talimatıyla serum fizyolojik verilir." },
+  { id: 14, level: 2, topic: "Alarmlar", isTrue: false, text: "İletkenlik alarmı çalarken alarmı susturup seansa devam etmek güvenlidir.",
+    fact: "Yanlış iletkenlikteki diyalizat hemoliz ve sodyum dengesizliğine yol açabilir. Makinenin bypass'a aldığı doğrulanır, konsantreler ve emiş hortumları kontrol edilir." },
+  { id: 15, level: 2, topic: "Seans", isTrue: true, text: "Disequilibrium sendromu en çok ilk seanslarda, üre düzeyi çok yüksek hastalarda görülür.",
+    fact: "Üre beyinden kandan daha yavaş temizlendiği için ozmotik fark beyin ödemine yol açabilir; baş ağrısı, bulantı ve konfüzyon görülür. İlk seanslarda kısa süre ve düşük kan akımı planlanır." },
+  { id: 16, level: 2, topic: "Seans", isTrue: false, text: "Kuru kilo, hastanın ilk muayenedeki kilosudur ve bir daha değişmez.",
+    fact: "Kuru kilo klinik olarak belirlenir; ödem, tansiyon, akciğer bulguları ve seans toleransına göre zamanla hekimle birlikte güncellenir." },
+  { id: 17, level: 2, topic: "Seans", isTrue: true, text: "Kramp, hızlı sıvı çekimi ve kuru kilonun altına inme ile tetiklenebilir.",
+    fact: "Hızlı UF kas perfüzyonunu bozar. Müdahalede UF azaltılır, gerekirse hekim talimatıyla serum verilir." },
+  { id: 18, level: 2, topic: "Enfeksiyon kontrolü", isTrue: false, text: "HBsAg pozitif hastalar, diğer hastalarla aynı makine ve malzemeyi paylaşabilir; ek bir önlem gerekmez.",
+    fact: "Hepatit B pozitif hastalar için kurum protokolüne göre ayrı oda veya makine ile ayrı malzeme kullanılır; bakım veren personelin aynı anda duyarlı hastalara bakmaması önerilir. El hijyeni ve eldiven değişimi her hastada esastır." },
+  { id: 19, level: 2, topic: "Elektrolit", isTrue: true, text: "Hiperkalemi, diyaliz hastalarında kalp ritim bozukluğuna yol açabilen ciddi bir sorundur.",
+    fact: "Potasyum yüksekliği EKG'de değişikliklere ve ritim bozukluklarına neden olabilir. Bu yüzden potasyum kısıtlaması ve yeterli diyaliz önemlidir." },
+  { id: 20, level: 2, topic: "Alarmlar", isTrue: true, text: "Venöz basınç alarmında önce venöz hatta kıvrılma, kapalı klemp ve damlalıkta pıhtı gibi nedenlere bakılır.",
+    fact: "Venöz basınç, kan dönüş hattındaki dirençle ilgilidir. Hat, damlalık ve iğne pozisyonu ilk kontrol edilecek yerlerdir." },
+
+  /* ---- Zor ---- */
+  { id: 21, level: 3, topic: "Diyaliz fiziği", isTrue: true, text: "Ultrafiltrasyon, diyalizör membranı boyunca oluşan basınç farkıyla fazla sıvının çekilmesidir.",
+    fact: "Üre ve kreatinin gibi küçük moleküller ağırlıklı olarak difüzyonla (konsantrasyon farkıyla), fazla sıvı ise ultrafiltrasyonla (basınç farkıyla) uzaklaştırılır." },
+  { id: 22, level: 3, topic: "Alarmlar", isTrue: false, text: "Yüksek TMP alarmı her zaman konsantrenin bitmesinden kaynaklanır.",
+    fact: "TMP yüksekliği çoğunlukla diyalizör pıhtılaşması veya çok yüksek UF hızıyla ilgilidir. Konsantre sorunları iletkenlik alarmı verir." },
+  { id: 23, level: 3, topic: "Enfeksiyon kontrolü", isTrue: true, text: "Santral venöz kateterli hastada seans sırasında ateş ve titreme, kateter ilişkili enfeksiyonu düşündürür ve hekime hemen bildirilmelidir.",
+    fact: "Kateter ilişkili kan dolaşımı enfeksiyonu ciddi bir komplikasyondur. Aseptik teknik, düzenli pansuman bakımı ve erken bildirim hayati önem taşır." },
+  { id: 24, level: 3, topic: "Antikoagülasyon", isTrue: false, text: "Aktif kanaması olan bir hastada heparin her zaman standart dozda verilir.",
+    fact: "Aktif kanama ya da yüksek kanama riskinde hekim heparinsiz veya düşük doz protokol belirler. Bu durumda diyalizör pıhtılaşması daha yakından izlenir." },
+  { id: 25, level: 3, topic: "Fistül", isTrue: true, text: "Tekrarlayan yüksek venöz basınç, fistülde venöz stenoz olasılığını düşündürmelidir.",
+    fact: "Venöz çıkış darlığında dönüş direnci artar. Tekrarlayan yüksek basınç, iğne yerinde uzayan kanama ve thrill değişikliği hekime bildirilmesi gereken işaretlerdir." },
+  { id: 26, level: 3, topic: "Alarmlar", isTrue: false, text: "Düşük venöz basınç alarmı önemsizdir, sadece hat gevşemesini gösterir.",
+    fact: "Düşük venöz basınç, iğnenin çıkması veya bağlantının kopması anlamına gelebilir ve ciddi kanamaya yol açar. Önce hastayı ve kanamayı değerlendir, bağlantıları güvene al ve hekime bildir." },
+  { id: 27, level: 3, topic: "Alarmlar", isTrue: true, text: "Kan kaçağı alarmında diyalizat çıkışında pembe veya kırmızı renk görülmesi, membran yırtığını düşündürür.",
+    fact: "Diyalizat tarafına kan geçmiş olabilir. Hekime bildirilir ve kurum protokolüne göre diyalizör ile set değiştirilir. Dedektör kirliliği veya hava kabarcığı yanlış alarm da verebilir." },
+  { id: 28, level: 3, topic: "UF hesabı", isTrue: true, text: "UF hedefi hesaplanırken giriş ve kuru kilo farkına, seans sırasında alınan sıvılar (yıkama, serum, ikram) da eklenmelidir.",
+    fact: "Toplam çekilecek sıvı = (giriş kilosu − kuru kilo) + seans boyunca verilen sıvılar. Saatlik UF hızı, bu toplamın seans süresine bölünmesiyle bulunur." },
+  { id: 29, level: 3, topic: "Kemik-mineral", isTrue: true, text: "Uzun süreli hiperfosfatemi, kemik-mineral bozukluğu ve damar kalsifikasyonu riskini artırır.",
+    fact: "Diyaliz hastalarında yüksek fosfor, hiperparatiroidi ve damar kireçlenmesiyle ilişkilidir. Diyet, fosfor bağlayıcılar ve yeterli diyaliz birlikte yönetilir." },
+  { id: 30, level: 3, topic: "Su arıtma", isTrue: false, text: "Diyalizat suyundaki kloramin hemolize yol açamaz, bu yüzden su arıtma sisteminde karbon filtre takibine gerek yoktur.",
+    fact: "Kloramin eritrositlere zarar vererek hemolitik anemiye yol açabilir. Su arıtma sisteminde karbon filtrelerin ve klor/kloramin testlerinin düzenli takibi gerekir." },
+  { id: 31, level: 3, topic: "UF hesabı", isTrue: true, text: "Saatlik UF hızı yaklaşık 13 ml/kg/saatin üzerine çıktığında intradiyalitik hipotansiyon ve kardiyovasküler risk artar.",
+    fact: "Gözlemsel çalışmalar bu eşiğin üzerinde riskin arttığını gösterir. Bu yüzden UF hedefi gerekirse seans süresi uzatılarak ya da ek seansla bölünerek hekimle birlikte planlanır." },
 ];
 
-const ALARMS = [
-  {
-    id: "tmp",
-    title: "Yüksek TMP (transmembran basınç)",
-    level: "amber",
-    short: "Diyalizör membranı tıkanıyor veya UF çok hızlı.",
-    causes: [
-      "Diyalizörde pıhtılaşma (lifler koyu renkli, çizgili)",
-      "Aşırı yüksek UF hızı veya UF hedefi",
-      "Yüksek hematokrit / yüksek kan akım hızı",
-      "Yetersiz antikoagülasyon",
-    ],
-    steps: [
-      "UF hedefini ve UF hızını kontrol et, gerekirse hekim onayıyla düşür.",
-      "Diyalizör liflerini ve venöz damlalığı pıhtı açısından incele.",
-      "Heparin protokolünü hekimle birlikte gözden geçir.",
-      "Pıhtılaşma belirgin ise kurum protokolüne göre yıkama yap veya diyalizörü değiştir.",
-    ],
-  },
-  {
-    id: "venous",
-    title: "Venöz basınç alarmı",
-    level: "amber",
-    short: "Yüksek: dönüş hattında direnç. Düşük: bağlantı kopması riski.",
-    causes: [
-      "Venöz hatta kıvrılma veya kapalı klemp",
-      "Venöz damlalık filtresinde pıhtı",
-      "Venöz iğne pozisyon bozukluğu veya infiltrasyon",
-      "Fistülde venöz stenoz (tekrarlayan yüksek basınç)",
-      "Düşük alarmda: iğne çıkması, hat bağlantısı gevşemesi",
-    ],
-    steps: [
-      "Hattı hastadan makineye doğru takip et; kıvrılma ve klemp durumunu kontrol et.",
-      "Venöz damlalığı pıhtı açısından incele.",
-      "İğne bölgesinde şişlik, ağrı, hematom var mı bak; iğne pozisyonunu değerlendir.",
-      "Düşük basınç alarmında önce kanama olup olmadığına bak; bağlantıları sıkıştır ve hekime bildir.",
-    ],
-  },
-  {
-    id: "arterial",
-    title: "Arteriyel basınç alarmı (aşırı negatif)",
-    level: "amber",
-    short: "Kan pompaya yeterince gelmiyor.",
-    causes: [
-      "Arteriyel iğne duvara yapışmış veya yanlış pozisyonda",
-      "Arteriyel hatta kıvrılma",
-      "Kan akım hızı damar akımına göre yüksek",
-      "Hastada hipotansiyon veya hipovolemi",
-    ],
-    steps: [
-      "Hasta tansiyonunu ve genel durumunu kontrol et.",
-      "Hattı ve iğne bölgesini incele; iğne pozisyonunu hafifçe değiştir.",
-      "Kan akım hızını kademeli düşür.",
-      "Sorun sürerse hekime bildir; iğne yenilenmesi gerekebilir.",
-    ],
-  },
-  {
-    id: "air",
-    title: "Hava dedektörü alarmı",
-    level: "rose",
-    short: "Kritik: kan pompası durur, venöz klemp kapanır.",
-    causes: [
-      "Serum seti bitmesi veya hat bağlantısı gevşekliği",
-      "Venöz damlalık seviyesinin düşmesi",
-      "Hatta mikro köpük oluşumu",
-      "Hat veya iğne bağlantısından hava girişi",
-    ],
-    steps: [
-      "Hastayı hemen değerlendir: öksürük, nefes darlığı, göğüs ağrısı, bilinç değişikliği var mı?",
-      "Hava hastaya ulaştıysa hekimi acil çağır; kurum acil protokolünü uygula (hasta sol yana yatırılır, baş aşağı pozisyon, oksijen).",
-      "Hava kaynağını bul ve gider; damlalık seviyesini düzelt.",
-      "Hat güvenli hale gelmeden klempi açıp pompayı yeniden başlatma.",
-    ],
-  },
-  {
-    id: "conductivity",
-    title: "İletkenlik alarmı",
-    level: "rose",
-    short: "Diyalizat içeriği hatalı olabilir; makine bypass'a alır.",
-    causes: [
-      "A veya B konsantresi bitmiş ya da yanlış bağlanmış",
-      "Konsantre emiş hattında hava veya tıkanıklık",
-      "Su kalitesi veya karışım sistemi sorunu",
-      "Makine kalibrasyon hatası",
-    ],
-    steps: [
-      "Makinenin bypass'a aldığını doğrula; hastaya hatalı diyalizat gitmemeli.",
-      "Konsantre türünü, miktarını ve emiş hortumlarını kontrol et.",
-      "Sorun giderilmezse hekime ve teknik servise haber ver.",
-      "Düzelmezse seansı sonlandırma kararı hekim ve kurum protokolüyle verilir.",
-    ],
-  },
-  {
-    id: "blood-leak",
-    title: "Kan kaçağı dedektörü alarmı",
-    level: "rose",
-    short: "Diyalizat tarafına kan geçmiş olabilir.",
-    causes: [
-      "Diyalizör membranında yırtılma",
-      "Dedektörde kirlenme veya hava kabarcığı (yanlış alarm)",
-    ],
-    steps: [
-      "Diyalizat çıkışını gözle kontrol et; pembe veya kırmızı renk var mı bak.",
-      "Hekime bildir; membran yırtığından şüpheleniliyorsa kan dolaşımını kurum protokolüne göre sonlandır.",
-      "Diyalizörü ve gerekirse seti değiştirmek için hekim talimatını bekle.",
-      "Hastayı enfeksiyon ve kanama belirtileri yönünden izle.",
-    ],
-  },
+
+const POLL = { q: "Bu dönem en çok hangi içeriğe ihtiyacın var?", opts: ["Nefroloji notları", "Staj defteri örnekleri", "Vaka sunumları", "KPSS Önlisans"] };
+
+const QA = [
+  { q: "Paylaştığım not hemen yayınlanır mı?", a: "Hayır. Önce yöneticiler kontrol eder, onaylanınca not havuzunda herkese görünür. Bekleyen notunu \"Onay bekliyor\" rozetiyle sen görürsün." },
+  { q: "Not paylaşmak için ne yapmalıyım?", a: "Giriş yap, Not havuzunda \"Not paylaş\"a bas. Dersi seç, başlığı yaz ve telefonundan PDF dosyanı seç. Dosya en fazla 10 MB olabilir." },
+  { q: "Hesaba nasıl katkı sağlayabilirim?", a: "Deneyimlerini, sorularını ya da paylaşmak istediğin bir içeriği Instagram'dan DM ile iletebilir, sitedeki geri bildirim butonunu da kullanabilirsin." },
 ];
 
-const QUIZ = [
-  {
-    q: "Seans sırasında hastanın tansiyonu belirgin düşüyor, terleme ve baş dönmesi başlıyor. İlk müdahale hangisidir?",
-    options: [
-      "UF'yi artırıp seansı hızlandırmak",
-      "UF'yi durdurmak/azaltmak, hastayı Trendelenburg pozisyonuna almak ve hekim talimatıyla serum fizyolojik vermek",
-      "Kan akımını maksimuma çıkarmak",
-      "Hastaya oral yüksek miktarda su içirmek",
-    ],
-    answer: 1,
-    why: "İntradiyalitik hipotansiyonda hedef dolaşım hacmini hızla desteklemektir: UF azaltılır veya durdurulur, ayaklar yükseltilir, hekim talimatıyla izotonik sıvı bolusu verilir.",
-  },
-  {
-    q: "Venöz basınç alarmı sürekli çalıyor. Hangisi ilk bakılacak nedenlerden biri DEĞİLDİR?",
-    options: [
-      "Venöz hatta kıvrılma",
-      "Venöz damlalıkta pıhtı",
-      "Venöz iğne pozisyonu",
-      "Dializat konsantresinin renk tonu",
-    ],
-    answer: 3,
-    why: "Venöz basınç, kan dönüş hattındaki dirençle ilgilidir. Kıvrılma, pıhtı ve iğne pozisyonu önce kontrol edilir. Konsantre sorunları iletkenlik alarmıyla ilgilidir.",
-  },
-  {
-    q: "Hava dedektörü alarmı verdiğinde makine ne yapar?",
-    options: [
-      "Kan pompasını durdurur ve venöz klempi kapatır",
-      "UF hızını artırır",
-      "Diyalizatı hastaya yönlendirir",
-      "Hiçbir şey yapmaz, sadece ses çıkarır",
-    ],
-    answer: 0,
-    why: "Hava hastaya ulaşmasın diye kan pompası durur ve venöz klemp kapanır. Hava kaynağı bulunmadan sistem yeniden başlatılmaz.",
-  },
-  {
-    q: "Arteriyovenöz fistül ile ilgili hangisi doğrudur?",
-    options: [
-      "Fistül koluna tansiyon manşonu bağlanabilir",
-      "Her seansta thrill (titreşim) ve ses kontrol edilmelidir",
-      "Fistül koluyla ağır yük taşımak önerilir",
-      "Fistül kolundan rutin kan alınması güvenlidir",
-    ],
-    answer: 1,
-    why: "Thrill ve bruit fistül fonksiyonunun en basit göstergesidir. Fistül kolunda tansiyon ölçümü, kan alma ve sıkan giysi/yük taşımadan kaçınılır.",
-  },
-  {
-    q: "Disequilibrium sendromu en çok hangi durumda görülür?",
-    options: [
-      "Kronik stabil hastada kısa seansta",
-      "İlk seanslarda, çok yüksek üre düzeyi ve hızlı üre klirensi olan hastada",
-      "Sadece çocuk hastalarda",
-      "Yalnızca hipertansif hastalarda",
-    ],
-    answer: 1,
-    why: "Üre beyinden kandan daha yavaş temizlenir; ozmotik fark beyin ödemine yol açar. Baş ağrısı, bulantı, konfüzyon görülür. İlk seanslarda kısa süre ve düşük kan akımı önlem olarak planlanır.",
-  },
-  {
-    q: "Seans sırasında kramp başlayan hastada hangisi en olası katkıda bulunan faktördür?",
-    options: [
-      "Düşük UF hızı",
-      "Hızlı sıvı çekimi ve kuru kilonun altına inme",
-      "Yüksek dializat sıcaklığı",
-      "Fazla uyku",
-    ],
-    answer: 1,
-    why: "Hızlı UF ve gerçek kuru kilonun altına inmek kas perfüzyonunu bozarak krampı tetikler. Müdahalede UF azaltılır, hekim talimatıyla serum verilir.",
-  },
-  {
-    q: "Kuru kilo (hedef kilo) nedir?",
-    options: [
-      "Hastanın ilk muayenedeki kilosu",
-      "Diyaliz sonunda hipotansiyon ve aşırı sıvı belirtisi olmadan ulaşılabilen en düşük tolere edilen kilo",
-      "Giriş kilosundan 5 kg çıkarılmış değer",
-      "Her seansta sabit tutulan resmi kilo",
-    ],
-    answer: 1,
-    why: "Kuru kilo klinik olarak belirlenir ve zamanla değişebilir. Ödem, tansiyon, akciğer bulguları ve seans toleransına göre hekimle birlikte güncellenir.",
-  },
-  {
-    q: "İletkenlik alarmı sırasında hasta seansta. Öncelikli güvenlik önlemi nedir?",
-    options: [
-      "Alarmı susturup devam etmek",
-      "Diyalizatın hastaya gitmediğinden (bypass) emin olup nedeni araştırmak",
-      "Kan akımını düşürüp hiçbir şey yapmamak",
-      "Seti hemen çıkarıp atmak",
-    ],
-    answer: 1,
-    why: "Yanlış iletkenlikteki diyalizat hemoliz, hipo/hipernatremi gibi ciddi sonuçlar doğurabilir. Makine bypass'a alınır, konsantreler ve karışım sistemi kontrol edilir.",
-  },
-];
+const inp = "w-full rounded-xl border border-sky-300/15 bg-[#0a1a30]/90 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-teal-300/60 focus:ring-2 focus:ring-teal-300/20";
 
-const LOG_TEMPLATE = [
-  "Tarih / seans no / hasta kodu (isim yazma)",
-  "Hasta durumu: giriş-çıkış kilosu, tansiyon, nabız, şikayet",
-  "Makine ve diyalizör bilgisi: model, UF hedefi, kan akımı, süre",
-  "Yapılan işlem: kanülasyon, bağlantı, izlem",
-  "Karşılaşılan sorun ve yapılan müdahale",
-  "Öğrendiklerim ve sorularım",
-];
-
-const COURSES = [
-  {
-    title: "Nefroloji temelleri",
-    items: [
-      "Böbrek fonksiyonları, GFR ve evrelendirme",
-      "Üremi bulguları, hiperkalemi ve asidoz",
-      "Kronik böbrek yetmezliğinde diyaliz endikasyonları",
-    ],
-  },
-  {
-    title: "Ekipman ve hemodiyaliz fiziği",
-    items: [
-      "Difüzyon, konveksiyon ve ultrafiltrasyon",
-      "Diyalizör tipleri, set ve damlalık bileşenleri",
-      "Su arıtma ve diyalizat hazırlama sistemi",
-    ],
-  },
-  {
-    title: "Vasküler giriş ve enfeksiyon kontrolü",
-    items: [
-      "AVF, greft ve kateter bakımı",
-      "El hijyeni, aseptik kanülasyon, izolasyon önlemleri",
-      "Hepatit B/C ve HIV bulaş önleme",
-    ],
-  },
-];
-
-/* ------------------------------------------------------------------ */
-/*  Küçük bileşenler                                                   */
-/* ------------------------------------------------------------------ */
-
-function InstagramIcon({ className = "w-5 h-5" }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <rect x="3" y="3" width="18" height="18" rx="5" />
-      <circle cx="12" cy="12" r="4" />
-      <circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" />
-    </svg>
-  );
-}
-
-function Logo() {
-  const [failed, setFailed] = useState(false);
-  if (failed) {
+/* ---------- Küçük bileşenler ---------- */
+function Logo({ size = "h-10 w-10" }) {
+  const [bad, setBad] = useState(false);
+  if (bad) {
     return (
-      <div className="w-11 h-11 rounded-full bg-slate-900 border border-cyan-400/40 flex items-center justify-center shrink-0">
-        <Stethoscope className="w-5 h-5 text-cyan-400" />
-      </div>
+      <span className={`${size} grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-teal-400 to-sky-600 text-white shadow-lg shadow-teal-500/30`}>
+        <HeartPulse className="h-1/2 w-1/2" />
+      </span>
     );
   }
+  return <img src={LOGO_SRC} alt="AFSÜ Diyaliz Team logosu" onError={() => setBad(true)} className={`${size} shrink-0 rounded-full bg-white object-cover shadow-lg ring-2 ring-white/20`} />;
+}
+
+function Modal({ open, onClose, title, children }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [open, onClose]);
+  if (!open) return null;
   return (
-    <img
-      src="/logo.png"
-      alt="AFSÜ Diyaliz Team logosu"
-      onError={() => setFailed(true)}
-      className="w-11 h-11 rounded-full object-cover border border-cyan-400/40 shrink-0"
-    />
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="absolute inset-0 bg-[#030a14]/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="pop relative max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border border-sky-300/15 bg-[#0b1a2e]/95 p-6 shadow-2xl backdrop-blur-xl sm:max-w-md sm:rounded-3xl">
+        <button onClick={onClose} aria-label="Kapat" className="absolute right-4 top-4 rounded-full p-2 text-slate-400 hover:bg-white/10 hover:text-white">
+          <X className="h-5 w-5" />
+        </button>
+        {children}
+      </div>
+    </div>
   );
 }
 
-function Field({ label, unit, value, onChange, step = "0.1", id }) {
+function Field({ label, error, children }) {
   return (
-    <label htmlFor={id} className="block">
-      <span className="text-sm text-slate-300">{label}</span>
-      <div className="mt-1.5 flex items-stretch rounded-xl bg-slate-950 border border-slate-700 focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-400/30">
-        <input
-          id={id}
-          type="number"
-          inputMode="decimal"
-          min="0"
-          step={step}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full min-h-[48px] bg-transparent px-3 text-lg text-slate-50 outline-none"
-        />
-        <span className="px-3 flex items-center text-sm text-slate-400 border-l border-slate-800">
-          {unit}
-        </span>
-      </div>
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-slate-200">{label}</span>
+      {children}
+      {error && <span className="mt-1 block text-xs text-rose-300">{error}</span>}
     </label>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Modül 1: UF Hesaplayıcı                                            */
-/* ------------------------------------------------------------------ */
+function SectionHead({ title, desc }) {
+  return (
+    <div className="mb-4 max-w-xl">
+      <h2 className="font-display text-2xl font-bold text-white sm:text-3xl">{title}</h2>
+      <p className="mt-2 text-sm leading-relaxed text-slate-400">{desc}</p>
+    </div>
+  );
+}
 
-function UFCalculator() {
-  const [entry, setEntry] = useState("72.5");
-  const [dry, setDry] = useState("69");
-  const [hours, setHours] = useState("4");
-  const [extra, setExtra] = useState("300");
+/* ---------- Modallar ---------- */
+const trErr = (m = "") =>
+  /invalid login/i.test(m) ? "E-posta ya da şifre hatalı."
+  : /already registered/i.test(m) ? "Bu e-posta zaten kayıtlı. Giriş yapmayı dene."
+  : /not confirmed/i.test(m) ? "Önce e-postandaki doğrulama bağlantısına tıkla."
+  : /rate limit|too many/i.test(m) ? "Çok fazla deneme yapıldı. Biraz bekleyip tekrar dene."
+  : /password/i.test(m) ? "Şifre yeterince güçlü değil."
+  : "Bir sorun oluştu. Tekrar dene.";
 
-  const r = useMemo(() => {
-    const e = parseFloat(entry);
-    const d = parseFloat(dry);
-    const h = parseFloat(hours);
-    const x = parseFloat(extra) || 0;
-    if (![e, d, h].every((n) => Number.isFinite(n)) || d <= 0 || h <= 0) {
-      return { valid: false, msg: "Giriş kilosu, kuru kilo ve süreyi gir." };
+function AuthModal({ open, onClose, user, profile, onAdmin, onDone, onPrivacy, recovery, onRecovered }) {
+  const [mode, setMode] = useState("signup");
+  const [step, setStep] = useState("form"); // form | code | forgot | reset
+  const [f, setF] = useState({ name: "", email: "", pass: "" });
+  const [code, setCode] = useState("");
+  const [agree, setAgree] = useState(false);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+  useEffect(() => { if (recovery) { setErr(""); setStep("reset"); } }, [recovery]);
+  const close = () => { setErr(""); setStep("form"); setCode(""); if (recovery) onRecovered(); onClose(); };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr("");
+    const email = f.email.trim();
+    if (mode === "signup" && f.name.trim().length < 3) return setErr("Adını ve soyadını yaz.");
+    if (!emailOk(email)) return setErr("Geçerli bir e-posta adresi yaz.");
+    if (f.pass.length < 8) return setErr("Şifre en az 8 karakter olmalı.");
+    if (mode === "signup" && !agree) return setErr("Devam etmek için gizlilik metnini onaylamalısın.");
+    setBusy(true);
+    const { data, error } = mode === "signup"
+      ? await sb.auth.signUp({ email, password: f.pass, options: { data: { full_name: f.name.trim(), kvkk_consent: true, consent_at: new Date().toISOString() } } })
+      : await sb.auth.signInWithPassword({ email, password: f.pass });
+    const unconfirmed = error && /not confirmed/i.test(error.message);
+    if (unconfirmed) await sb.auth.resend({ type: "signup", email });
+    setBusy(false);
+    if (unconfirmed) { setCode(""); return setStep("code"); }
+    if (error) return setErr(trErr(error.message));
+    if (mode === "signup" && !data.session) { setCode(""); return setStep("code"); }
+    setF({ name: "", email: "", pass: "" });
+    onDone(mode === "signup" ? "Aramıza hoş geldin!" : "Giriş yapıldı.");
+    close();
+  };
+
+  const verify = async (e) => {
+    e.preventDefault();
+    setErr("");
+    const email = f.email.trim();
+    if (!/^\d{6,8}$/.test(code)) return setErr("E-postandaki kodu yaz.");
+    setBusy(true);
+    let { error } = await sb.auth.verifyOtp({ email, token: code, type: "email" });
+    if (error) ({ error } = await sb.auth.verifyOtp({ email, token: code, type: "signup" }));
+    setBusy(false);
+    if (error) return setErr("Kod hatalı ya da süresi dolmuş.");
+    setF({ name: "", email: "", pass: "" });
+    onDone("Aramıza hoş geldin!");
+    close();
+  };
+
+  const resend = async () => {
+    const { error } = await sb.auth.resend({ type: "signup", email: f.email.trim() });
+    if (error) return setErr("Kod şimdi gönderilemedi. Bir dakika bekleyip tekrar dene.");
+    setErr("");
+    onDone("Yeni kod gönderildi.");
+  };
+
+  const sendReset = async (e) => {
+    e?.preventDefault();
+    setErr("");
+    const email = f.email.trim();
+    if (!emailOk(email)) return setErr("Geçerli bir e-posta adresi yaz.");
+    setBusy(true);
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    setBusy(false);
+    if (error) return setErr("Kod şimdi gönderilemedi. Bir dakika bekleyip tekrar dene.");
+    if (step === "forgot") { setCode(""); setF({ ...f, pass: "" }); setStep("reset"); } else onDone("Yeni kod gönderildi.");
+  };
+
+  const doReset = async (e) => {
+    e.preventDefault();
+    setErr("");
+    if (!recovery && !/^\d{6,8}$/.test(code)) return setErr("E-postandaki kodu yaz.");
+    if (f.pass.length < 8) return setErr("Yeni şifre en az 8 karakter olmalı.");
+    setBusy(true);
+    if (!recovery) {
+      const { error } = await sb.auth.verifyOtp({ email: f.email.trim(), token: code, type: "recovery" });
+      if (error) { setBusy(false); return setErr("Kod hatalı ya da süresi dolmuş."); }
     }
-    const gain = (e - d) * 1000;
-    const total = gain + x;
-    if (total <= 0) {
-      return {
-        valid: false,
-        msg: "Toplam çekilecek sıvı sıfır veya negatif. Kilo değerlerini ve ek sıvıyı kontrol et.",
-      };
-    }
-    const perHour = total / h;
-    const perKg = perHour / d;
-    const idwg = ((e - d) / d) * 100;
-    return { valid: true, gain, total, perHour, perKg, idwg };
-  }, [entry, dry, hours, extra]);
+    const { error } = await sb.auth.updateUser({ password: f.pass });
+    setBusy(false);
+    if (error) return setErr(trErr(error.message));
+    setF({ name: "", email: "", pass: "" });
+    onDone("Şifren güncellendi.");
+    close();
+  };
 
-  const high = r.valid && r.perKg > UF_LIMIT;
+  const logout = async () => { await sb.auth.signOut(); onDone("Çıkış yapıldı."); close(); };
+  const tab = (m, label) => (
+    <button type="button" onClick={() => { setMode(m); setErr(""); }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${mode === m ? "bg-teal-500 text-slate-950" : "text-slate-300"}`}>{label}</button>
+  );
+  const view = !sb ? "off" : step === "reset" ? "reset" : user ? "account" : step;
+  const primary = "w-full rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-[0.98] disabled:opacity-60";
+  const codeInput = (
+    <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} inputMode="numeric" autoComplete="one-time-code" maxLength={8} placeholder="______" aria-label="Doğrulama kodu" className={`${inp} text-center font-display text-2xl tracking-[0.4em]`} />
+  );
+  const badge = <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-teal-500/25 text-teal-100 ring-1 ring-teal-400/50"><Mail className="h-8 w-8" /></div>;
 
   return (
-    <section className="space-y-5">
-      <div className="rounded-2xl bg-slate-900/70 backdrop-blur border border-slate-800 p-4 sm:p-6">
-        <h2 className="text-xl font-semibold text-slate-50">Ultrafiltrasyon hesaplayıcı</h2>
-        <p className="mt-1 text-sm text-slate-400">
-          Hedef UF hızı kuru kilo üzerinden ml/kg/saat olarak hesaplanır.
-        </p>
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4">
-          <Field id="entry" label="Giriş kilosu" unit="kg" value={entry} onChange={setEntry} />
-          <Field id="dry" label="Kuru kilo" unit="kg" value={dry} onChange={setDry} />
-          <Field id="hours" label="Seans süresi" unit="saat" value={hours} onChange={setHours} step="0.25" />
-          <Field id="extra" label="Ek sıvı (çay, yıkama, ikram)" unit="ml" value={extra} onChange={setExtra} step="50" />
+    <Modal open={open} onClose={close} title="Giriş ve kayıt">
+      {view === "off" && (
+        <div className="text-center">
+          <h3 className="font-display text-xl font-bold text-white">Kayıt sistemi henüz bağlı değil</h3>
+          <p className="mt-2 text-sm leading-relaxed text-slate-300">Sunucu bağlantısı kurulunca giriş ve kayıt burada çalışacak.</p>
         </div>
-      </div>
-
-      {!r.valid ? (
-        <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-300">
-          {r.msg}
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-2xl bg-slate-900/70 border border-slate-800 p-3 sm:p-4">
-              <p className="text-xs text-slate-400">Toplam çekilecek</p>
-              <p className="mt-1 text-xl sm:text-2xl font-semibold text-cyan-400">
-                {Math.round(r.total)}
-                <span className="text-xs sm:text-sm font-normal text-slate-400"> ml</span>
-              </p>
-            </div>
-            <div className="rounded-2xl bg-slate-900/70 border border-slate-800 p-3 sm:p-4">
-              <p className="text-xs text-slate-400">Saatlik UF hızı</p>
-              <p className="mt-1 text-xl sm:text-2xl font-semibold text-sky-400">
-                {Math.round(r.perHour)}
-                <span className="text-xs sm:text-sm font-normal text-slate-400"> ml/sa</span>
-              </p>
-            </div>
-            <div className="rounded-2xl bg-slate-900/70 border border-slate-800 p-3 sm:p-4">
-              <p className="text-xs text-slate-400">Ağırlığa oran</p>
-              <p className={`mt-1 text-xl sm:text-2xl font-semibold ${high ? "text-rose-400" : "text-emerald-400"}`}>
-                {r.perKg.toFixed(1)}
-                <span className="text-xs sm:text-sm font-normal text-slate-400"> ml/kg/sa</span>
-              </p>
-            </div>
-          </div>
-
-          {high ? (
-            <div role="alert" className="rounded-2xl border border-rose-500/50 bg-rose-950/40 p-4 sm:p-5">
-              <div className="flex items-center gap-2 text-rose-300 font-semibold">
-                <ShieldAlert className="w-5 h-5" />
-                Kardiyovasküler risk: {UF_LIMIT} ml/kg/saat eşiği aşıldı
-              </div>
-              <ul className="mt-3 space-y-1.5 text-sm text-rose-100/90 list-disc pl-5">
-                <li>Intradiyalitik hipotansiyon riski artar.</li>
-                <li>Kas krampları ve bulantı sık görülür.</li>
-                <li>Tekrarlayan hipoperfüzyon miyokardiyal sersemlemeye (myocardial stunning) yol açabilir.</li>
-              </ul>
-              <p className="mt-3 text-sm text-rose-100/90">
-                Hekimle konuş: seans süresini uzatmak, ek seans planlamak veya UF hedefini bölmek değerlendirilebilir.
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-emerald-500/40 bg-emerald-950/30 p-4 sm:p-5">
-              <div className="flex items-center gap-2 text-emerald-300 font-semibold">
-                <ShieldCheck className="w-5 h-5" />
-                UF hızı güvenli aralıkta
-              </div>
-              <p className="mt-2 text-sm text-emerald-100/90">
-                Hız {UF_LIMIT} ml/kg/saat eşiğinin altında. Seans boyunca tansiyon ve belirtileri yine de izle.
-              </p>
-            </div>
-          )}
-
-          <div className="rounded-2xl bg-slate-900/70 border border-slate-800 p-4 text-sm text-slate-300 flex items-start gap-3">
-            <Droplets className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />
-            <p>
-              Seanslar arası kilo artışı <b className="text-slate-50">{Math.round(r.gain)} ml</b> (kuru kilonun %
-              {r.idwg.toFixed(1)}'i).
-              {r.idwg > 4 && " %4 üzeri kilo artışı için diyet ve sıvı kısıtlaması eğitimi gözden geçirilmelidir."}
-            </p>
-          </div>
-        </>
       )}
 
-      <p className="text-xs text-slate-500">
-        Bu araç eğitim amaçlıdır. Hasta bazlı UF ve süre kararları hekim talimatı ve kurum protokolüne göre verilir.
-      </p>
-    </section>
+      {view === "account" && (
+        <div className="text-center">
+          <div className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-full bg-teal-500/25 font-display text-2xl font-bold text-teal-100 ring-1 ring-teal-400/50">{(profile?.full_name || user.email || "?")[0].toUpperCase()}</div>
+          <h3 className="font-display text-xl font-bold text-white">{profile?.full_name || "Öğrenci"}</h3>
+          <p className="text-sm text-slate-400">{user.email}</p>
+          {profile?.role === "admin" && <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-rose-500/25 px-3 py-1 text-xs text-rose-100 ring-1 ring-rose-400/50"><Shield className="h-3.5 w-3.5" /> Yönetici</span>}
+          <div className="mt-5 grid gap-3">
+            {profile?.role === "admin" && <button onClick={onAdmin} className="rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950">Yönetim paneli</button>}
+            <button onClick={logout} className="flex items-center justify-center gap-2 rounded-xl border border-sky-300/15 px-4 py-3 text-sm text-slate-200 hover:bg-white/5"><LogOut className="h-4 w-4" /> Çıkış yap</button>
+          </div>
+        </div>
+      )}
+
+      {view === "code" && (
+        <form onSubmit={verify} noValidate className="space-y-4 text-center">
+          {badge}
+          <h3 className="font-display text-2xl font-bold text-white">Doğrulama kodunu yaz</h3>
+          <p className="text-sm leading-relaxed text-slate-300"><span className="text-teal-200">{f.email.trim()}</span> adresine bir kod gönderdik. Gelmediyse spam klasörüne de bak.</p>
+          {codeInput}
+          {err && <p role="alert" className="text-sm text-rose-300">{err}</p>}
+          <button type="submit" disabled={busy} className={primary}>{busy ? "Bekle…" : "Doğrula"}</button>
+          <div className="flex justify-between text-xs text-slate-400">
+            <button type="button" onClick={() => { setStep("form"); setErr(""); }} className="hover:text-slate-200">Geri dön</button>
+            <button type="button" onClick={resend} className="hover:text-slate-200">Kodu tekrar gönder</button>
+          </div>
+        </form>
+      )}
+
+      {view === "forgot" && (
+        <form onSubmit={sendReset} noValidate className="space-y-4">
+          <div className="text-center">{badge}<h3 className="mt-3 font-display text-2xl font-bold text-white">Şifreni sıfırla</h3><p className="mt-1 text-sm text-slate-300">E-postanı yaz, sana bir kod gönderelim.</p></div>
+          <Field label="E-posta"><input type="email" value={f.email} onChange={set("email")} autoComplete="email" placeholder="ornek@mail.com" className={inp} /></Field>
+          {err && <p role="alert" className="text-sm text-rose-300">{err}</p>}
+          <button type="submit" disabled={busy} className={primary}>{busy ? "Bekle…" : "Kod gönder"}</button>
+          <button type="button" onClick={() => { setStep("form"); setErr(""); }} className="block w-full text-center text-xs text-slate-400 hover:text-slate-200">Geri dön</button>
+        </form>
+      )}
+
+      {view === "reset" && (
+        <form onSubmit={doReset} noValidate className="space-y-4">
+          <div className="text-center">{badge}<h3 className="mt-3 font-display text-2xl font-bold text-white">Yeni şifre belirle</h3>
+            <p className="mt-1 text-sm leading-relaxed text-slate-300">{recovery ? "Yeni şifreni yaz." : "Bu e-posta kayıtlıysa bir kod gönderdik. Kodu ve yeni şifreni yaz."}</p></div>
+          {!recovery && codeInput}
+          <Field label="Yeni şifre"><input type="password" value={f.pass} onChange={set("pass")} autoComplete="new-password" placeholder="En az 8 karakter" className={inp} /></Field>
+          {err && <p role="alert" className="text-sm text-rose-300">{err}</p>}
+          <button type="submit" disabled={busy} className={primary}>{busy ? "Bekle…" : "Şifreyi güncelle"}</button>
+          {!recovery && (
+            <div className="flex justify-between text-xs text-slate-400">
+              <button type="button" onClick={() => { setStep("form"); setErr(""); }} className="hover:text-slate-200">Geri dön</button>
+              <button type="button" onClick={() => { setStep("reset"); sendReset(); }} className="hover:text-slate-200">Kodu tekrar gönder</button>
+            </div>
+          )}
+        </form>
+      )}
+
+      {view === "form" && (
+        <form onSubmit={submit} noValidate className="space-y-4">
+          <div className="flex items-center gap-3"><Logo size="h-12 w-12" /><div><h3 className="font-display text-xl font-bold text-white">{mode === "signup" ? "Masamızda yerin hazır" : "Tekrar hoş geldin"}</h3><p className="text-xs text-slate-400">AFSÜ Diyaliz Team</p></div></div>
+          <div className="flex gap-1 rounded-xl bg-white/5 p-1">{tab("signup", "Kayıt ol")}{tab("login", "Giriş yap")}</div>
+          {mode === "signup" && <Field label="Ad soyad"><input value={f.name} onChange={set("name")} autoComplete="name" placeholder="Adın ve soyadın" className={inp} /></Field>}
+          <Field label="E-posta">
+            <div className="relative"><Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" /><input type="email" value={f.email} onChange={set("email")} autoComplete="email" placeholder="ornek@mail.com" className={`${inp} pl-10`} /></div>
+          </Field>
+          <Field label="Şifre"><input type="password" value={f.pass} onChange={set("pass")} autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder="En az 8 karakter" className={inp} /></Field>
+          {mode === "login" && <button type="button" onClick={() => { setStep("forgot"); setErr(""); }} className="-mt-2 block text-xs text-teal-300 underline underline-offset-2">Şifremi unuttum</button>}
+          {mode === "signup" && (
+            <label className="flex items-start gap-3 text-xs leading-relaxed text-slate-300">
+              <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-teal-500" />
+              <span><button type="button" onClick={onPrivacy} className="text-teal-300 underline underline-offset-2">Gizlilik ve KVKK aydınlatma metnini</button> okudum, kabul ediyorum.</span>
+            </label>
+          )}
+          {err && <p role="alert" className="text-sm text-rose-300">{err}</p>}
+          <button type="submit" disabled={busy} className={primary}>{busy ? "Bekle…" : mode === "signup" ? "Topluluğa katıl" : "Giriş yap"}</button>
+        </form>
+      )}
+    </Modal>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Modül 2: Makine Alarmları                                          */
-/* ------------------------------------------------------------------ */
+// NOT: Aşağıdaki metin taslaktır. Yayından önce topluluk/üniversite yetkilileri gözden geçirmelidir.
+const PRIVACY = [
+  ["Veri sorumlusu", "AFSÜ Diyaliz Team öğrenci topluluğu. İletişim: afsudiyalizteam@gmail.com"],
+  ["Hangi verileri topluyoruz?", "Kayıtta ad soyad ve e-posta adresin; şifren (yalnızca şifrelenmiş olarak); paylaştığın PDF notlar ve not bilgileri. Geri bildirim gönderirsen mesajın, adın, e-postan, baktığın sayfa ve cihaz bilgin."],
+  ["Ne için kullanıyoruz?", "Hesabını oluşturmak ve doğrulamak, not paylaşımını yönetmek ve denetlemek, geri bildirimlerine yanıt vermek ve siteyi güvenli tutmak için."],
+  ["Hukuki sebep", "Kayıt sırasında verdiğin açık rıza ve hizmetin sunulması için gerekli olması."],
+  ["Verilerin kimlerle paylaşılıyor?", "Hizmeti sunmak için Supabase (veritabanı ve dosya depolama), Vercel (site yayını), Google (doğrulama e-postaları) ve etkinse Web3Forms (geri bildirim iletimi) kullanılır. Bu sağlayıcıların sunucuları yurt dışında olabilir. Instagram gönderileri gömülü gösterildiğinde Meta kendi çerezlerini kullanabilir."],
+  ["Ne kadar saklıyoruz?", "Hesabın silinene kadar. Onaylanmayan ya da uygunsuz notlar yöneticiler tarafından silinebilir."],
+  ["Paylaştığın içerik", "Yüklediğin notları paylaşma hakkına sahip olduğunu kabul edersin. Telif hakkı ihlali içeren içerikler kaldırılır. Bildirim için geri bildirim formunu kullanabilirsin."],
+  ["Haklarının", "6698 sayılı KVKK'nın 11. maddesi uyarınca verilerine erişme, düzeltme ve silinmesini isteme hakkın vardır. Başvuru için afsudiyalizteam@gmail.com adresine yazabilirsin."],
+];
 
-function AlarmGuide() {
-  const [open, setOpen] = useState("air");
+function PrivacyModal({ open, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title="Gizlilik ve KVKK">
+      <h3 className="pr-8 font-display text-xl font-bold text-white">Gizlilik ve KVKK aydınlatma metni</h3>
+      <div className="mt-4 space-y-4 text-sm leading-relaxed text-slate-300">
+        {PRIVACY.map(([h, t]) => (<div key={h}><h4 className="font-semibold text-white">{h}</h4><p className="mt-1">{t}</p></div>))}
+      </div>
+      <button onClick={onClose} className="mt-6 w-full rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950">Anladım</button>
+    </Modal>
+  );
+}
 
-  const tone = {
-    rose: { dot: "bg-rose-400", border: "border-rose-500/40", chip: "text-rose-300 bg-rose-500/10", label: "Kritik" },
-    amber: { dot: "bg-amber-400", border: "border-amber-500/40", chip: "text-amber-300 bg-amber-500/10", label: "Dikkat" },
+const FB_TYPES = [
+  { id: "oneri", label: "Öneri", ph: "Sitede neyi eklemek ya da değiştirmek isterdin?" },
+  { id: "hata", label: "Hata", ph: "Ne oldu? Hangi sayfada? Ne bekliyordun?" },
+  { id: "soru", label: "Soru", ph: "Merak ettiğini buraya yaz." },
+  { id: "tesekkur", label: "Teşekkür", ph: "Bize iletmek istediğin güzel bir söz var mı?" },
+];
+
+function FeedbackModal({ open, onClose, user, profile, page, onDone }) {
+  const [type, setType] = useState("oneri");
+  const [msg, setMsg] = useState("");
+  const [name, setName] = useState("");
+  const [mail, setMail] = useState("");
+  const [trap, setTrap] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [viaMail, setViaMail] = useState(false);
+  const t = FB_TYPES.find((x) => x.id === type);
+
+  useEffect(() => {
+    if (!open) return;
+    setName((v) => v || profile?.full_name || "");
+    setMail((v) => v || user?.email || "");
+  }, [open, user?.email, profile?.full_name]);
+
+  const close = () => { setDone(false); setErr(""); onClose(); };
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr("");
+    const text = msg.trim();
+    const email = mail.trim();
+    const from = name.trim();
+    if (text.length < 10) return setErr("Mesajın en az 10 karakter olmalı.");
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return setErr("E-posta adresi geçerli görünmüyor.");
+    if (trap) { setViaMail(false); return setDone(true); }
+    if (Date.now() - Number(load("afsu_fb_last", 0)) < 60000) return setErr("Az önce bir mesaj gönderdin. Bir dakika sonra tekrar dene.");
+    const subject = `AFSÜ Diyaliz geri bildirimi: ${t.label}`;
+    const body = `${text}\n\n---\nTür: ${t.label}\nGönderen: ${from || "belirtilmedi"}\nE-posta: ${email || "belirtilmedi"}\nSayfa: #/${page}\nCihaz: ${navigator.userAgent.slice(0, 120)}`;
+    setBusy(true);
+    try {
+      if (WEB3FORMS_KEY) {
+        const res = await fetch("https://api.web3forms.com/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ access_key: WEB3FORMS_KEY, subject, from_name: from || "AFSÜ Diyaliz sitesi", ...(email ? { email } : {}), message: body }),
+        });
+        const out = await res.json();
+        if (!res.ok || !out.success) throw new Error("gonderilemedi");
+        save("afsu_fb_last", Date.now());
+        setViaMail(false);
+      } else {
+        // Anahtar yoksa telefonun e-posta uygulaması hazır mesajla açılır.
+        window.location.href = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        setViaMail(true);
+      }
+      setMsg("");
+      setDone(true);
+    } catch {
+      setErr("Gönderilemedi. İnternetini kontrol edip tekrar dene.");
+    }
+    setBusy(false);
   };
 
   return (
-    <section className="space-y-3">
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold text-slate-50">Makine alarmları ve hızlı müdahale</h2>
-        <p className="mt-1 text-sm text-slate-400">
-          Önce hastayı değerlendir, sonra makineyi. Alarmın nedenini bulmadan susturma.
-        </p>
-      </div>
-
-      {ALARMS.map((a) => {
-        const t = tone[a.level];
-        const isOpen = open === a.id;
-        return (
-          <div key={a.id} className={`rounded-2xl bg-slate-900/70 backdrop-blur border ${isOpen ? t.border : "border-slate-800"}`}>
-            <button
-              type="button"
-              onClick={() => setOpen(isOpen ? null : a.id)}
-              aria-expanded={isOpen}
-              className="w-full min-h-[56px] flex items-center gap-3 p-4 text-left"
-            >
-              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${t.dot}`} />
-              <span className="flex-1">
-                <span className="block font-medium text-slate-50">{a.title}</span>
-                <span className="block text-sm text-slate-400 mt-0.5">{a.short}</span>
-              </span>
-              <span className={`text-xs px-2 py-1 rounded-full shrink-0 ${t.chip}`}>{t.label}</span>
-              <ChevronDown className={`w-5 h-5 text-slate-400 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-            </button>
-
-            {isOpen && (
-              <div className="px-4 pb-4 grid gap-4 sm:grid-cols-2">
-                <div>
-                  <h3 className="text-sm font-semibold text-cyan-400">Olası nedenler</h3>
-                  <ul className="mt-2 space-y-1.5 text-sm text-slate-300 list-disc pl-5">
-                    {a.causes.map((c) => (
-                      <li key={c}>{c}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-sky-400">Müdahale adımları</h3>
-                  <ol className="mt-2 space-y-1.5 text-sm text-slate-300 list-decimal pl-5">
-                    {a.steps.map((s) => (
-                      <li key={s}>{s}</li>
-                    ))}
-                  </ol>
-                </div>
-              </div>
-            )}
+    <Modal open={open} onClose={close} title="Geri bildirim">
+      {done ? (
+        <div className="text-center">
+          <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-teal-500/25 text-teal-100 ring-1 ring-teal-400/50"><Check className="h-8 w-8" /></div>
+          <h3 className="font-display text-2xl font-bold text-white">{viaMail ? "Neredeyse tamam" : "Teşekkürler!"}</h3>
+          <p className="mt-2 text-sm leading-relaxed text-slate-300">{viaMail ? "E-posta uygulaman hazır mesajla açıldı. Gönder'e basarak tamamla." : "Mesajın bize ulaştı. En kısa zamanda okuyacağız."}</p>
+          <button onClick={close} className="mt-6 w-full rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950">Kapat</button>
+        </div>
+      ) : (
+        <form onSubmit={submit} noValidate className="space-y-4">
+          <div><h3 className="font-display text-xl font-bold text-white">Geri bildirim</h3><p className="mt-1 text-sm text-slate-400">Fikrin bizim için değerli. Tek dokunuşla bize ulaşır.</p></div>
+          <div>
+            <span className="mb-1.5 block text-sm font-medium text-slate-200">Ne hakkında?</span>
+            <div className="grid grid-cols-4 gap-2">
+              {FB_TYPES.map((x) => (
+                <button key={x.id} type="button" onClick={() => setType(x.id)} aria-pressed={type === x.id} className={`rounded-xl px-1 py-2.5 text-xs font-semibold transition ${type === x.id ? "bg-teal-500 text-slate-950" : "border border-sky-300/15 bg-white/5 text-slate-300"}`}>{x.label}</button>
+              ))}
+            </div>
           </div>
-        );
-      })}
-
-      <p className="text-xs text-slate-500 pt-1">
-        Makine modeline göre alarm limitleri ve ekranlar değişir. Kullanım kılavuzu ve kurum protokolü esastır.
-      </p>
-    </section>
+          <Field label="Mesajın">
+            <textarea value={msg} onChange={(e) => setMsg(e.target.value)} rows={5} maxLength={1000} placeholder={t.ph} className={`${inp} resize-none`} />
+            <span className="mt-1 block text-right text-xs text-slate-500">{msg.length}/1000</span>
+          </Field>
+          <Field label="Adın (isteğe bağlı)"><input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" className={inp} /></Field>
+          <Field label="E-posta (cevap istersen)"><input type="email" value={mail} onChange={(e) => setMail(e.target.value)} autoComplete="email" placeholder="ornek@mail.com" className={inp} /></Field>
+          <input value={trap} onChange={(e) => setTrap(e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden="true" className="sr-only" name="website" />
+          {err && <p role="alert" className="text-sm text-rose-300">{err}</p>}
+          <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-[0.98] disabled:opacity-60">{busy ? "Gönderiliyor…" : <><Send className="h-4 w-4" /> Gönder</>}</button>
+        </form>
+      )}
+    </Modal>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Modül 3: Quiz                                                      */
-/* ------------------------------------------------------------------ */
+function ShareModal({ open, onClose, onSubmit, moderated }) {
+  const empty = { title: "", cat: "", author: "" };
+  const [f, setF] = useState(empty);
+  const [errs, setErrs] = useState({});
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [file, setFile] = useState(null);
+  const [rights, setRights] = useState(false);
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const close = () => { setDone(false); setF(empty); setFile(null); setRights(false); setErrs({}); onClose(); };
+  const submit = async (e) => {
+    e.preventDefault();
+    const er = {};
+    if (!f.cat) er.cat = "Bir ders seç.";
+    if (f.title.trim().length < 3) er.title = "Not başlığı en az 3 karakter olmalı.";
+    if (!file) er.file = "Bir PDF dosyası seç.";
+    else if (!/\.pdf$/i.test(file.name)) er.file = "Sadece PDF dosyası yükleyebilirsin.";
+    else if (file.size > 10 * 1024 * 1024) er.file = "Dosya en fazla 10 MB olabilir.";
+    else if ((await file.slice(0, 5).text()) !== "%PDF-") er.file = "Bu dosya geçerli bir PDF değil.";
+    if (!rights) er.rights = "Devam etmek için onay vermelisin.";
+    setErrs(er);
+    if (Object.keys(er).length) return;
+    setBusy(true);
+    const res = await onSubmit({ cat: f.cat, title: f.title.trim(), course: catOf(f.cat).name, author: f.author.trim(), file });
+    setBusy(false);
+    if (res?.error) return setErrs({ form: res.error });
+    setDone(true);
+  };
+  return (
+    <Modal open={open} onClose={close} title="Not paylaş">
+      {done ? (
+        <div className="text-center">
+          <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-teal-400/15 text-teal-200 ring-1 ring-teal-300/30"><Check className="h-8 w-8" /></div>
+          <h3 className="font-display text-2xl font-bold text-white">{moderated ? "Notun onaya gönderildi" : "Notun havuzda"}</h3>
+          <p className="mt-2 text-sm text-slate-300">{moderated ? "Yöneticiler onayladığında havuzda görünecek. Teşekkürler!" : "Teşekkürler! Bu not, birinin sınav haftasını kurtarabilir."}</p>
+          <button onClick={close} className="mt-6 w-full rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950">Havuza dön</button>
+        </div>
+      ) : (
+        <form onSubmit={submit} noValidate className="space-y-4">
+          <div><h3 className="font-display text-xl font-bold text-white">Not paylaş</h3><p className="mt-1 text-sm text-slate-400">PDF dosyanı seç, gerisini topluluk halleder.</p></div>
+          <Field label="Ders" error={errs.cat}>
+            <select value={f.cat} onChange={set("cat")} className={inp}>
+              <option value="" className="bg-slate-900">Ders seç</option>
+              {TERMS.map((t) => (
+                <optgroup key={t.id} label={t.label} className="bg-slate-900">
+                  {t.courses.map((c) => <option key={c.id} value={c.id} className="bg-slate-900">{c.short === c.name ? c.name : `${c.short} · ${c.name}`}</option>)}
+                </optgroup>
+              ))}
+            </select>
+          </Field>
+          <Field label="Not başlığı" error={errs.title}><input value={f.title} onChange={set("title")} placeholder="Örn. Vasküler giriş yolları özeti" className={inp} /></Field>
+          <Field label="PDF dosyası" error={errs.file}>
+            <div className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-sky-300/30 bg-white/5 px-4 py-4 text-sm text-slate-200 hover:bg-white/10">
+              <FileText className="h-5 w-5 shrink-0 text-teal-300" />
+              <span className="min-w-0 flex-1 truncate">{file ? file.name : "Telefondan PDF seç"}</span>
+              <input type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            </div>
+          </Field>
+          <Field label="Adın (isteğe bağlı)"><input value={f.author} onChange={set("author")} placeholder="Boş bırakırsan gizli kalır" className={inp} /></Field>
+          <label className="flex items-start gap-3 text-xs leading-relaxed text-slate-300">
+            <input type="checkbox" checked={rights} onChange={(e) => setRights(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-teal-500" />
+            <span>Bu dosyayı paylaşma hakkına sahibim. Başkasına ait telifli içerik (kitap, ders slaytı vb.) yüklemiyorum. Uygunsuz içerikler kaldırılır.</span>
+          </label>
+          {errs.rights && <p role="alert" className="-mt-2 text-xs text-rose-300">{errs.rights}</p>}
+          {errs.form && <p role="alert" className="text-sm text-rose-300">{errs.form}</p>}
+          <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl disabled:opacity-60 bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-[0.98]">{busy ? "Yükleniyor…" : <><Upload className="h-4 w-4" /> Notu paylaş</>}</button>
+        </form>
+      )}
+    </Modal>
+  );
+}
 
-function Quiz() {
-  const [index, setIndex] = useState(0);
+/* ---------- Sayfalar / menü ---------- */
+const PAGES = [
+  { id: "home", label: "Ana sayfa", Icon: HeartPulse },
+  { id: "notlar", label: "Notlar", Icon: FileText },
+  { id: "mitler", label: "Doğru mu?", Icon: Lightbulb },
+  { id: "instagram", label: "Instagram", Icon: Insta },
+  { id: "hakkimizda", label: "Biz kimiz", Icon: Users },
+];
+const pageFromHash = () => {
+  const h = window.location.hash.replace("#/", "");
+  return PAGES.some((p) => p.id === h) || h === "yonetim" ? h : "home";
+};
+
+// Tanıtım videosu: public/tanitim.mp4 için "/tanitim.mp4" ya da bir YouTube linki yaz.
+const VIDEO_URL = "";
+
+function VideoCard() {
+  const yt = VIDEO_URL.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/);
+  const box = "aspect-video w-full overflow-hidden rounded-2xl border border-sky-300/15 bg-black";
+  if (yt) return <div className={box}><iframe src={`https://www.youtube.com/embed/${yt[1]}`} title="AFSÜ Diyaliz Team tanıtım videosu" allowFullScreen className="h-full w-full" /></div>;
+  if (VIDEO_URL) return <video src={VIDEO_URL} controls playsInline className={box} />;
+  return (
+    <div className="grid aspect-video w-full place-items-center rounded-2xl border border-sky-300/15 bg-gradient-to-br from-teal-700/40 to-[#0a1a30] p-4 text-center">
+      <div>
+        <Logo size="mx-auto h-16 w-16" />
+        <span className="mx-auto mt-3 grid h-11 w-11 place-items-center rounded-full bg-white/15"><Play className="h-5 w-5 text-white" /></span>
+        <p className="mt-2 text-sm text-slate-300">Tanıtım videosu hazırlanıyor</p>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Doğru mu, yanlış mı? oyunu ---------- */
+function TrueFalse() {
+  const [phase, setPhase] = useState("start"); // start | play | done
+  const [level, setLevel] = useState("all");
+  const [deck, setDeck] = useState([]);
+  const [idx, setIdx] = useState(0);
   const [picked, setPicked] = useState(null);
-  const [score, setScore] = useState(0);
-  const [finished, setFinished] = useState(false);
+  const [log, setLog] = useState([]);
+  const [retry, setRetry] = useState(false);
+  const [best, setBest] = useState(() => load("afsu_tf_best", {}));
 
-  const current = QUIZ[index];
-  const answered = picked !== null;
-
-  const choose = (i) => {
-    if (answered) return;
-    setPicked(i);
-    if (i === current.answer) setScore((s) => s + 1);
+  const begin = (lv, ids) => {
+    const qs = ids
+      ? ids.map((id) => QUESTIONS.find((x) => x.id === id))
+      : shuffle(QUESTIONS.filter((x) => lv === "all" || x.level === lv)).slice(0, TF_ROUND);
+    setLevel(lv); setDeck(qs); setIdx(0); setPicked(null); setLog([]); setRetry(!!ids); setPhase("play");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  const next = () => {
-    if (index + 1 >= QUIZ.length) {
-      setFinished(true);
-    } else {
-      setIndex((i) => i + 1);
-      setPicked(null);
+  const q = deck[idx];
+  const answer = (v) => {
+    if (picked !== null) return;
+    setPicked(v);
+    setLog((l) => [...l, { id: q.id, level: q.level, ok: v === q.isTrue }]);
+  };
+  const finish = () => {
+    if (!retry) {
+      const score = log.filter((x) => x.ok).length;
+      const key = String(level);
+      if (score > (best[key] ?? -1)) { const nb = { ...best, [key]: score }; setBest(nb); save("afsu_tf_best", nb); }
     }
+    setPhase("done");
+  };
+  const next = () => {
+    if (idx + 1 >= deck.length) finish();
+    else { setIdx(idx + 1); setPicked(null); }
   };
 
-  const restart = () => {
-    setIndex(0);
-    setPicked(null);
-    setScore(0);
-    setFinished(false);
-  };
-
-  if (finished) {
-    const pct = Math.round((score / QUIZ.length) * 100);
+  /* Seviye seçimi */
+  if (phase === "start") {
+    const cards = [...LEVELS, { id: "all", label: "Karışık", desc: "Üç seviyeden rastgele sorular", chip: "bg-indigo-500/25 text-indigo-100 ring-indigo-400/50" }];
     return (
-      <section className="rounded-2xl bg-slate-900/70 backdrop-blur border border-slate-800 p-6 text-center">
-        <Activity className="w-10 h-10 text-cyan-400 mx-auto" />
-        <h2 className="mt-3 text-xl font-semibold text-slate-50">Quiz tamamlandı</h2>
-        <p className="mt-2 text-4xl font-semibold text-cyan-400">
-          {score}/{QUIZ.length}
-        </p>
-        <p className="mt-2 text-sm text-slate-300">
-          {pct >= 80
-            ? "Çok iyi. Klinik temelin sağlam."
-            : pct >= 50
-            ? "İyi gidiyorsun. Yanlış yaptığın konuları tekrar et."
-            : "Alarmlar ve komplikasyonlar bölümlerini gözden geçirip tekrar dene."}
-        </p>
-        <button
-          type="button"
-          onClick={restart}
-          className="mt-5 min-h-[48px] inline-flex items-center gap-2 rounded-xl bg-cyan-400 text-slate-950 font-medium px-5 hover:bg-cyan-300"
-        >
-          <RotateCcw className="w-4 h-4" />
-          Yeniden başla
-        </button>
-      </section>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {cards.map((c) => {
+          const n = QUESTIONS.filter((x) => c.id === "all" || x.level === c.id).length;
+          const per = Math.min(TF_ROUND, n);
+          const b = best[String(c.id)];
+          return (
+            <button key={c.id} onClick={() => begin(c.id)} className="flex flex-col rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 text-left backdrop-blur-xl transition hover:bg-white/5 active:scale-[0.98]">
+              <span className={`self-start rounded-full px-3 py-1 text-xs ring-1 ${c.chip}`}>{c.label}</span>
+              <span className="mt-3 font-display text-lg font-bold leading-snug text-white">{c.desc}</span>
+              <span className="mt-2 text-xs text-slate-400">{n} soru · her turda {per} soru{b !== undefined ? ` · En iyi: ${b}/${per}` : ""}</span>
+            </button>
+          );
+        })}
+      </div>
     );
   }
 
-  return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between text-sm text-slate-400">
-        <span>
-          Soru {index + 1} / {QUIZ.length}
-        </span>
-        <span>Puan: {score}</span>
-      </div>
-      <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
-        <div className="h-full bg-cyan-400 transition-all" style={{ width: `${((index + (answered ? 1 : 0)) / QUIZ.length) * 100}%` }} />
-      </div>
-
-      <div className="rounded-2xl bg-slate-900/70 backdrop-blur border border-slate-800 p-4 sm:p-6">
-        <h2 className="text-lg font-medium text-slate-50 leading-snug">{current.q}</h2>
-
-        <div className="mt-4 space-y-2.5">
-          {current.options.map((opt, i) => {
-            const isCorrect = i === current.answer;
-            const isPicked = i === picked;
-            let cls = "border-slate-700 bg-slate-950 hover:border-cyan-400/60";
-            if (answered && isCorrect) cls = "border-emerald-500/60 bg-emerald-950/40";
-            else if (answered && isPicked) cls = "border-rose-500/60 bg-rose-950/40";
-            else if (answered) cls = "border-slate-800 bg-slate-950 opacity-60";
-
-            return (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => choose(i)}
-                disabled={answered}
-                className={`w-full min-h-[52px] flex items-start gap-3 text-left rounded-xl border px-3.5 py-3 text-sm text-slate-100 transition-colors ${cls}`}
-              >
-                <span className="mt-0.5 shrink-0 w-5 h-5 flex items-center justify-center">
-                  {answered && isCorrect ? (
-                    <Check className="w-5 h-5 text-emerald-400" />
-                  ) : answered && isPicked ? (
-                    <X className="w-5 h-5 text-rose-400" />
-                  ) : (
-                    <span className="w-4 h-4 rounded-full border border-slate-500" />
-                  )}
-                </span>
-                <span>{opt}</span>
-              </button>
-            );
-          })}
+  /* Soru ekranı */
+  if (phase === "play" && q) {
+    const lv = levelOf(q.level);
+    const answered = picked !== null;
+    const ok = answered && picked === q.isTrue;
+    return (
+      <div>
+        <div className="flex items-center justify-between text-sm text-slate-400">
+          <span>Soru {idx + 1} / {deck.length}</span>
+          <button onClick={() => setPhase("start")} className="rounded-full px-3 py-1 text-xs hover:bg-white/5 hover:text-slate-200">Çık</button>
         </div>
-
-        {answered && (
-          <div className="mt-4 rounded-xl border border-sky-500/30 bg-sky-950/30 p-3.5">
-            <p className={`text-sm font-semibold ${picked === current.answer ? "text-emerald-300" : "text-rose-300"}`}>
-              {picked === current.answer ? "Doğru" : "Yanlış"}
-            </p>
-            <p className="mt-1 text-sm text-slate-200">{current.why}</p>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full bg-teal-400 transition-all" style={{ width: `${((idx + (answered ? 1 : 0)) / deck.length) * 100}%` }} />
+        </div>
+        <article className="mt-4 rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-5 backdrop-blur-xl">
+          <div className="flex flex-wrap gap-2">
+            <span className={`rounded-full px-3 py-1 text-xs ring-1 ${lv.chip}`}>{lv.label}</span>
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-slate-300">{q.topic}</span>
           </div>
+          <p className="mt-4 text-xs text-slate-400">Bu ifade doğru mu?</p>
+          <h3 className="mt-1 font-display text-xl font-bold leading-snug text-white">{q.text}</h3>
+          {!answered ? (
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button onClick={() => answer(true)} className="rounded-xl border border-teal-400/60 bg-teal-500/25 py-3.5 text-sm font-semibold text-teal-50 active:scale-95">Doğru</button>
+              <button onClick={() => answer(false)} className="rounded-xl border border-rose-400/60 bg-rose-600/25 py-3.5 text-sm font-semibold text-rose-50 active:scale-95">Yanlış</button>
+            </div>
+          ) : (
+            <div className={`pop mt-4 rounded-2xl border p-4 ${ok ? "border-teal-400/50 bg-teal-500/20" : "border-amber-400/50 bg-amber-500/20"}`}>
+              <p className={`flex items-center gap-2 text-sm font-semibold ${ok ? "text-teal-200" : "text-amber-200"}`}>
+                {ok ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+                {ok ? "Doğru bildin!" : q.isTrue ? "Bu ifade doğruydu." : "Bu ifade yanlıştı."}
+              </p>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{q.fact}</p>
+            </div>
+          )}
+        </article>
+        {answered && (
+          <button onClick={next} className="mt-4 w-full rounded-2xl bg-gradient-to-r from-teal-500 to-sky-600 px-5 py-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-[0.98]">
+            {idx + 1 >= deck.length ? "Sonucu gör" : "Sonraki soru"}
+          </button>
         )}
       </div>
+    );
+  }
 
-      <button
-        type="button"
-        onClick={next}
-        disabled={!answered}
-        className="w-full min-h-[48px] rounded-xl bg-cyan-400 text-slate-950 font-medium disabled:bg-slate-800 disabled:text-slate-500 hover:bg-cyan-300 disabled:hover:bg-slate-800"
-      >
-        {index + 1 >= QUIZ.length ? "Sonucu gör" : "Sonraki soru"}
-      </button>
-    </section>
+  /* Sonuç ekranı */
+  const total = deck.length;
+  const score = log.filter((x) => x.ok).length;
+  const wrong = log.filter((x) => !x.ok).map((x) => x.id);
+  const pct = total ? Math.round((score / total) * 100) : 0;
+  return (
+    <div className="space-y-3">
+      <div className="rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-6 text-center backdrop-blur-xl">
+        <p className="text-sm text-slate-400">{retry ? "Tekrar turu sonucu" : "Tur sonucu"}</p>
+        <p className="mt-1 font-display text-5xl font-extrabold text-white">{score}<span className="text-2xl text-slate-400">/{total}</span></p>
+        <p className="mt-2 text-sm text-slate-300">
+          {pct >= 80 ? "Çok iyi. Temelin sağlam." : pct >= 50 ? "İyi gidiyorsun. Yanlışlarını tekrar etmek işe yarar." : "Önce Kolay seviyeden başlayıp yanlışlarını tekrar etmeni öneririz."}
+        </p>
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {LEVELS.map((l) => {
+            const t = log.filter((x) => x.level === l.id);
+            if (!t.length) return null;
+            return <span key={l.id} className={`rounded-full px-3 py-1 text-xs ring-1 ${l.chip}`}>{l.label}: {t.filter((x) => x.ok).length}/{t.length}</span>;
+          })}
+        </div>
+      </div>
+      {wrong.length > 0 && (
+        <div className="rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 backdrop-blur-xl">
+          <h3 className="font-display text-base font-bold text-white">Tekrar etmen gerekenler</h3>
+          <ul className="mt-2 space-y-2">
+            {wrong.map((id) => {
+              const x = QUESTIONS.find((y) => y.id === id);
+              return (
+                <li key={id} className="text-sm leading-relaxed text-slate-300">
+                  <span className={`mr-2 rounded-full px-2 py-0.5 text-xs ${x.isTrue ? "bg-teal-500/25 text-teal-100" : "bg-rose-500/25 text-rose-100"}`}>{x.isTrue ? "Doğru" : "Yanlış"}</span>{x.text}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+      <div className="grid gap-3 sm:grid-cols-3">
+        {wrong.length > 0 && <button onClick={() => begin(level, wrong)} className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3.5 text-sm font-semibold text-slate-950 active:scale-[0.98]"><RotateCw className="h-4 w-4" /> Yanlışları tekrar et</button>}
+        <button onClick={() => begin(level)} className="rounded-2xl border border-sky-300/15 px-4 py-3.5 text-sm text-slate-100 hover:bg-white/5 active:scale-[0.98]">Yeni tur</button>
+        <button onClick={() => setPhase("start")} className="rounded-2xl border border-sky-300/15 px-4 py-3.5 text-sm text-slate-100 hover:bg-white/5 active:scale-[0.98]">Seviye seç</button>
+      </div>
+    </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Modül 4: Öğrenci Köşesi                                            */
-/* ------------------------------------------------------------------ */
+/* ---------- Ana uygulama ---------- */
+export default function App() {
+  const [page, setPage] = useState(pageFromHash);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [dbNotes, setDbNotes] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [fbOpen, setFbOpen] = useState(false);
+  const [privOpen, setPrivOpen] = useState(false);
+  const [recovery, setRecovery] = useState(false);
+  const [igPosts, setIgPosts] = useState([]);
+  const [igLink, setIgLink] = useState("");
+  const [userNotes, setUserNotes] = useState(() => load("afsu_notes", []));
+  const [cat, setCat] = useState("all");
+  const [grp, setGrp] = useState("all");
+  const [query, setQuery] = useState("");
+  const [votes, setVotes] = useState(() => load("afsu_votes", POLL.opts.map(() => 0)));
+  const [myVote, setMyVote] = useState(() => load("afsu_myvote", null));
+  const [openQ, setOpenQ] = useState(0);
+  const [toast, setToast] = useState("");
 
-function StudentCorner() {
-  const [sub, setSub] = useState("log");
-  const subs = [
-    { id: "log", label: "Staj defteri", icon: ClipboardList },
-    { id: "notes", label: "Ders özetleri", icon: BookOpen },
-    { id: "kpss", label: "KPSS Önlisans", icon: GraduationCap },
+  useEffect(() => {
+    const onHash = () => { setPage(pageFromHash()); window.scrollTo({ top: 0 }); };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  useEffect(() => {
+    // Chrome'un otomatik çevirisi yazıları bozuyordu ("Not" -> "Değil"): çeviriyi kapat.
+    document.documentElement.lang = "tr";
+    document.documentElement.setAttribute("translate", "no");
+    let m = document.querySelector('meta[name="google"]');
+    if (!m) { m = document.createElement("meta"); m.name = "google"; document.head.appendChild(m); }
+    m.content = "notranslate";
+  }, []);
+  const uid = user?.id;
+  const isAdmin = profile?.role === "admin";
+  useEffect(() => {
+    if (!sb) return;
+    sb.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
+    const { data } = sb.auth.onAuthStateChange((ev, sess) => {
+      setUser(sess?.user ?? null);
+      if (ev === "PASSWORD_RECOVERY") { setRecovery(true); setAuthOpen(true); }
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+  useEffect(() => {
+    if (!sb || !uid) { setProfile(null); return; }
+    sb.from("profiles").select("*").eq("id", uid).maybeSingle().then(({ data }) => setProfile(data));
+  }, [uid]);
+  const loadNotes = useCallback(async () => {
+    if (!sb) return;
+    const { data } = await sb.from("notes").select("*").order("created_at", { ascending: false });
+    setDbNotes(data || []);
+  }, []);
+  const loadUsers = useCallback(async () => {
+    if (!sb) return;
+    const { data } = await sb.from("profiles").select("*").order("created_at", { ascending: false });
+    setUsers(data || []);
+  }, []);
+  useEffect(() => { loadNotes(); }, [loadNotes, uid]);
+  useEffect(() => { if (isAdmin) loadUsers(); }, [isAdmin, loadUsers]);
+  const loadPosts = useCallback(async () => {
+    if (!sb) return;
+    const { data } = await sb.from("ig_posts").select("*").order("created_at", { ascending: false });
+    setIgPosts(data || []);
+  }, []);
+  useEffect(() => { loadPosts(); }, [loadPosts]);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 2600); return () => clearTimeout(t); }, [toast]);
+
+  const notes = useMemo(() => {
+    const real = dbNotes
+      .filter((n) => n.status === "approved" || n.user_id === uid)
+      .map((n) => ({ id: n.id, cat: n.category, title: n.title, course: n.course, author: n.author_name || "Öğrenci", url: n.url, file_path: n.file_path, pending: n.status === "pending" }));
+    return [...userNotes, ...real, ...(SHOW_SEED_NOTES ? SEED_NOTES : [])];
+  }, [userNotes, dbNotes, uid]);
+  const shown = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase("tr");
+    return notes.filter((n) => (cat === "all" ? grp === "all" || catOf(n.cat).term === grp : n.cat === cat) && (!q || `${n.title} ${n.course}`.toLocaleLowerCase("tr").includes(q)));
+  }, [notes, cat, grp, query]);
+
+  const totalVotes = votes.reduce((a, b) => a + b, 0);
+  const grpCourses = grp === "all" ? [] : TERMS.find((t) => t.id === grp)?.courses ?? [];
+
+  const go = (id) => { if (pageFromHash() === id) window.scrollTo({ top: 0, behavior: "smooth" }); else window.location.hash = `/${id}`; };
+  const openShare = () => {
+    if (sb && !user) { setAuthOpen(true); setToast("Not paylaşmak için önce giriş yap."); return; }
+    setShareOpen(true);
+  };
+  const addNote = async (n) => {
+    if (!sb) return { error: "Dosya yüklemek için sunucu bağlantısı gerekir." };
+    const rid = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2, 12);
+    const path = `${user.id}/${rid}.pdf`;
+    const up = await sb.storage.from("note-files").upload(path, n.file, { contentType: "application/pdf" });
+    if (up.error) return { error: "Dosya yüklenemedi. PDF olduğundan ve 10 MB'ı geçmediğinden emin ol." };
+    const { data: pub } = sb.storage.from("note-files").getPublicUrl(path);
+    const { error } = await sb.from("notes").insert({ user_id: user.id, title: n.title, course: n.course, category: n.cat, url: pub.publicUrl, file_path: path, author_name: n.author || profile?.full_name || null });
+    if (error) { await sb.storage.from("note-files").remove([path]); return { error: "Not gönderilemedi. Biraz sonra tekrar dene." }; }
+    await loadNotes();
+    return {};
+  };
+  const addPost = async (raw = igLink) => {
+    const p = parseIg(raw);
+    if (!p) return setToast("Geçerli bir Instagram gönderi linki yapıştır.");
+    const { error } = await sb.from("ig_posts").insert({ kind: p.kind, code: p.code, url: `https://www.instagram.com/${p.kind}/${p.code}/` });
+    if (error) return setToast(error.code === "23505" ? "Bu gönderi zaten ekli." : "Eklenemedi.");
+    setIgLink(""); setToast("Gönderi eklendi."); loadPosts();
+  };
+  const deletePost = async (id) => {
+    if (!window.confirm("Bu gönderi kaldırılsın mı?")) return;
+    const { error } = await sb.from("ig_posts").delete().eq("id", id);
+    setToast(error ? "Kaldırılamadı." : "Gönderi kaldırıldı."); loadPosts();
+  };
+  const approveNote = async (id) => { const { error } = await sb.from("notes").update({ status: "approved" }).eq("id", id); setToast(error ? "İşlem başarısız." : "Not onaylandı."); loadNotes(); };
+  const deleteNote = async (n) => {
+    if (!window.confirm("Bu not silinsin mi?")) return;
+    const { error } = await sb.from("notes").delete().eq("id", n.id);
+    if (!error && n.file_path) await sb.storage.from("note-files").remove([n.file_path]);
+    setToast(error ? "Silinemedi." : "Not silindi."); loadNotes();
+  };
+  const toggleRole = async (u) => {
+    if (!window.confirm(`${u.full_name || u.email} için rol değiştirilsin mi?`)) return;
+    const { error } = await sb.from("profiles").update({ role: u.role === "admin" ? "student" : "admin" }).eq("id", u.id);
+    setToast(error ? "İşlem başarısız." : "Rol güncellendi."); loadUsers();
+  };
+  const openNote = (n, download = false) => {
+    if (!n.url) return setToast("Bu bir örnek kart. Gerçek not eklenince burada açılır.");
+    const href = download && n.file_path ? `${n.url}?download=${encodeURIComponent(`${n.title}.pdf`)}` : n.url;
+    window.open(href, "_blank", "noopener,noreferrer");
+  };
+  const vote = (i) => {
+    if (myVote !== null) return;
+    const next = votes.map((v, j) => (j === i ? v + 1 : v));
+    setVotes(next); setMyVote(i); save("afsu_votes", next); save("afsu_myvote", i);
+  };
+
+  const tiles = [
+    { id: "notlar", Icon: FileText, title: "Not havuzu", sub: `${notes.length} not`, cls: "border-teal-400/40 from-teal-600/40 to-teal-950/70", ic: "text-teal-200" },
+    { id: "mitler", Icon: Lightbulb, title: "Doğru mu, yanlış mı?", sub: `${QUESTIONS.length} soru · 3 seviye`, cls: "border-indigo-400/40 from-indigo-600/40 to-indigo-950/70", ic: "text-indigo-200" },
+    { id: "instagram", Icon: Insta, title: "Instagram", sub: "Duyuru ve anketler", cls: "border-rose-400/40 from-rose-600/40 to-rose-950/70", ic: "text-rose-200" },
+    { id: "hakkimizda", Icon: Play, title: "Bizi tanı", sub: "Video ve amacımız", cls: "border-sky-400/40 from-sky-600/40 to-sky-950/70", ic: "text-sky-200" },
   ];
 
   return (
-    <section className="space-y-4">
-      <div>
-        <h2 className="text-xl font-semibold text-slate-50">Stajyer ve öğrenci köşesi</h2>
-        <p className="mt-1 text-sm text-slate-400">Staj, ders ve kariyer için kısa başvuru notları.</p>
+    <div translate="no" lang="tr" className="min-h-screen bg-[#040b17] text-slate-100 antialiased" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Fraunces:ital,wght@1,400&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
+        .font-display{font-family:'Bricolage Grotesque',system-ui,sans-serif}
+        .font-script{font-family:'Fraunces',Georgia,serif;font-style:italic}
+        .no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{scrollbar-width:none}
+        @keyframes ecg{from{stroke-dashoffset:1400}to{stroke-dashoffset:0}}
+        .ecg{stroke-dasharray:1400;animation:ecg 3.6s ease-in-out infinite alternate}
+        @keyframes beat{0%,100%{transform:scale(1)}15%{transform:scale(1.07)}30%{transform:scale(1)}45%{transform:scale(1.05)}}
+        .beat{animation:beat 1.6s ease-in-out infinite}
+        @keyframes pop{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
+        .pop{animation:pop .22s ease-out}
+        @media (prefers-reduced-motion:reduce){.ecg,.pop,.beat{animation:none}}
+      `}</style>
+
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-teal-600/20 blur-[100px]" />
+        <div className="absolute right-[-6rem] top-1/3 h-96 w-96 rounded-full bg-blue-700/25 blur-[100px]" />
+        <div className="absolute bottom-0 left-1/4 h-80 w-80 rounded-full bg-rose-800/15 blur-[100px]" />
       </div>
 
-      <div className="grid grid-cols-3 gap-2" role="tablist">
-        {subs.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={sub === id}
-            onClick={() => setSub(id)}
-            className={`min-h-[56px] flex flex-col items-center justify-center gap-1 rounded-xl border text-xs sm:text-sm px-2 ${
-              sub === id
-                ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-300"
-                : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-600"
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {sub === "log" && (
-        <div className="rounded-2xl bg-slate-900/70 backdrop-blur border border-slate-800 p-4 sm:p-6 space-y-4">
-          <h3 className="font-semibold text-slate-50">Her seans için günlük yapısı</h3>
-          <ol className="space-y-2 text-sm text-slate-300 list-decimal pl-5">
-            {LOG_TEMPLATE.map((l) => (
-              <li key={l}>{l}</li>
-            ))}
-          </ol>
-          <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3.5 text-sm text-amber-100/90">
-            Hasta adı, TC kimlik numarası ve telefon gibi kişisel verileri deftere yazma. Hasta kodu veya baş harfleri
-            yeterlidir.
-          </div>
-          <p className="text-sm text-slate-400">
-            İyi bir kayıt kısa, tarihli ve tekrar edilebilir olur: ne gördün, ne yaptın, bir sonraki seferde neyi farklı
-            yaparsın.
-          </p>
-        </div>
-      )}
-
-      {sub === "notes" && (
-        <div className="space-y-3">
-          {COURSES.map((c) => (
-            <div key={c.title} className="rounded-2xl bg-slate-900/70 backdrop-blur border border-slate-800 p-4">
-              <h3 className="font-semibold text-cyan-400">{c.title}</h3>
-              <ul className="mt-2 space-y-1.5 text-sm text-slate-300 list-disc pl-5">
-                {c.items.map((i) => (
-                  <li key={i}>{i}</li>
-                ))}
-              </ul>
+      <div className="relative z-10">
+        {/* ÜST BAR */}
+        <header className="sticky top-0 z-40 border-b border-sky-300/15 bg-[#040b17]/80 backdrop-blur-xl" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5">
+            <button onClick={() => go("home")} className="flex min-w-0 items-center gap-3 text-left" aria-label="Ana sayfa">
+              <Logo />
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate font-display text-base font-bold text-white">@afsudiyalizteam</span>
+                <span className="block truncate text-[11px] text-slate-400">Afyonkarahisar Sağlık Bilimleri Üniversitesi</span>
+              </span>
+            </button>
+            <nav className="hidden items-center gap-1 md:flex" aria-label="Ana menü">
+              {PAGES.map(({ id, label }) => (
+                <button key={id} onClick={() => go(id)} aria-current={page === id ? "page" : undefined} className={`rounded-full px-3.5 py-2 text-sm font-medium transition ${page === id ? "bg-teal-500/20 text-teal-200" : "text-slate-300 hover:bg-white/5"}`}>{label}</button>
+              ))}
+            </nav>
+            <div className="flex shrink-0 items-center gap-2">
+              <button onClick={() => setAuthOpen(true)} className="flex h-10 items-center gap-2 rounded-full bg-gradient-to-r from-teal-500 to-sky-600 px-4 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-95">
+                {user ? <><span className="grid h-5 w-5 place-items-center rounded-full bg-slate-950/20 text-xs">{(profile?.full_name || user.email || "?")[0].toUpperCase()}</span><span className="max-w-[6rem] truncate">{(profile?.full_name || (user.email || "").split("@")[0]).split(" ")[0]}</span></> : <><span className="hidden sm:inline">Topluluğa&nbsp;</span>Katıl</>}
+              </button>
             </div>
+          </div>
+        </header>
+
+        <main className="mx-auto max-w-5xl px-4 pb-8 pt-6">
+          {/* ANA SAYFA */}
+          {page === "home" && (
+            <section className="flex flex-col items-center pt-4 text-center">
+              <div className="beat"><Logo size="h-24 w-24" /></div>
+              <h1 className="font-display mt-5 text-5xl font-extrabold text-white sm:text-7xl">Hoş geldiniz</h1>
+              <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-300 sm:max-w-md sm:text-base">AFSÜ Diyaliz Team: notların, deneyimlerin ve soruların aynı masada buluştuğu öğrenci topluluğu.</p>
+              <svg viewBox="0 0 600 120" className="mt-5 h-24 w-full max-w-2xl sm:h-32" fill="none" aria-hidden="true" preserveAspectRatio="none">
+                <defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stopColor="#2dd4bf" /><stop offset="0.6" stopColor="#38bdf8" /><stop offset="1" stopColor="#e11d48" /></linearGradient></defs>
+                <path className="ecg" d="M0 62 H110 L130 62 L146 22 L168 104 L190 42 L206 62 H330 L350 62 L366 22 L388 104 L410 42 L426 62 H600" stroke="url(#g)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div className="mt-6 grid w-full max-w-xl grid-cols-2 gap-3 text-left">
+                {tiles.map(({ id, Icon, title, sub, cls, ic }) => (
+                  <button key={id} onClick={() => go(id)} className={`flex flex-col justify-between rounded-3xl border bg-gradient-to-br p-4 transition active:scale-[0.97] ${cls}`} style={{ minHeight: "7.5rem" }}>
+                    <Icon className={`h-6 w-6 ${ic}`} />
+                    <span><span className="block font-display text-base font-bold leading-tight text-white">{title}</span><span className="mt-0.5 block text-xs text-slate-300">{sub}</span></span>
+                  </button>
+                ))}
+              </div>
+              <button onClick={openShare} className="mt-4 flex w-full max-w-xl items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-teal-500 to-sky-600 px-5 py-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-[0.98]"><Plus className="h-4 w-4" /> Not paylaş</button>
+            </section>
+          )}
+
+          {/* NOTLAR */}
+          {page === "notlar" && (
+            <section>
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <SectionHead title="Not havuzu" desc="Öğrencilerden öğrencilere: derslere göre notlar ve KPSS kaynakları." />
+                <button onClick={openShare} className="mb-4 flex items-center gap-2 rounded-full bg-gradient-to-r from-teal-500 to-sky-600 px-5 py-3 text-sm font-semibold text-slate-950 active:scale-95"><Upload className="h-4 w-4" /> Not paylaş</button>
+              </div>
+              <div className="relative mb-3">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Not ya da ders ara" className={`${inp} pl-11`} />
+              </div>
+              <div className={`no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 ${grpCourses.length > 1 ? "mb-2" : "mb-4"}`}>
+                {[{ id: "all", label: "Tümü" }, ...TERMS].map((t) => (
+                  <button key={t.id} onClick={() => { setGrp(t.id); setCat("all"); }} className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${grp === t.id ? "bg-teal-500 text-slate-950" : "border border-sky-300/15 bg-[#0a1a30]/90 text-slate-300 hover:bg-white/10"}`}>{t.label}</button>
+                ))}
+              </div>
+              {grpCourses.length > 1 && (
+                <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
+                  {[{ id: "all", short: "Tüm dersler" }, ...grpCourses].map((c) => (
+                    <button key={c.id} onClick={() => setCat(c.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${cat === c.id ? "bg-sky-500 text-slate-950" : "border border-sky-300/15 text-slate-300 hover:bg-white/10"}`}>{c.short}</button>
+                  ))}
+                </div>
+              )}
+              {shown.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-sky-300/20 p-8 text-center">
+                  <p className="font-medium text-white">{notes.length === 0 ? "Henüz paylaşılan not yok." : "Bu aramaya uyan not yok."}</p>
+                  <p className="mt-1 text-sm text-slate-400">{notes.length === 0 ? "İlk notu sen paylaş, diğerleri sana teşekkür etsin." : "Aradığın not sende varsa, ilk paylaşan sen ol."}</p>
+                  <button onClick={openShare} className="mt-4 rounded-full bg-teal-500 px-5 py-2.5 text-sm font-semibold text-slate-950">Not paylaş</button>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {shown.map((n) => {
+                    const c = catOf(n.cat);
+                    return (
+                      <article key={n.id} className="flex flex-col rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 backdrop-blur-xl">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ring-1 ${c.chip}`}>{c.short}</span>
+                          {n.isNew && <span className="rounded-full bg-teal-500 px-2.5 py-1 text-xs font-semibold text-slate-950">Yeni</span>}
+                          {n.pending && <span className="rounded-full bg-amber-500/25 px-2.5 py-1 text-xs text-amber-100">Onay bekliyor</span>}
+                          {n.sample && <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-slate-400">Örnek</span>}
+                        </div>
+                        <h3 className="mt-3 font-display text-lg font-bold leading-snug text-white">{n.title}</h3>
+                        <p className="mt-1 text-sm text-slate-400">{n.course} · {n.author}</p>
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          <button onClick={() => openNote(n)} className="flex items-center justify-center gap-2 rounded-xl border border-sky-300/15 py-2.5 text-sm text-slate-100 hover:bg-white/10"><Eye className="h-4 w-4" /> İncele</button>
+                          <button onClick={() => openNote(n, true)} className="flex items-center justify-center gap-2 rounded-xl bg-teal-500/20 py-2.5 text-sm font-semibold text-teal-100 hover:bg-teal-500/30"><Download className="h-4 w-4" /> İndir</button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* DOĞRU MU, YANLIŞ MI */}
+          {page === "mitler" && (
+            <section>
+              <SectionHead title="Doğru mu, yanlış mı?" desc="Seviyeni seç, ifadeye karar ver, sonra gerçeği gör." />
+              <TrueFalse />
+              <p className="mt-4 text-xs leading-relaxed text-slate-500">Eğitim amaçlıdır; klinik karar ve tıbbi tavsiye yerine geçmez.</p>
+            </section>
+          )}
+
+          {/* INSTAGRAM */}
+          {page === "instagram" && (
+            <section>
+              <SectionHead title="Instagram'dan" desc="Duyurular, anketler ve sorular @afsudiyalizteam hesabında. Burada özetini görürsün." />
+              {igPosts.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-sky-300/20 p-8 text-center">
+                  <p className="font-medium text-white">Gönderiler çok yakında burada.</p>
+                  <p className="mt-1 text-sm text-slate-400">Şimdilik hesabımızı Instagram'dan takip edebilirsin.</p>
+                  <a href={IG_URL} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-full bg-teal-500 px-5 py-2.5 text-sm font-semibold text-slate-950"><Insta className="h-4 w-4" /> Instagram'a git</a>
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {igPosts.slice(0, 6).map((p) => (
+                    <div key={p.id} className="overflow-hidden rounded-3xl border border-sky-300/15 bg-white">
+                      <iframe src={`https://www.instagram.com/${p.kind}/${p.code}/embed`} title="Instagram gönderisi" loading="lazy" scrolling="no" className="block h-[560px] w-full" />
+                      <a href={p.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 bg-[#0a1a30] py-3 text-sm text-slate-100"><Insta className="h-4 w-4" /> Instagram'da aç</a>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div className="rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 backdrop-blur-xl">
+                  <h3 className="font-display text-lg font-bold text-white">{POLL.q}</h3>
+                  <div className="mt-3 space-y-2">
+                    {POLL.opts.map((o, i) => {
+                      const pct = totalVotes ? Math.round((votes[i] / totalVotes) * 100) : 0;
+                      return (
+                        <button key={o} onClick={() => vote(i)} disabled={myVote !== null} className={`relative w-full overflow-hidden rounded-xl border px-4 py-3 text-left text-sm ${myVote === i ? "border-teal-300/60" : "border-sky-300/15"} ${myVote === null ? "hover:bg-white/10 active:scale-[0.99]" : ""}`}>
+                          {myVote !== null && <span className="absolute inset-y-0 left-0 bg-teal-500/25 transition-all duration-500" style={{ width: `${pct}%` }} />}
+                          <span className="relative flex items-center justify-between gap-3"><span>{o}</span>{myVote !== null && <span className="text-xs text-slate-300">%{pct}</span>}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-3 text-xs text-slate-500">{myVote === null ? "Oyunu ver, sonuçlar açılsın." : "Oyun kaydedildi. Sonuçlar şimdilik bu cihazda tutuluyor."}</p>
+                </div>
+                <div className="rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 backdrop-blur-xl">
+                  <h3 className="font-display text-lg font-bold text-white">Sık sorulanlar</h3>
+                  <div className="mt-2 divide-y divide-sky-300/15">
+                    {QA.map((x, i) => (
+                      <div key={x.q}>
+                        <button onClick={() => setOpenQ(openQ === i ? -1 : i)} aria-expanded={openQ === i} className="flex w-full items-center justify-between gap-3 py-3 text-left text-sm font-medium text-slate-100">
+                          {x.q}<ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition ${openQ === i ? "rotate-180" : ""}`} />
+                        </button>
+                        {openQ === i && <p className="pop pb-3 text-sm leading-relaxed text-slate-300">{x.a}</p>}
+                      </div>
+                    ))}
+                  </div>
+                  <a href={IG_DM} target="_blank" rel="noopener noreferrer" className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-sky-300/15 py-3 text-sm text-slate-100 hover:bg-white/10"><MessageCircle className="h-4 w-4" /> Soru sor (Instagram DM)</a>
+                </div>
+              </div>
+              <a href={IG_URL} target="_blank" rel="noopener noreferrer" className="mt-4 flex items-center justify-between gap-4 rounded-3xl bg-gradient-to-r from-teal-500 to-sky-600 p-5 text-slate-950 active:scale-[0.99]">
+                <span><span className="block font-display text-xl font-bold">Bizi takip et</span><span className="text-sm">Yeni notlar ve duyurular ilk orada.</span></span>
+                <Send className="h-6 w-6 shrink-0" />
+              </a>
+            </section>
+          )}
+
+          {/* BİZ KİMİZ */}
+          {page === "hakkimizda" && (
+            <section className="mx-auto max-w-2xl">
+              <SectionHead title="Biz kimiz?" desc="Bu siteyi neden kurduk? Videoda kısaca anlatıyoruz." />
+              <VideoCard />
+              <div className="mt-4 grid gap-3">
+                {[
+                  ["Yardımlaşma", "Dersler, sınavlar ve KPSS sürecinde birbirimize destek oluruz.", "border-teal-400/40"],
+                  ["Not paylaşımı", "Ders notları ve KPSS kaynakları tek havuzda toplanır.", "border-sky-400/40"],
+                  ["Doğru bilgi", "Diyaliz ve böbrek sağlığı hakkındaki yaygın yanlışları birlikte düzeltiriz.", "border-rose-400/40"],
+                ].map(([t, d, b]) => (
+                  <div key={t} className={`rounded-2xl border bg-[#0a1a30]/90 p-4 ${b}`}>
+                    <h3 className="font-display text-base font-bold text-white">{t}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-300">{d}</p>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => setFbOpen(true)} className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-teal-400/40 bg-teal-500/15 p-4 text-left active:scale-[0.99]">
+                <MessageCircle className="h-6 w-6 shrink-0 text-teal-200" />
+                <span><span className="block font-display text-base font-bold text-white">Geri bildirim gönder</span><span className="text-sm text-slate-300">Önerin, hatan ya da sorun varsa bize yaz.</span></span>
+              </button>
+            </section>
+          )}
+          {/* YÖNETİM */}
+          {page === "yonetim" && (
+            <section>
+              <SectionHead title="Yönetim paneli" desc="Kullanıcıları ve not paylaşımlarını buradan yönet." />
+              {!isAdmin ? (
+                <div className="rounded-3xl border border-dashed border-sky-300/20 p-8 text-center text-sm text-slate-300">Bu sayfa sadece yöneticiler içindir.</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[[users.length, "kullanıcı"], [dbNotes.filter((n) => n.status === "pending").length, "bekleyen not"], [dbNotes.filter((n) => n.status === "approved").length, "onaylı not"]].map(([n, l]) => (
+                      <div key={l} className="rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-4"><div className="font-display text-2xl font-bold text-white">{n}</div><div className="text-xs text-slate-400">{l}</div></div>
+                    ))}
+                  </div>
+                  <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Instagram gönderileri</h3>
+                  <div className="flex gap-2">
+                    <input value={igLink} onChange={(e) => setIgLink(e.target.value)} onPaste={(e) => { const t = e.clipboardData.getData("text"); if (parseIg(t)) { e.preventDefault(); addPost(t); } }} placeholder="Gönderi linkini yapıştır, otomatik eklenir" inputMode="url" className={inp} />
+                    <button onClick={() => addPost()} className="shrink-0 rounded-xl bg-teal-500 px-4 text-sm font-semibold text-slate-950">Ekle</button>
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    {igPosts.map((p) => (
+                      <div key={p.id} className="flex items-center gap-3 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
+                        <Insta className="h-4 w-4 shrink-0 text-rose-300" />
+                        <a href={p.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-sm text-teal-300 underline">{p.kind === "reel" ? "Reels" : "Gönderi"} · {p.code}</a>
+                        <button onClick={() => deletePost(p.id)} aria-label="Gönderiyi kaldır" className="shrink-0 rounded-lg p-2 text-rose-300 hover:bg-rose-500/15"><Trash2 className="h-4 w-4" /></button>
+                      </div>
+                    ))}
+                  </div>
+                  <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Notlar</h3>
+                  {dbNotes.length === 0 && <p className="text-sm text-slate-400">Henüz paylaşılan not yok.</p>}
+                  <div className="space-y-2">
+                    {[...dbNotes].sort((a, b) => (a.status === "pending" ? 0 : 1) - (b.status === "pending" ? 0 : 1)).map((n) => (
+                      <div key={n.id} className="flex items-center gap-3 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-white">{n.title}</p>
+                          <p className="truncate text-xs text-slate-400">{n.course} · {n.author_name || "Öğrenci"} · <a href={n.url} target="_blank" rel="noopener noreferrer" className="text-teal-300 underline">PDF'i aç</a></p>
+                        </div>
+                        {n.status === "pending"
+                          ? <button onClick={() => approveNote(n.id)} className="shrink-0 rounded-lg bg-teal-500 px-3 py-2 text-xs font-semibold text-slate-950">Onayla</button>
+                          : <span className="shrink-0 rounded-full bg-teal-500/20 px-2.5 py-1 text-xs text-teal-200">Yayında</span>}
+                        <button onClick={() => deleteNote(n)} aria-label="Notu sil" className="shrink-0 rounded-lg p-2 text-rose-300 hover:bg-rose-500/15"><Trash2 className="h-4 w-4" /></button>
+                      </div>
+                    ))}
+                  </div>
+                  <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Kullanıcılar</h3>
+                  <div className="space-y-2">
+                    {users.map((u) => (
+                      <div key={u.id} className="flex items-center gap-3 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-white">{u.full_name || "İsimsiz"}</p>
+                          <p className="truncate text-xs text-slate-400">{u.email} · {new Date(u.created_at).toLocaleDateString("tr-TR")}</p>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${u.role === "admin" ? "bg-rose-500/25 text-rose-100" : "bg-white/10 text-slate-300"}`}>{u.role === "admin" ? "Yönetici" : "Öğrenci"}</span>
+                        {u.id !== uid && <button onClick={() => toggleRole(u)} className="shrink-0 rounded-lg border border-sky-300/15 px-3 py-2 text-xs text-slate-200 hover:bg-white/5">{u.role === "admin" ? "Öğrenci yap" : "Yönetici yap"}</button>}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </section>
+          )}
+        </main>
+
+        {/* ALT BİLGİ */}
+        <footer className="border-t border-sky-300/15 bg-[#030813]/80 px-4 pb-28 pt-8 text-center md:pb-10">
+          <Logo size="mx-auto h-12 w-12" />
+          <p className="mt-2 font-display text-base font-bold text-white">AFSÜ Diyaliz Öğrenci İmzası</p>
+          <p className="font-script text-sm text-slate-400">Sağlığın Üniversitesi</p>
+          <div className="mt-5 flex items-center justify-center gap-3">
+            <a href={IG_URL} target="_blank" rel="noopener noreferrer" aria-label="Instagram'da @afsudiyalizteam" className="grid h-12 w-12 place-items-center rounded-full border border-rose-400/40 bg-rose-500/15 text-rose-100 transition active:scale-95"><Insta className="h-6 w-6" /></a>
+            {YT_URL && <a href={YT_URL} target="_blank" rel="noopener noreferrer" aria-label="YouTube kanalımız" className="grid h-12 w-12 place-items-center rounded-full border border-red-400/40 bg-red-500/15 text-red-100 transition active:scale-95"><YouTube className="h-6 w-6" /></a>}
+          </div>
+          <button onClick={() => setFbOpen(true)} className="mx-auto mt-4 flex items-center gap-2 rounded-full border border-sky-300/15 bg-[#0a1a30]/90 px-5 py-2.5 text-sm text-slate-100 hover:bg-white/10"><MessageCircle className="h-4 w-4" /> Geri bildirim gönder</button>
+          <button onClick={() => setPrivOpen(true)} className="mx-auto mt-3 block text-xs text-slate-500 underline underline-offset-2 hover:text-slate-300">Gizlilik ve KVKK</button>
+          <p className="mx-auto mt-3 max-w-sm text-xs leading-relaxed text-slate-500">Öğrencilerin yardımlaşması için hazırlanmış bir topluluk sayfasıdır. İçerikler bilgilendirme amaçlıdır, klinik karar yerine geçmez.</p>
+        </footer>
+      </div>
+
+      {/* ALT MENÜ (telefon) */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-sky-300/15 bg-[#040b17]/90 backdrop-blur-xl md:hidden" aria-label="Alt menü" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <div className="mx-auto grid max-w-md grid-cols-5">
+          {PAGES.map(({ id, label, Icon }) => (
+            <button key={id} onClick={() => go(id)} aria-current={page === id ? "page" : undefined} className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${page === id ? "text-teal-300" : "text-slate-400"}`}>
+              <Icon className="h-5 w-5" />{label}
+            </button>
           ))}
         </div>
+      </nav>
+
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} user={user} profile={profile} onAdmin={() => { setAuthOpen(false); go("yonetim"); }} onDone={setToast} onPrivacy={() => setPrivOpen(true)} recovery={recovery} onRecovered={() => setRecovery(false)} />
+      <PrivacyModal open={privOpen} onClose={() => setPrivOpen(false)} />
+      <FeedbackModal open={fbOpen} onClose={() => setFbOpen(false)} user={user} profile={profile} page={page} onDone={setToast} />
+      <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} onSubmit={addNote} moderated={!!sb} />
+      {toast && (
+        <div role="status" className="pop fixed inset-x-4 bottom-24 z-[60] mx-auto max-w-sm rounded-2xl border border-sky-300/15 bg-[#0b1a2e]/95 px-4 py-3 text-center text-sm text-slate-100 shadow-2xl backdrop-blur-xl md:bottom-6">{toast}</div>
       )}
-
-      {sub === "kpss" && (
-        <div className="rounded-2xl bg-slate-900/70 backdrop-blur border border-slate-800 p-4 sm:p-6 space-y-4">
-          <h3 className="font-semibold text-slate-50">KPSS Önlisans ve atama</h3>
-          <p className="text-sm text-slate-300">
-            Atama taban puanları her dönem kurum, kadro ve kontenjana göre değişir. Güncel puanlar için ÖSYM sonuçlarını
-            ve ilgili kurumun (ör. Sağlık Bakanlığı) ilanlarını takip et.
-          </p>
-          <ul className="space-y-1.5 text-sm text-slate-300 list-disc pl-5">
-            <li>Genel Yetenek ve Genel Kültür testlerine düzenli deneme çöz.</li>
-            <li>Alan puanı ve tercih kılavuzundaki unvan koşullarını önceden kontrol et.</li>
-            <li>Mezuniyet sonrası tercih döneminde kadro unvanının "Diyaliz Teknikeri" veya ilgili sağlık unvanıyla eşleştiğinden emin ol.</li>
-            <li>DGS ile lisans tamamlama planlıyorsan başvuru ve sınav takvimini yıl başında not al.</li>
-          </ul>
-          <a
-            href="https://www.osym.gov.tr"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-[48px] items-center rounded-xl border border-sky-400/50 px-4 text-sky-300 hover:bg-sky-400/10"
-          >
-            ÖSYM resmi sitesi
-          </a>
-        </div>
-      )}
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Ana uygulama                                                       */
-/* ------------------------------------------------------------------ */
-
-export default function App() {
-  const [tab, setTab] = useState("uf");
-
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased">
-      {/* Navbar */}
-      <header className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur border-b border-slate-800">
-        <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <Logo />
-            <div className="min-w-0 leading-tight">
-              <p className="font-semibold text-slate-50 truncate">@afsudiyalizteam</p>
-              <p className="text-xs text-slate-400 truncate">AFSÜ Diyaliz Programı</p>
-            </div>
-          </div>
-          <a
-            href={INSTAGRAM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="min-h-[44px] inline-flex items-center gap-2 rounded-xl bg-cyan-400 text-slate-950 text-sm font-medium px-3.5 hover:bg-cyan-300 shrink-0"
-          >
-            <InstagramIcon className="w-4 h-4" />
-            Takip et
-          </a>
-        </div>
-      </header>
-
-      <main className="max-w-3xl mx-auto px-4 pb-16">
-        {/* Hero */}
-        <div className="pt-8 pb-5">
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-50">
-            Diyaliz salonunun cep rehberi
-          </h1>
-          <p className="mt-3 text-slate-400 max-w-xl">
-            Afyonkarahisar Sağlık Bilimleri Üniversitesi diyaliz öğrencileri, stajyerleri ve teknikerleri için UF hesabı,
-            alarm kılavuzu, vaka soruları ve staj notları.
-          </p>
-        </div>
-
-        {/* Sekmeler */}
-        <nav
-          className="sticky top-16 z-20 -mx-4 px-4 py-2 bg-slate-950/80 backdrop-blur overflow-x-auto"
-          aria-label="Modüller"
-        >
-          <div className="flex gap-2 w-max" role="tablist">
-            {TABS.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={tab === id}
-                onClick={() => setTab(id)}
-                className={`min-h-[44px] inline-flex items-center gap-2 rounded-full border px-4 text-sm whitespace-nowrap ${
-                  tab === id
-                    ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-300"
-                    : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-600"
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-              </button>
-            ))}
-          </div>
-        </nav>
-
-        <div className="mt-4">
-          {tab === "uf" && <UFCalculator />}
-          {tab === "alarm" && <AlarmGuide />}
-          {tab === "quiz" && <Quiz />}
-          {tab === "student" && <StudentCorner />}
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-800 py-6 px-4 text-center text-xs text-slate-500">
-        <p>© 2026 AFSÜ Diyaliz Team. Tüm hakları saklıdır.</p>
-        <p className="mt-1">Bu platform eğitim amaçlıdır; klinik kararların yerine geçmez.</p>
-      </footer>
     </div>
   );
 }
