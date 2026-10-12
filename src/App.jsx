@@ -923,21 +923,97 @@ const pageFromHash = () => {
 };
 
 // Tanıtım videosu: public/tanitim.mp4 için "/tanitim.mp4" ya da bir YouTube linki yaz.
-const VIDEO_URL = "";
+const VIDEO_URL = "/tanitim.mp4";
+const VIDEO_PORTRAIT = true; // true: dikey (9:16) çerçeve, false: yatay çerçeve.
+const VIDEO_FIT = "cover"; // "cover": çerçeveyi doldurur (kenarlar kırpılabilir), "contain": videonun tamamı görünür.
 
-function VideoCard() {
+function VideoCard({ max }) {
+  const [playing, setPlaying] = useState(false);
+  const [broken, setBroken] = useState(false);
+  if (!VIDEO_URL) {
+    return (
+      <div className="grid aspect-video w-full place-items-center rounded-2xl border border-sky-300/15 bg-gradient-to-br from-teal-700/40 to-[#0a1a30] p-4 text-center">
+        <div>
+          <Logo size="mx-auto h-16 w-16" />
+          <span className="mx-auto mt-3 grid h-11 w-11 place-items-center rounded-full bg-white/15"><Play className="h-5 w-5 text-white" /></span>
+          <p className="mt-2 text-sm text-slate-300">Tanıtım videosu hazırlanıyor</p>
+        </div>
+      </div>
+    );
+  }
+  // YouTube linki ya da kendi dosyan (/tanitim.mp4) olabilir. Dikey video için şık telefon kartı.
   const yt = VIDEO_URL.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/);
-  const box = "aspect-video w-full overflow-hidden rounded-2xl border border-sky-300/15 bg-black";
-  if (yt) return <div className={box}><iframe src={`https://www.youtube.com/embed/${yt[1]}`} title="AFSÜ Diyaliz Team tanıtım videosu" allowFullScreen className="h-full w-full" /></div>;
-  if (VIDEO_URL) return <video src={VIDEO_URL} controls playsInline className={box} />;
+  const src = yt ? `https://www.youtube-nocookie.com/embed/${yt[1]}?autoplay=1&controls=0&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=0&disablekb=1&loop=1&playlist=${yt[1]}` : VIDEO_URL;
+  const wrap = max || (VIDEO_PORTRAIT ? "max-w-[300px]" : "max-w-full");
   return (
-    <div className="grid aspect-video w-full place-items-center rounded-2xl border border-sky-300/15 bg-gradient-to-br from-teal-700/40 to-[#0a1a30] p-4 text-center">
-      <div>
-        <Logo size="mx-auto h-16 w-16" />
-        <span className="mx-auto mt-3 grid h-11 w-11 place-items-center rounded-full bg-white/15"><Play className="h-5 w-5 text-white" /></span>
-        <p className="mt-2 text-sm text-slate-300">Tanıtım videosu hazırlanıyor</p>
+    <div className={`relative mx-auto w-full ${wrap}`}>
+      <div className="pointer-events-none absolute -inset-3 rounded-[2.5rem] bg-gradient-to-br from-teal-500/40 via-sky-500/20 to-rose-600/30 blur-2xl" aria-hidden="true" />
+      <div className={`relative w-full overflow-hidden border ${VIDEO_PORTRAIT ? "aspect-[9/16] rounded-[2rem]" : "aspect-[850/442] rounded-2xl"} border-sky-300/25 bg-[#050d1b] shadow-2xl shadow-teal-900/40 ring-1 ring-white/10`}>
+        {playing ? (
+          <>
+            {yt
+              ? <iframe src={src} title="AFSÜ Diyaliz Team tanıtım videosu" allow="autoplay; encrypted-media; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" className="absolute inset-0 h-full w-full" />
+              : <video src={src} autoPlay loop playsInline preload="auto" onError={() => setBroken(true)} onClick={(e) => { const v = e.currentTarget; if (v.paused) v.play(); else v.pause(); }} className={`absolute inset-0 h-full w-full bg-black ${VIDEO_FIT === "contain" ? "object-contain" : "object-cover"}`} />}
+            {broken && <div className="absolute inset-0 grid place-items-center bg-[#050d1b] p-6 text-center text-sm text-slate-300">Video şu an yüklenemedi. Biraz sonra tekrar dene.</div>}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#050d1b] to-transparent" aria-hidden="true" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#050d1b] to-transparent" aria-hidden="true" />
+            <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2">
+              <Logo size="h-8 w-8" />
+              <span className="font-display text-xs font-bold text-white drop-shadow">@afsudiyalizteam</span>
+            </div>
+            <button onClick={() => { setPlaying(false); setBroken(false); }} aria-label="Videoyu kapat" className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-black/50 text-white backdrop-blur active:scale-90"><X className="h-4 w-4" /></button>
+          </>
+        ) : (
+          <button onClick={() => setPlaying(true)} aria-label="Tanıtım videosunu oynat" className="group absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-teal-700/50 via-[#0a1a30] to-[#050d1b] p-6 text-center">
+            <svg viewBox="0 0 300 80" className="absolute inset-x-0 top-1/2 -translate-y-1/2 opacity-40" fill="none" aria-hidden="true" preserveAspectRatio="none">
+              <path className="ecg" d="M0 40 H70 L82 40 L92 12 L106 68 L120 26 L130 40 H300" stroke="#2dd4bf" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <Logo size="relative h-16 w-16" />
+            <span className="beat relative mt-4 grid h-16 w-16 place-items-center rounded-full bg-white/95 text-slate-950 shadow-xl shadow-teal-500/30 transition group-active:scale-90"><Play className="ml-0.5 h-7 w-7 fill-current" /></span>
+            <span className="relative mt-4 font-display text-lg font-bold text-white">Tanıtım videosu</span>
+            <span className="relative mt-1 text-xs text-slate-300">Oynatmak için dokun</span>
+          </button>
+        )}
       </div>
     </div>
+  );
+}
+
+// Girişte çıkan "Yenilikler" kartı. Yeni duyuru için WELCOME_VER'i değiştir: "Bir daha gösterme" diyenlere de yeniden çıkar.
+const WELCOME_VER = "v1";
+function WelcomeModal({ open, onClose, onGo }) {
+  const [never, setNever] = useState(false);
+  const close = () => {
+    try { sessionStorage.setItem("afsu_welcome", "1"); } catch { /* sessizce geç */ }
+    if (never) save("afsu_welcome_seen", WELCOME_VER);
+    onClose();
+  };
+  const items = [
+    ["test", ClipboardList, `Test bölümü: ${TEST_BANK.length} soruyla eksiğini gör`],
+    ["mitler", Lightbulb, `Doğru mu, yanlış mı? ${QUESTIONS.length} soru, 3 seviye`],
+    ["notlar", FileText, "Not havuzu: PDF notlarını paylaş"],
+  ];
+  return (
+    <Modal open={open} onClose={close} title="Yenilikler">
+      <div className="text-center">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-500/25 px-3 py-1 text-xs font-semibold text-teal-100 ring-1 ring-teal-400/50">Yenilikler burada</span>
+        <h3 className="mt-3 font-display text-2xl font-bold text-white">AFSÜ Diyaliz Team</h3>
+        <p className="mt-1 text-sm text-slate-300">Önce kısa tanıtım videomuza bak.</p>
+      </div>
+      <div className="mt-5"><VideoCard max="max-w-[230px]" /></div>
+      <div className="mt-6 space-y-2">
+        {items.map(([id, Icon, text]) => (
+          <button key={id} onClick={() => { close(); onGo(id); }} className="flex w-full items-center gap-3 rounded-xl border border-sky-300/15 bg-white/5 px-3.5 py-2.5 text-left text-sm text-slate-100 hover:bg-white/10 active:scale-[0.99]">
+            <Icon className="h-5 w-5 shrink-0 text-teal-300" /><span>{text}</span>
+          </button>
+        ))}
+      </div>
+      <label className="mt-4 flex items-center gap-3 text-xs text-slate-300">
+        <input type="checkbox" checked={never} onChange={(e) => setNever(e.target.checked)} className="h-4 w-4 shrink-0 accent-teal-500" />
+        Bir daha gösterme
+      </label>
+      <button onClick={close} className="mt-4 w-full rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-[0.98]">Siteye geç</button>
+    </Modal>
   );
 }
 
@@ -1112,6 +1188,7 @@ export default function App() {
   const [myVote, setMyVote] = useState(() => load("afsu_myvote", null));
   const [openQ, setOpenQ] = useState(0);
   const [toast, setToast] = useState("");
+  const [welcomeOpen, setWelcomeOpen] = useState(() => { try { return !sessionStorage.getItem("afsu_welcome") && load("afsu_welcome_seen", "") !== WELCOME_VER; } catch { return false; } });
 
   useEffect(() => {
     const onHash = () => { setPage(pageFromHash()); window.scrollTo({ top: 0 }); };
@@ -1561,6 +1638,7 @@ export default function App() {
       </nav>
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} user={user} profile={profile} onAdmin={() => { setAuthOpen(false); go("yonetim"); }} onDone={setToast} onPrivacy={() => setPrivOpen(true)} recovery={recovery} onRecovered={() => setRecovery(false)} />
+      <WelcomeModal open={welcomeOpen && !authOpen && !!VIDEO_URL} onClose={() => setWelcomeOpen(false)} onGo={go} />
       <PrivacyModal open={privOpen} onClose={() => setPrivOpen(false)} />
       <FeedbackModal open={fbOpen} onClose={() => setFbOpen(false)} user={user} profile={profile} page={page} onDone={setToast} />
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} onSubmit={addNote} moderated={!!sb} />
