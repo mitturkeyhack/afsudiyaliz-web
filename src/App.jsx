@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity, ArrowUpRight, Check, ChevronDown, ClipboardList, Download, Droplets, Eye,
   GraduationCap, HeartPulse, Link2, Mail, MessageCircle, Plus, Presentation, RotateCw,
-  Search, Send, Upload, X, FileText, Lightbulb, Play, Users, LogOut, Shield, Trash2,
+  Search, Send, Upload, X, FileText, Lightbulb, Play, Users, LogOut, Shield, Trash2, Bell, Megaphone,
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -422,7 +422,7 @@ function AuthModal({ open, onClose, user, profile, onAdmin, onDone, onPrivacy, r
 // NOT: Aşağıdaki metin taslaktır. Yayından önce topluluk/üniversite yetkilileri gözden geçirmelidir.
 const PRIVACY = [
   ["Veri sorumlusu", "AFSÜ Diyaliz Team öğrenci topluluğu. İletişim: afsudiyalizteam@gmail.com"],
-  ["Hangi verileri topluyoruz?", "Kayıtta ad soyad ve e-posta adresin; şifren (yalnızca şifrelenmiş olarak); paylaştığın PDF notlar ve not bilgileri; çözdüğün test sorularının sonuçları. Geri bildirim gönderirsen mesajın, adın, e-postan, baktığın sayfa ve cihaz bilgin."],
+  ["Hangi verileri topluyoruz?", "Kayıtta ad soyad ve e-posta adresin; şifren (yalnızca şifrelenmiş olarak); paylaştığın PDF notlar ve not bilgileri; çözdüğün test sorularının sonuçları. Geri bildirim gönderirsen mesajın, adın, e-postan, baktığın sayfa ve cihaz bilgin. Ayrıca günlük ziyaretçi sayısını göstermek için IP adresin geri döndürülemez biçimde şifrelenip (hash) sayılır; IP adresin açık haliyle saklanmaz."],
   ["Ne için kullanıyoruz?", "Hesabını oluşturmak ve doğrulamak, not paylaşımını yönetmek ve denetlemek, geri bildirimlerine yanıt vermek ve siteyi güvenli tutmak için."],
   ["Hukuki sebep", "Kayıt sırasında verdiğin açık rıza ve hizmetin sunulması için gerekli olması."],
   ["Verilerin kimlerle paylaşılıyor?", "Hizmeti sunmak için Supabase (veritabanı ve dosya depolama), Vercel (site yayını), Google (doğrulama e-postaları) ve etkinse Web3Forms (geri bildirim iletimi) kullanılır. Bu sağlayıcıların sunucuları yurt dışında olabilir. Instagram gönderileri gömülü gösterildiğinde Meta kendi çerezlerini kullanabilir."],
@@ -1017,6 +1017,65 @@ function WelcomeModal({ open, onClose, onGo }) {
   );
 }
 
+/* ---------- Sayaç animasyonu ve duyurular ---------- */
+// Ekrana girince 0'dan değere sayar, ekrandan çıkınca sıfırlanır; tekrar görününce yine sayar.
+function CountUp({ value, duration = 1400 }) {
+  const ref = useRef(null);
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let raf = 0;
+    const calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const run = () => {
+      cancelAnimationFrame(raf);
+      if (calm) { setN(value); return; }
+      const t0 = performance.now();
+      const tick = (t) => {
+        const p = Math.min(1, (t - t0) / duration);
+        setN(Math.round(value * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    };
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) run();
+      else { cancelAnimationFrame(raf); setN(0); }
+    }, { threshold: 0.4 });
+    io.observe(el);
+    return () => { io.disconnect(); cancelAnimationFrame(raf); };
+  }, [value, duration]);
+  return <span ref={ref}>{n.toLocaleString("tr-TR")}</span>;
+}
+
+function AnnouncementsModal({ open, onClose, items, seenAt }) {
+  const fmt = (d) => new Date(d).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+  return (
+    <Modal open={open} onClose={onClose} title="Duyurular">
+      <div className="flex items-center gap-3 pr-8">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-teal-500/25 text-teal-100 ring-1 ring-teal-400/50"><Megaphone className="h-5 w-5" /></span>
+        <div><h3 className="font-display text-xl font-bold text-white">Duyurular</h3><p className="text-xs text-slate-400">@afsudiyalizteam'dan haberler</p></div>
+      </div>
+      {items.length === 0 ? (
+        <p className="mt-6 rounded-2xl border border-dashed border-sky-300/20 p-6 text-center text-sm text-slate-400">Henüz duyuru yok. Yeni bir şey olunca burada görürsün.</p>
+      ) : (
+        <ul className="mt-5 space-y-3">
+          {items.map((a) => {
+            const fresh = !seenAt || new Date(a.created_at) > new Date(seenAt);
+            return (
+              <li key={a.id} className={`rounded-2xl border p-4 ${fresh ? "border-teal-400/50 bg-teal-500/10" : "border-sky-300/15 bg-white/5"}`}>
+                <div className="flex items-center gap-2 text-xs text-slate-400"><span>{fmt(a.created_at)}</span>{fresh && <span className="rounded-full bg-teal-500 px-2 py-0.5 text-[10px] font-semibold text-slate-950">Yeni</span>}</div>
+                <h4 className="mt-1 font-display text-base font-bold leading-snug text-white">{a.title}</h4>
+                {a.body && <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-slate-300">{a.body}</p>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Modal>
+  );
+}
+
 /* ---------- Doğru mu, yanlış mı? oyunu ---------- */
 function TrueFalse() {
   const [phase, setPhase] = useState("start"); // start | play | done
@@ -1188,6 +1247,13 @@ export default function App() {
   const [myVote, setMyVote] = useState(() => load("afsu_myvote", null));
   const [openQ, setOpenQ] = useState(0);
   const [toast, setToast] = useState("");
+  const [anns, setAnns] = useState([]);
+  const [annOpen, setAnnOpen] = useState(false);
+  const [annSeen, setAnnSeen] = useState(() => load("afsu_ann_seen", ""));
+  const [annMark, setAnnMark] = useState("");
+  const [annTitle, setAnnTitle] = useState("");
+  const [annBody, setAnnBody] = useState("");
+  const [stats, setStats] = useState(null);
   const [welcomeOpen, setWelcomeOpen] = useState(() => { try { return !sessionStorage.getItem("afsu_welcome") && load("afsu_welcome_seen", "") !== WELCOME_VER; } catch { return false; } });
 
   useEffect(() => {
@@ -1236,6 +1302,32 @@ export default function App() {
     setIgPosts(data || []);
   }, []);
   useEffect(() => { loadPosts(); }, [loadPosts]);
+  const loadAnns = useCallback(async () => {
+    if (!sb) return;
+    const { data } = await sb.from("announcements").select("*").order("created_at", { ascending: false }).limit(30);
+    setAnns(data || []);
+  }, []);
+  useEffect(() => { loadAnns(); }, [loadAnns]);
+  useEffect(() => {
+    // Ziyareti (IP'ye göre günde bir kez) say, sonra sayıları getir.
+    if (!sb) return;
+    (async () => {
+      let seen = false;
+      try { seen = !!sessionStorage.getItem("afsu_visit"); } catch { /* sessizce geç */ }
+      if (!seen) {
+        await sb.rpc("track_visit");
+        try { sessionStorage.setItem("afsu_visit", "1"); } catch { /* sessizce geç */ }
+      }
+      const { data } = await sb.rpc("site_stats");
+      if (data && typeof data.users === "number") setStats(data);
+    })();
+  }, []);
+  useEffect(() => {
+    if (profile?.suspended) {
+      sb.auth.signOut();
+      setToast("Hesabın askıya alındı. Bilgi için geri bildirim gönderebilirsin.");
+    }
+  }, [profile]);
   useEffect(() => {
     if (sb && uid) {
       sb.from("quiz_answers").select("question_id,course,topic,correct,created_at").eq("user_id", uid).order("created_at", { ascending: false }).limit(1000)
@@ -1313,6 +1405,47 @@ export default function App() {
     const { error } = await sb.from("profiles").update({ role: u.role === "admin" ? "student" : "admin" }).eq("id", u.id);
     setToast(error ? "İşlem başarısız." : "Rol güncellendi."); loadUsers();
   };
+  const unread = anns.filter((a) => !annSeen || new Date(a.created_at) > new Date(annSeen)).length;
+  const openAnn = () => {
+    setAnnMark(annSeen);
+    setAnnOpen(true);
+    loadAnns();
+    const latest = anns[0]?.created_at;
+    if (latest) { setAnnSeen(latest); save("afsu_ann_seen", latest); }
+  };
+  const addAnn = async () => {
+    const title = annTitle.trim();
+    const body = annBody.trim();
+    if (title.length < 3) return setToast("Başlık en az 3 karakter olmalı.");
+    const { error } = await sb.from("announcements").insert({ title, body: body || null, created_by: user.id });
+    if (error) return setToast("Duyuru yayınlanamadı. SQL güncellemesini yaptın mı?");
+    setAnnTitle(""); setAnnBody(""); setToast("Duyuru yayınlandı."); loadAnns();
+  };
+  const deleteAnn = async (id) => {
+    if (!window.confirm("Bu duyuru silinsin mi?")) return;
+    const { error } = await sb.from("announcements").delete().eq("id", id);
+    setToast(error ? "Silinemedi." : "Duyuru silindi."); loadAnns();
+  };
+  const toggleSuspend = async (u) => {
+    const on = !u.suspended;
+    const who = u.full_name || u.email;
+    if (!window.confirm(on ? `${who} askıya alınsın mı? Giriş yapamaz ve not paylaşamaz.` : `${who} için askı kaldırılsın mı?`)) return;
+    const { error } = await sb.rpc("admin_set_suspended", { target: u.id, flag: on });
+    if (error) setToast(/yonetici/i.test(error.message) ? "Yönetici askıya alınamaz. Önce öğrenci yap." : "İşlem başarısız. SQL güncellemesini yaptın mı?");
+    else setToast(on ? "Hesap askıya alındı." : "Askı kaldırıldı.");
+    loadUsers();
+  };
+  const deleteUser = async (u) => {
+    const who = u.full_name || u.email;
+    if (!window.confirm(`${who} kalıcı olarak silinsin mi? Hesabı, notları ve test sonuçları silinir. Bu geri alınamaz.`)) return;
+    const { data: files } = await sb.from("notes").select("file_path").eq("user_id", u.id);
+    const paths = (files || []).map((f) => f.file_path).filter(Boolean);
+    if (paths.length) await sb.storage.from("note-files").remove(paths);
+    const { error } = await sb.rpc("admin_delete_user", { target: u.id });
+    if (error) setToast(/yonetici/i.test(error.message) ? "Yönetici silinemez. Önce öğrenci yap." : "Silinemedi. SQL güncellemesini yaptın mı?");
+    else setToast("Kullanıcı silindi.");
+    loadUsers(); loadNotes();
+  };
   const openNote = (n, download = false) => {
     if (!n.url) return setToast("Bu bir örnek kart. Gerçek not eklenince burada açılır.");
     const href = download && n.file_path ? `${n.url}?download=${encodeURIComponent(`${n.title}.pdf`)}` : n.url;
@@ -1372,6 +1505,10 @@ export default function App() {
               <button onClick={() => go("hakkimizda")} aria-current={page === "hakkimizda" ? "page" : undefined} className={`rounded-full px-3.5 py-2 text-sm font-medium transition ${page === "hakkimizda" ? "bg-teal-500/20 text-teal-200" : "text-slate-300 hover:bg-white/5"}`}>Biz kimiz</button>
             </nav>
             <div className="flex shrink-0 items-center gap-2">
+              <button onClick={openAnn} aria-label={unread ? `Duyurular, ${unread} yeni` : "Duyurular"} className="relative grid h-10 w-10 place-items-center rounded-full border border-sky-300/15 bg-[#0a1a30]/90 text-slate-200 transition hover:bg-white/10 active:scale-95">
+                <Bell className="h-5 w-5" />
+                {unread > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-[#040b17]">{unread > 9 ? "9+" : unread}</span>}
+              </button>
               <button onClick={() => setAuthOpen(true)} className="flex h-10 items-center gap-2 rounded-full bg-gradient-to-r from-teal-500 to-sky-600 px-4 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-95">
                 {user ? <><span className="grid h-5 w-5 place-items-center rounded-full bg-slate-950/20 text-xs">{(profile?.full_name || user.email || "?")[0].toUpperCase()}</span><span className="max-w-[6rem] truncate">{(profile?.full_name || (user.email || "").split("@")[0]).split(" ")[0]}</span></> : <><span className="hidden sm:inline">Topluluğa&nbsp;</span>Katıl</>}
               </button>
@@ -1562,6 +1699,23 @@ export default function App() {
                       <div key={l} className="rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-4"><div className="font-display text-2xl font-bold text-white">{n}</div><div className="text-xs text-slate-400">{l}</div></div>
                     ))}
                   </div>
+                  <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Duyurular</h3>
+                  <div className="space-y-2 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
+                    <input value={annTitle} onChange={(e) => setAnnTitle(e.target.value)} maxLength={120} placeholder="Duyuru başlığı" className={inp} />
+                    <textarea value={annBody} onChange={(e) => setAnnBody(e.target.value)} maxLength={1000} rows={3} placeholder="Ayrıntı (isteğe bağlı)" className={`${inp} resize-none`} />
+                    <button onClick={addAnn} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950 active:scale-[0.98]"><Megaphone className="h-4 w-4" /> Yayınla</button>
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    {anns.map((a) => (
+                      <div key={a.id} className="flex items-center gap-3 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-white">{a.title}</p>
+                          <p className="truncate text-xs text-slate-400">{new Date(a.created_at).toLocaleDateString("tr-TR")}{a.body ? ` · ${a.body}` : ""}</p>
+                        </div>
+                        <button onClick={() => deleteAnn(a.id)} aria-label="Duyuruyu sil" className="shrink-0 rounded-lg p-2 text-rose-300 hover:bg-rose-500/15"><Trash2 className="h-4 w-4" /></button>
+                      </div>
+                    ))}
+                  </div>
                   <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Instagram gönderileri</h3>
                   <div className="flex gap-2">
                     <input value={igLink} onChange={(e) => setIgLink(e.target.value)} onPaste={(e) => { const t = e.clipboardData.getData("text"); if (parseIg(t)) { e.preventDefault(); addPost(t); } }} placeholder="Gönderi linkini yapıştır, otomatik eklenir" inputMode="url" className={inp} />
@@ -1595,13 +1749,22 @@ export default function App() {
                   <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Kullanıcılar</h3>
                   <div className="space-y-2">
                     {users.map((u) => (
-                      <div key={u.id} className="flex items-center gap-3 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-white">{u.full_name || "İsimsiz"}</p>
-                          <p className="truncate text-xs text-slate-400">{u.email} · {new Date(u.created_at).toLocaleDateString("tr-TR")}</p>
+                      <div key={u.id} className="rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
+                        <div className="flex items-center gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-white">{u.full_name || "İsimsiz"}</p>
+                            <p className="truncate text-xs text-slate-400">{u.email} · {new Date(u.created_at).toLocaleDateString("tr-TR")}</p>
+                          </div>
+                          {u.suspended && <span className="shrink-0 rounded-full bg-amber-500/25 px-2.5 py-1 text-xs text-amber-100">Askıda</span>}
+                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${u.role === "admin" ? "bg-rose-500/25 text-rose-100" : "bg-white/10 text-slate-300"}`}>{u.role === "admin" ? "Yönetici" : "Öğrenci"}</span>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${u.role === "admin" ? "bg-rose-500/25 text-rose-100" : "bg-white/10 text-slate-300"}`}>{u.role === "admin" ? "Yönetici" : "Öğrenci"}</span>
-                        {u.id !== uid && <button onClick={() => toggleRole(u)} className="shrink-0 rounded-lg border border-sky-300/15 px-3 py-2 text-xs text-slate-200 hover:bg-white/5">{u.role === "admin" ? "Öğrenci yap" : "Yönetici yap"}</button>}
+                        {u.id !== uid && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button onClick={() => toggleRole(u)} className="rounded-lg border border-sky-300/15 px-3 py-2 text-xs text-slate-200 hover:bg-white/5">{u.role === "admin" ? "Öğrenci yap" : "Yönetici yap"}</button>
+                            {u.role !== "admin" && <button onClick={() => toggleSuspend(u)} className="rounded-lg border border-amber-400/40 px-3 py-2 text-xs text-amber-100 hover:bg-amber-500/10">{u.suspended ? "Askıyı kaldır" : "Askıya al"}</button>}
+                            {u.role !== "admin" && <button onClick={() => deleteUser(u)} className="flex items-center gap-1.5 rounded-lg border border-rose-400/40 px-3 py-2 text-xs text-rose-200 hover:bg-rose-500/10"><Trash2 className="h-3.5 w-3.5" /> Sil</button>}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1616,6 +1779,20 @@ export default function App() {
           <Logo size="mx-auto h-12 w-12" />
           <p className="mt-2 font-display text-base font-bold text-white">AFSÜ Diyaliz Öğrenci İmzası</p>
           <p className="font-script text-sm text-slate-400">Sağlığın Üniversitesi</p>
+          {stats && (
+            <div className="mx-auto mt-5 max-w-xs">
+              <div className="grid grid-cols-2 gap-3 text-left">
+                {[[Users, "Kayıtlı üye", stats.users, "border-teal-400/40 from-teal-600/30 to-teal-950/60", "text-teal-200"], [Activity, "Bugünkü ziyaretçi", stats.today, "border-sky-400/40 from-sky-600/30 to-sky-950/60", "text-sky-200"]].map(([Icon, label, val, cls, ic]) => (
+                  <div key={label} className={`rounded-2xl border bg-gradient-to-br p-3.5 ${cls}`}>
+                    <Icon className={`h-5 w-5 ${ic}`} />
+                    <div className="mt-2 font-display text-3xl font-extrabold leading-none text-white"><CountUp value={Number(val) || 0} /></div>
+                    <div className="mt-1 text-xs text-slate-300">{label}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-[10px] leading-relaxed text-slate-500">Ziyaretçi sayısı IP adresine göre, günde bir kez sayılır.</p>
+            </div>
+          )}
           <div className="mt-5 flex items-center justify-center gap-3">
             <a href={IG_URL} target="_blank" rel="noopener noreferrer" aria-label="Instagram'da @afsudiyalizteam" className="grid h-12 w-12 place-items-center rounded-full border border-rose-400/40 bg-rose-500/15 text-rose-100 transition active:scale-95"><Insta className="h-6 w-6" /></a>
             {YT_URL && <a href={YT_URL} target="_blank" rel="noopener noreferrer" aria-label="YouTube kanalımız" className="grid h-12 w-12 place-items-center rounded-full border border-red-400/40 bg-red-500/15 text-red-100 transition active:scale-95"><YouTube className="h-6 w-6" /></a>}
@@ -1640,6 +1817,7 @@ export default function App() {
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} user={user} profile={profile} onAdmin={() => { setAuthOpen(false); go("yonetim"); }} onDone={setToast} onPrivacy={() => setPrivOpen(true)} recovery={recovery} onRecovered={() => setRecovery(false)} />
       <WelcomeModal open={welcomeOpen && !authOpen && !!VIDEO_URL} onClose={() => setWelcomeOpen(false)} onGo={go} />
       <PrivacyModal open={privOpen} onClose={() => setPrivOpen(false)} />
+      <AnnouncementsModal open={annOpen} onClose={() => setAnnOpen(false)} items={anns} seenAt={annMark} />
       <FeedbackModal open={fbOpen} onClose={() => setFbOpen(false)} user={user} profile={profile} page={page} onDone={setToast} />
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} onSubmit={addNote} moderated={!!sb} />
       {toast && (
