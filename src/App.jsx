@@ -422,7 +422,7 @@ function AuthModal({ open, onClose, user, profile, onAdmin, onDone, onPrivacy, r
 // NOT: Aşağıdaki metin taslaktır. Yayından önce topluluk/üniversite yetkilileri gözden geçirmelidir.
 const PRIVACY = [
   ["Veri sorumlusu", "AFSÜ Diyaliz Team öğrenci topluluğu. İletişim: afsudiyalizteam@gmail.com"],
-  ["Hangi verileri topluyoruz?", "Kayıtta ad soyad ve e-posta adresin; şifren (yalnızca şifrelenmiş olarak); paylaştığın PDF notlar ve not bilgileri. Geri bildirim gönderirsen mesajın, adın, e-postan, baktığın sayfa ve cihaz bilgin."],
+  ["Hangi verileri topluyoruz?", "Kayıtta ad soyad ve e-posta adresin; şifren (yalnızca şifrelenmiş olarak); paylaştığın PDF notlar ve not bilgileri; çözdüğün test sorularının sonuçları. Geri bildirim gönderirsen mesajın, adın, e-postan, baktığın sayfa ve cihaz bilgin."],
   ["Ne için kullanıyoruz?", "Hesabını oluşturmak ve doğrulamak, not paylaşımını yönetmek ve denetlemek, geri bildirimlerine yanıt vermek ve siteyi güvenli tutmak için."],
   ["Hukuki sebep", "Kayıt sırasında verdiğin açık rıza ve hizmetin sunulması için gerekli olması."],
   ["Verilerin kimlerle paylaşılıyor?", "Hizmeti sunmak için Supabase (veritabanı ve dosya depolama), Vercel (site yayını), Google (doğrulama e-postaları) ve etkinse Web3Forms (geri bildirim iletimi) kullanılır. Bu sağlayıcıların sunucuları yurt dışında olabilir. Instagram gönderileri gömülü gösterildiğinde Meta kendi çerezlerini kullanabilir."],
@@ -613,17 +613,313 @@ function ShareModal({ open, onClose, onSubmit, moderated }) {
   );
 }
 
+/* ---------- Test bölümü ---------- */
+// Tüm sorular özgün yazılmıştır. Yeni soru eklemek için listeye bir Q(...) satırı ekle.
+// Q(kimlik, ders, konu, zorluk(1-3), soru, [5 şık], doğruŞıkSırası(0-4), açıklama)
+// Not: kimlikler kalıcıdır (analiz geçmişi bunlara bağlıdır); var olan bir kimliği değiştirme.
+const Q = (id, course, topic, level, text, options, answer, why) => ({ id, course, topic, level, text, options, answer, why });
+const TEST_BANK = [
+  Q("t01", "diz104", "Diyaliz ilkeleri", 1, "Hemodiyalizde üre gibi küçük moleküllerin kandan diyalizata geçişi esas olarak hangi mekanizmayla olur?", ["Konveksiyon", "Difüzyon", "Adsorpsiyon", "Aktif transport", "Pinositoz"], 1, "Küçük moleküller, membranın iki yanındaki konsantrasyon farkı nedeniyle yüksek konsantrasyondan düşüğe geçer. Buna difüzyon denir."),
+  Q("t02", "diz104", "Diyaliz ilkeleri", 2, "Diyalizörde kan ve diyalizat akımının ters yönlü olmasının temel amacı nedir?", ["Hidrostatik basıncı düşürmek", "Membran boyunca konsantrasyon farkını yüksek tutup klirensi artırmak", "Pıhtılaşmayı önlemek", "Hava kabarcıklarını yakalamak", "Diyalizat sıcaklığını sabit tutmak"], 1, "Karşıt akımda kanın her noktası kendinden daha düşük konsantrasyonlu diyalizatla karşılaşır. Gradyan seans boyunca korunur ve klirens artar."),
+  Q("t03", "diz104", "Diyaliz ilkeleri", 1, "Hemodiyalizde sıvı çekilmesinin (ultrafiltrasyon) itici gücü hangisidir?", ["Konsantrasyon farkı", "Transmembran basınç (TMP)", "Diyalizat iletkenliği", "Hematokrit düzeyi", "Diyalizat sıcaklığı"], 1, "Ultrafiltrasyon, membranın iki yanı arasındaki basınç farkıyla (TMP) gerçekleşir."),
+  Q("t04", "diz104", "Diyaliz ilkeleri", 2, "Online hemodiyafiltrasyon (HDF) için aşağıdakilerden hangisi doğrudur?", ["Yalnızca difüzyonla çalışır", "Büyük hacimli konveksiyonla orta moleküllerin atılımını artırır", "Ultrasaf su gerektirmez", "Replasman sıvısı kullanılmaz", "Yalnızca akut böbrek yetmezliğinde kullanılır"], 1, "HDF difüzyona ek olarak yüksek hacimli konveksiyon uygular. Böylece β2-mikroglobulin gibi orta moleküller daha iyi temizlenir. Ultrasaf su gerekir."),
+  Q("t05", "diz104", "Diyaliz ilkeleri", 3, "Bir diyalizörün KUF değeri 10 mL/saat/mmHg'dir. TMP 200 mmHg ise saatte yaklaşık kaç mL ultrafiltrasyon beklenir?", ["200 mL", "1000 mL", "2000 mL", "10 mL", "20 mL"], 2, "UF hızı = KUF × TMP. Yani 10 × 200 = 2000 mL/saat."),
+  Q("t06", "diz104", "Su ve diyalizat", 2, "Su arıtma sisteminde aktif karbon filtresinin temel görevi nedir?", ["Kalsiyum ve magnezyumu tutmak", "Klor ve kloramini uzaklaştırmak", "Bakterileri tamamen öldürmek", "Tüm iyonları ayırmak", "Suyun pH'ını yükseltmek"], 1, "Klor ve kloramin eritrositlere zarar verip hemolize yol açabilir. Aktif karbon bunları tutar."),
+  Q("t07", "diz104", "Su ve diyalizat", 3, "Bikarbonatlı diyalizatta asidik ve bazik konsantrelerin ayrı tutulmasının nedeni nedir?", ["Renk farkını korumak", "Kalsiyum ve magnezyumun bikarbonatla çökelmesini önlemek", "Sıcaklığı dengelemek", "Glukozun bozunmasını önlemek", "Su tüketimini azaltmak"], 1, "Karışırsa kalsiyum ve magnezyum karbonat tuzları olarak çökebilir. Bu yüzden konsantreler ayrı saklanır, makinede karıştırılır."),
+  Q("t08", "diz104", "Su ve diyalizat", 2, "Sert su sendromunun temel nedeni hangisidir?", ["Suyun klor içermesi", "Diyalizatta kalsiyum ve magnezyumun aşırı yüksek olması", "Diyalizat sıcaklığının düşük olması", "Aşırı ultrafiltrasyon", "Heparin fazlalığı"], 1, "Yumuşatma yetersizse suda kalsiyum ve magnezyum artar. Bulantı, kusma, baş ağrısı ve yüzde kızarıklık görülebilir."),
+  Q("t09", "diz201", "Damar giriş yolu", 1, "AV fistül koluyla ilgili aşağıdakilerden hangisi yapılmamalıdır?", ["Her gün thrill (titreşim) kontrolü", "Aynı koldan kan basıncı ölçmek ve kan almak", "Hafif egzersiz yapmak", "Cildi temiz tutmak", "Uyurken kolu baskı altında bırakmamak"], 1, "Fistül kolunda tansiyon ölçümü ve kan alma, damar giriş yoluna zarar verebileceği için önerilmez."),
+  Q("t10", "diz201", "Damar giriş yolu", 2, "Yeni açılan AV fistülün olgunlaşması genellikle ne kadar sürer?", ["1-2 gün", "1 hafta", "2 hafta", "6-8 hafta", "6 ay"], 3, "Olgunlaşma çoğunlukla 6-8 hafta sürer. En erken yaklaşık 4. haftada, damar olgunlaşması değerlendirilerek iğnelenebilir."),
+  Q("t11", "diz201", "Damar giriş yolu", 3, "Kateterle yapılan hemodiyalizin AV fistüle göre en önemli dezavantajı hangisidir?", ["Kan basıncı yükselmesi", "Enfeksiyon ve tromboz riskinin daha yüksek olması", "Diyalizat iletkenliğinin bozulması", "Kasılma ve kramplar", "Hipoglisemi"], 1, "Kateterler yabancı cisimdir. Kan dolaşımı enfeksiyonu, kateter trombozu ve santral ven darlığı riski taşır."),
+  Q("t12", "diz201", "Makine ve alarmlar", 2, "Venöz basınç alarmı yükseldiğinde aşağıdakilerden hangisi olası bir nedendir?", ["Arteriyel iğnenin damardan çıkması", "Venöz hattın kıvrılması ya da venöz iğnede pıhtı oluşması", "Diyalizat bidonunun bitmesi", "Kan kaçağı dedektörünün ıslanması", "Diyalizat ısısının düşmesi"], 1, "Kanın dönüş yolunda engel (kıvrılma, pıhtı, damar darlığı) venöz basıncı yükseltir."),
+  Q("t13", "diz201", "Makine ve alarmlar", 2, "Venöz hava dedektörü alarm verdiğinde ilk yapılacak uygun işlem hangisidir?", ["Alarmı sessize alıp devam etmek", "Kan pompasının durduğunu ve venöz klempin kapandığını doğrulayıp hava kaynağını araştırmak", "Diyalizat akımını artırmak", "Hastayı ayağa kaldırmak", "Heparin dozunu artırmak"], 1, "Güvenlik sistemi pompayı durdurur, venöz klempi kapatır. Sorumlu kişi hava kaynağını bulur ve hastaya ulaşmasını engeller."),
+  Q("t14", "diz201", "Makine ve alarmlar", 1, "Kan kaçağı dedektörü alarmı en olası hangi durumu gösterir?", ["Diyalizör membranında yırtılma", "Diyalizat ısısında artış", "Suyun sertleşmesi", "Fistülde thrill kaybı", "Hasta hipotansiyonu"], 0, "Membran yırtılırsa kan diyalizat tarafına sızar ve dedektör alarm verir."),
+  Q("t15", "diz201", "Makine ve alarmlar", 3, "Seans ilerledikçe TMP'nin yükselmesi, diyalizör liflerinin koyulaşması ve venöz basıncın artması hangi durumu düşündürür?", ["Diyalizörde pıhtılaşma", "Hemoliz", "Hava embolisi", "Anafilaksi", "Dengesizlik sendromu"], 0, "Lifler pıhtıyla tıkandıkça membran yüzeyi azalır, TMP ve basınçlar yükselir."),
+  Q("t16", "diz201", "Makine ve alarmlar", 2, "İletkenlik alarmı sırasında makine hastayı korumak için ne yapar?", ["Kan pompasını hızlandırır", "Diyalizatı diyalizörden geçirmeden bypass eder", "Ultrafiltrasyonu iki katına çıkarır", "Venöz klempi açar", "Heparini durdurur"], 1, "Diyalizat bileşimi güvenli aralıkta değilse makine diyalizatı bypass eder. Diyalizör bu sıvıyla temas etmez."),
+  Q("t17", "diz211", "Antikoagülasyon ve anemi", 1, "Hemodiyalizde heparinin etkisini izlemek için kullanılan testlerden biri hangisidir?", ["Sedimantasyon", "ACT (aktive pıhtılaşma zamanı)", "Total kolesterol", "Serum ürik asit", "İdrar yoğunluğu"], 1, "ACT ve aPTT, heparinin pıhtılaşma üzerindeki etkisini izlemekte kullanılır."),
+  Q("t18", "diz211", "Antikoagülasyon ve anemi", 2, "Aktif kanaması olan bir hastada seans için uygun yaklaşım hangisidir?", ["Yüksek doz heparin vermek", "Heparinsiz diyaliz (aralıklı serum fizyolojik yıkamasıyla) ya da hekimin belirlediği düşük doz protokol", "Seansı heparin bolusuyla başlatmak", "Kan akımını düşürüp heparini artırmak", "Warfarin başlamak"], 1, "Kanaması olan hastada antikoagülan azaltılır ya da hiç kullanılmaz. Setler düzenli yıkanarak pıhtılaşma izlenir."),
+  Q("t19", "diz211", "Antikoagülasyon ve anemi", 2, "Diyaliz hastalarında eritropoietin (ESA) tedavisine yetersiz yanıtın en sık nedeni hangisidir?", ["Demir eksikliği", "Hipertansiyon", "Hiperkalsemi", "Uyku bozukluğu", "Hipoglisemi"], 0, "Mutlak ya da fonksiyonel demir eksikliği en sık nedendir. Enflamasyon ve yetersiz diyaliz de yanıtı azaltır."),
+  Q("t20", "diz202", "Akut komplikasyonlar", 1, "Hemodiyaliz sırasında en sık görülen akut komplikasyon hangisidir?", ["Hava embolisi", "Hipotansiyon", "Hemoliz", "Anafilaksi", "Konvülsiyon"], 1, "Seans sırasında sıvı çekilmesine bağlı hipotansiyon, en sık görülen akut komplikasyondur."),
+  Q("t21", "diz202", "Akut komplikasyonlar", 2, "Seans sırasında kas kramplarında ilk yaklaşım için hangisi uygundur?", ["Ultrafiltrasyon hızını artırmak", "Ultrafiltrasyonu azaltmak ya da durdurmak ve hekim talimatıyla izotonik sıvı vermek", "Seansı hemen sonlandırmak", "Diyalizat ısısını yükseltmek", "Heparin dozunu artırmak"], 1, "Kramplar çoğunlukla hızlı sıvı çekilmesi ve damar içi hacim azalmasıyla ilişkilidir."),
+  Q("t22", "diz202", "Akut komplikasyonlar", 2, "Dengesizlik (disequilibrium) sendromu riskini azaltmak için ilk seanslarda hangisi tercih edilir?", ["Uzun süre ve yüksek kan akımı", "Daha kısa süre, düşük kan akımı ve küçük yüzey alanlı diyalizör", "Çok yüksek ultrafiltrasyon", "Çok düşük sodyumlu diyalizat", "Seans öncesi uzun süre aç kalmak"], 1, "Üre ve diğer solütler yavaş düşürülürse beyin hücreleri ile kan arasındaki ozmotik fark azalır."),
+  Q("t23", "diz202", "Akut komplikasyonlar", 2, "Venöz hatta koyu 'şarap rengi' kan, sırt ağrısı ve nefes darlığı görülen hastada ilk yapılacak nedir?", ["Seansa devam etmek", "Kan pompasını durdurmak, setleri klemplemek, kanı hastaya geri vermemek ve hekimi bilgilendirmek", "Kan akımını artırmak", "Heparin bolusu vermek", "Yalnızca oksijen verip devam etmek"], 1, "Bu tablo hemolizi düşündürür. Hemolize olmuş kan geri verilmez ve nedene yönelik araştırma yapılır."),
+  Q("t24", "diz202", "Akut komplikasyonlar", 3, "Seans sırasında venöz hava embolisi şüphesinde hastaya hangi pozisyon verilir?", ["Sırtüstü, ayaklar aşağıda", "Sol yan yatış ve baş aşağı (Trendelenburg)", "Sağ yan yatış, oturur pozisyon", "Yüzüstü", "Ayakta"], 1, "Kan pompası durdurulur, %100 oksijen verilir ve hekim çağrılır. Pozisyon, havanın sağ ventrikül çıkışına yerleşmesini engellemeye yöneliktir."),
+  Q("t25", "diz202", "Akut komplikasyonlar", 2, "Diyalizör kaynaklı anafilaktik reaksiyon düşünülen hastada ilk yapılması gereken hangisidir?", ["Seansa devam etmek", "Seansı durdurmak, setleri klemplemek, setlerdeki kanı hastaya vermemek ve acil müdahale başlatmak", "Kan akım hızını artırmak", "Diyalizatı değiştirmek", "Hastayı yalnız bırakmak"], 1, "Alerjik tepkiyi tetikleyen madde dolaşıma girmeye devam etmesin diye seans durdurulur. Acil tedavi hekim yönlendirmesiyle başlar."),
+  Q("t26", "diz202", "Akut komplikasyonlar", 2, "Aşağıdakilerden hangisi diyaliz hipotansiyonunu azaltmaya yardımcı olabilir?", ["Diyalizat ısısını biraz düşürmek", "Diyaliz arası kilo artışını artırmak", "Seans başında hastaya yemek yedirmek", "Ultrafiltrasyon hızını artırmak", "Antihipertansifleri seans öncesi yüksek doz vermek"], 0, "Serin diyalizat damar tonusunu destekler. Ağır yemek ve yüksek UF hızı hipotansiyonu artırır."),
+  Q("t27", "diz202", "Diyaliz yeterliliği", 1, "Kt/V ifadesinde 'V' neyi gösterir?", ["Diyalizör yüzey alanı", "Üre dağılım hacmi", "Venöz basınç", "Kan akım hızı", "Vücut yüzey alanı"], 1, "K: diyalizörün üre klirensi, t: süre, V: üre dağılım hacmi. Kt/V, verilen diyaliz dozunu gösterir."),
+  Q("t28", "diz202", "Diyaliz yeterliliği", 2, "Üre azalma oranı (URR) hangi formülle hesaplanır?", ["(Öncesi üre − sonrası üre) / öncesi üre × 100", "Sonrası üre / öncesi üre", "Öncesi üre × seans süresi", "Kt × V", "(Sonrası üre − öncesi üre) × 100"], 0, "URR, seans boyunca üredeki yüzde azalmayı gösterir."),
+  Q("t29", "diz202", "Diyaliz yeterliliği", 2, "Erişim (akses) resirkülasyonu yüksekse diyaliz etkinliği neden azalır?", ["Diyalizör membranı genişler", "Diyalizörden geçmiş kanın bir kısmı yeniden diyalizöre girer ve etkili klirens düşer", "Diyalizat ısısı artar", "Kan pompası durur", "Hematokrit düşer"], 1, "Arteriyel iğne, venöz iğneden dönen kanı çektiğinde temizlenmiş kan tekrar işlem görür ve vücuttan yeterli solüt uzaklaştırılamaz."),
+  Q("t30", "diz202", "Diyaliz yeterliliği", 3, "Seans bitiminden kısa süre sonra kan üre düzeyinin hafifçe yükselmesi olayına ne ad verilir?", ["Rebound", "Resirkülasyon", "Ultrafiltrasyon", "Hemokonsantrasyon", "Konveksiyon"], 0, "Vücut kompartmanları arasında üre dengelenir. Bu nedenle sonrası kan örneği alınırken zamanlama önemlidir."),
+  Q("t31", "diz206", "Enfeksiyon kontrolü", 1, "Diyaliz ünitesinde hastalar arası bulaşı azaltan en önemli tek uygulama hangisidir?", ["El hijyeni ve eldiven değişimi", "Seansı kısaltmak", "Diyalizat ısısını artırmak", "Sadece maske takmak", "Kapıları kapalı tutmak"], 0, "Ellerin yıkanması ve her hastada eldiven değişimi çapraz bulaşı önleyen en etkili temel önlemdir."),
+  Q("t32", "diz206", "Enfeksiyon kontrolü", 2, "HBsAg pozitif hastalar için diyaliz ünitesinde önerilen yaklaşım hangisidir?", ["Diğer hastalarla aynı makine", "Ayrı oda ve ayrı makine (mümkünse ayrı personel)", "Seansı evde yaptırmak", "Yalnızca maske takmak", "Seans sonunda sadece zemin temizliği"], 1, "HBV kolay bulaşır. İzolasyon odası ve ayrılmış cihaz bulaş riskini azaltır."),
+  Q("t33", "diz206", "Enfeksiyon kontrolü", 1, "Sterilizasyon için hangisi doğrudur?", ["Bakteri sporları dahil tüm mikroorganizmaların yok edilmesidir", "Yalnızca yüzeyin silinmesidir", "Dezenfeksiyonla aynıdır", "Sadece virüsleri etkiler", "Sadece suyla yıkamadır"], 0, "Dezenfeksiyon çoğu mikroorganizmayı yok eder ama sporları garanti etmez. Sterilizasyon sporları da yok eder."),
+  Q("t34", "diz206", "Enfeksiyon kontrolü", 2, "Kan bulaşmış keskin bir alet batması durumunda ilk yapılacak nedir?", ["Yarayı sıkıp kanatmak ve alkolle yıkamak", "Yarayı bol su ve sabunla yıkamak, yetkiliye bildirmek ve risk değerlendirmesi için başvurmak", "Hiçbir şey yapmadan işe devam etmek", "Yarayı bandajlayıp saklamak", "Yalnızca aşı olmak"], 1, "Yara bol su ve sabunla yıkanır, sıkılmaz. Kurum prosedürüne göre bildirilir ve HBV, HCV, HIV riski değerlendirilir."),
+  Q("t35", "diz203", "Böbrek hastalıkları ve elektrolit", 1, "Kronik böbrek hastalığı evre 5 hangi GFR düzeyini ifade eder?", ["15 mL/dk/1,73 m²'nin altı", "60-89", "45-59", "30-44", "90 ve üzeri"], 0, "Evre 5, GFR'nin 15 mL/dk/1,73 m²'nin altına düştüğü son dönem böbrek hastalığıdır."),
+  Q("t36", "diz203", "Böbrek hastalıkları ve elektrolit", 2, "Hiperkalemide EKG'de erken görülen bulgu hangisidir?", ["Sivri (yüksek) T dalgası", "Belirgin U dalgası", "Yalnızca ST yükselmesi", "QRS'in tamamen kaybolması", "P dalgasında belirginleşme"], 0, "Hiperkalemi ilerledikçe T dalgası sivriler, sonra P kaybolur, QRS genişler."),
+  Q("t37", "diz203", "Böbrek hastalıkları ve elektrolit", 2, "Ciddi hiperkalemide kalp zarını stabilize etmek için acil kullanılan ilaç hangisidir?", ["Kalsiyum glukonat", "Potasyum klorür", "Digoksin", "Atropin", "Spironolakton"], 0, "Kalsiyum potasyumu düşürmez ama kalp hücre zarını aritmilere karşı korur. Potasyumu düşürmek için başka tedavi de gerekir."),
+  Q("t38", "diz203", "Böbrek hastalıkları ve elektrolit", 2, "Aşağıdakilerden hangisi akut böbrek yetmezliğinin prerenal nedenidir?", ["Ciddi dehidratasyon", "Üreter taşı", "Glomerülonefrit", "Prostat büyümesi", "Nefrotoksik ilaçlara bağlı tübül hasarı"], 0, "Prerenal: böbreğe kan akımı azalır (kanama, dehidratasyon). Taş ve prostat postrenal, tübül hasarı ve glomerülonefrit renal nedenlerdir."),
+  Q("t39", "diz203", "Böbrek hastalıkları ve elektrolit", 3, "Sekonder hiperparatiroidinin gelişiminde aşağıdakilerden hangisi rol oynar?", ["Hiperfosfatemi, hipokalsemi ve aktif D vitamini eksikliği", "Yüksek aktif D vitamini düzeyi", "Hipofosfatemi", "Hiperkalsemi", "Yüksek idrar çıkışı"], 0, "Böbrek yetmezliğinde fosfat atılımı azalır, aktif D vitamini yapımı düşer, kalsiyum azalır. Paratiroidler bu yüzden aşırı çalışır."),
+  Q("t40", "anatomi-fizyoloji", "Fizyoloji", 1, "Böbrekte eritrosit yapımını uyaran hormon hangisidir?", ["Eritropoietin", "İnsülin", "Aldosteron", "Tiroksin", "Glukagon"], 0, "Eritropoietin böbrekte yapılır ve kemik iliğinde eritrosit üretimini uyarır. Böbrek yetmezliğinde azalması anemiye yol açar."),
+  Q("t41", "anatomi-fizyoloji", "Fizyoloji", 2, "Glomerüler filtrasyon bariyerinden normalde hangisi geçemez?", ["Su", "Üre", "Albümin gibi büyük proteinler ve kan hücreleri", "Glukoz", "Sodyum"], 2, "Sağlıklı glomerül küçük molekülleri süzer, büyük proteinleri ve hücreleri tutar. İdrarda albümin ya da eritrosit görülmesi hasarı düşündürür."),
+  Q("t42", "diz107", "Böbrek hastalıkları ve elektrolit", 1, "Metabolik asidozda kan bikarbonat düzeyi nasıl değişir?", ["Düşer", "Artar", "Değişmez", "Yalnızca potasyuma bağlı değişir", "Ölçülemez"], 0, "Metabolik asidozda bikarbonat azalır. Diyalizatta bikarbonat bu açığı kapatmaya yardımcı olur."),
+];
+
+const LV = ["", "Kolay", "Orta", "Zor"];
+const LV_CLS = ["", "bg-teal-500/25 text-teal-100", "bg-amber-500/25 text-amber-100", "bg-rose-500/25 text-rose-100"];
+const LETTERS = ["A", "B", "C", "D", "E"];
+const pctColor = (p) => (p < 50 ? "bg-rose-500" : p < 70 ? "bg-amber-400" : "bg-teal-400");
+const tally = (rows, key) => {
+  const m = {};
+  rows.forEach((r) => { const k = key(r); m[k] = m[k] || { label: k, ok: 0, total: 0 }; m[k].total += 1; if (r.correct) m[k].ok += 1; });
+  return Object.values(m).sort((a, b) => a.ok / a.total - b.ok / b.total);
+};
+
+function Bars({ rows }) {
+  return (
+    <div className="space-y-3">
+      {rows.map((r) => {
+        const p = Math.round((r.ok / r.total) * 100);
+        return (
+          <div key={r.label}>
+            <div className="mb-1 flex justify-between gap-3 text-xs"><span className="truncate text-slate-200">{r.label}</span><span className="shrink-0 text-slate-400">{r.ok}/{r.total} · %{p}</span></div>
+            <div className="h-2.5 overflow-hidden rounded-full bg-white/10"><div className={`h-full rounded-full ${pctColor(p)}`} style={{ width: `${p}%` }} /></div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TestPage({ hist, onSave, loggedIn, onLogin }) {
+  const [tab, setTab] = useState("solve");
+  const [phase, setPhase] = useState("setup");
+  const [cfg, setCfg] = useState({ course: "all", level: 0, count: 10, mode: "practice" });
+  const [queue, setQueue] = useState([]);
+  const [i, setI] = useState(0);
+  const [picks, setPicks] = useState({});
+  const [shown, setShown] = useState(false);
+  const [openWrong, setOpenWrong] = useState(null);
+
+  const courses = [...new Set(TEST_BANK.map((q) => q.course))];
+  const pool = TEST_BANK.filter((q) => (cfg.course === "all" || q.course === cfg.course) && (!cfg.level || q.level === cfg.level));
+  const total = cfg.count === 0 ? pool.length : Math.min(cfg.count, pool.length);
+  const top = () => window.scrollTo({ top: 0 });
+
+  const start = (ids) => {
+    const src = ids ? TEST_BANK.filter((q) => ids.includes(q.id)) : pool;
+    const n = ids || cfg.count === 0 ? src.length : cfg.count;
+    const list = shuffle(src).slice(0, n).map((q) => {
+      const order = shuffle(q.options.map((_, k) => k));
+      return { ...q, options: order.map((k) => q.options[k]), answer: order.indexOf(q.answer) };
+    });
+    if (!list.length) return;
+    setQueue(list); setI(0); setPicks({}); setShown(false); setOpenWrong(null); setPhase("run"); top();
+  };
+  const finish = () => {
+    onSave(queue.map((q) => ({ question_id: q.id, course: q.course, topic: q.topic, correct: picks[q.id] === q.answer })));
+    setPhase("result"); top();
+  };
+
+  const chip = (on, label, onClick) => (
+    <button type="button" onClick={onClick} className={`rounded-full px-4 py-2 text-sm font-medium transition ${on ? "bg-teal-500 text-slate-950" : "border border-sky-300/15 bg-[#0a1a30]/90 text-slate-300 hover:bg-white/10"}`}>{label}</button>
+  );
+  const card = "rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 backdrop-blur-xl";
+
+  /* ---- Giriş zorunlu ---- */
+  if (sb && !loggedIn) {
+    return (
+      <section className="mx-auto max-w-2xl">
+        <SectionHead title="Test" desc="Derslere göre soru çöz, hangi konuda eksiğin olduğunu gör." />
+        <div className={`${card} text-center`}>
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-teal-500/25 text-teal-100 ring-1 ring-teal-400/50"><ClipboardList className="h-8 w-8" /></div>
+          <h3 className="mt-4 font-display text-xl font-bold text-white">Test çözmek için giriş yap</h3>
+          <p className="mt-2 text-sm leading-relaxed text-slate-300">Testler sadece topluluk üyelerine açık. Üye olunca sonuçların ve analizin hesabında saklanır, hangi konuda eksiğin olduğunu görürsün.</p>
+          <button onClick={onLogin} className="mt-5 w-full rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-[0.98]">Giriş yap / Kayıt ol</button>
+        </div>
+      </section>
+    );
+  }
+
+  /* ---- Çözüm ekranı ---- */
+  if (phase === "run") {
+    const q = queue[i];
+    const sel = picks[q.id];
+    const practice = cfg.mode === "practice";
+    const last = i + 1 === queue.length;
+    const cls = (oi) => {
+      if (!(practice && shown)) return sel === oi ? "border-teal-300 bg-teal-500/20" : "border-sky-300/15 hover:bg-white/10";
+      if (oi === q.answer) return "border-teal-400 bg-teal-500/25";
+      if (oi === sel) return "border-rose-400 bg-rose-500/25";
+      return "border-sky-300/15 opacity-60";
+    };
+    return (
+      <section className="mx-auto max-w-2xl">
+        <div className="mb-3 flex items-center justify-between text-sm text-slate-300">
+          <span>Soru {i + 1} / {queue.length}</span>
+          <button onClick={() => setPhase("setup")} className="text-xs text-slate-400 underline underline-offset-2 hover:text-slate-200">Testi bırak</button>
+        </div>
+        <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-teal-400 transition-all" style={{ width: `${((i + 1) / queue.length) * 100}%` }} /></div>
+        <article className={card}>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full bg-white/10 px-2.5 py-1 text-slate-200">{catOf(q.course).short}</span>
+            <span className="rounded-full bg-white/10 px-2.5 py-1 text-slate-300">{q.topic}</span>
+            <span className={`rounded-full px-2.5 py-1 ${LV_CLS[q.level]}`}>{LV[q.level]}</span>
+          </div>
+          <h3 className="mt-3 font-display text-lg font-bold leading-snug text-white">{q.text}</h3>
+          <div className="mt-4 space-y-2.5">
+            {q.options.map((o, oi) => (
+              <button key={oi} onClick={() => { if (practice && shown) return; setPicks({ ...picks, [q.id]: oi }); if (practice) setShown(true); }} className={`flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left text-sm transition active:scale-[0.99] ${cls(oi)}`}>
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold text-slate-200">{LETTERS[oi]}</span>
+                <span className="pt-0.5 text-slate-100">{o}</span>
+              </button>
+            ))}
+          </div>
+          {practice && shown && (
+            <div className={`pop mt-4 rounded-2xl border p-4 ${sel === q.answer ? "border-teal-400/50 bg-teal-500/20" : "border-amber-400/50 bg-amber-500/20"}`}>
+              <p className={`text-sm font-semibold ${sel === q.answer ? "text-teal-200" : "text-amber-200"}`}>{sel === q.answer ? "Doğru!" : `Doğru cevap: ${LETTERS[q.answer]}`}</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-200">{q.why}</p>
+            </div>
+          )}
+        </article>
+        <button onClick={() => { if (last) return finish(); setI(i + 1); setShown(false); top(); }} disabled={practice && !shown} className="mt-4 w-full rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-[0.98] disabled:opacity-40">{last ? "Testi bitir" : "Sonraki soru"}</button>
+      </section>
+    );
+  }
+
+  /* ---- Sonuç ekranı ---- */
+  if (phase === "result") {
+    const wrong = queue.filter((q) => picks[q.id] !== q.answer);
+    const okN = queue.length - wrong.length;
+    const pct = Math.round((okN / queue.length) * 100);
+    const topics = tally(queue.map((q) => ({ topic: q.topic, correct: picks[q.id] === q.answer })), (r) => r.topic);
+    return (
+      <section className="mx-auto max-w-2xl">
+        <div className={`${card} text-center`}>
+          <p className="text-sm text-slate-400">Sonucun</p>
+          <p className="font-display text-5xl font-extrabold text-white">%{pct}</p>
+          <p className="mt-1 text-sm text-slate-300">{okN} doğru, {wrong.length} yanlış ({queue.length} soru)</p>
+          <p className="mt-2 text-sm font-medium text-teal-200">{pct >= 85 ? "Harika gidiyorsun!" : pct >= 70 ? "Çok iyi, biraz daha pekiştir." : pct >= 50 ? "Fena değil. Yanlışlarına bak ve tekrar dene." : "Bu konulara biraz daha çalışalım."}</p>
+        </div>
+        <h3 className="mb-2 mt-5 font-display text-lg font-bold text-white">Konulara göre</h3>
+        <div className={card}><Bars rows={topics} /></div>
+        {wrong.length > 0 && (
+          <>
+            <h3 className="mb-2 mt-5 font-display text-lg font-bold text-white">Yanlışların</h3>
+            <div className="space-y-2">
+              {wrong.map((q) => (
+                <div key={q.id} className={card}>
+                  <button onClick={() => setOpenWrong(openWrong === q.id ? null : q.id)} aria-expanded={openWrong === q.id} className="flex w-full items-start justify-between gap-3 text-left text-sm font-medium text-slate-100">
+                    {q.text}<ChevronDown className={`mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition ${openWrong === q.id ? "rotate-180" : ""}`} />
+                  </button>
+                  {openWrong === q.id && (
+                    <div className="pop mt-3 space-y-2 text-sm">
+                      <p className="text-rose-200">Senin cevabın: {picks[q.id] === undefined ? "Boş bıraktın" : q.options[picks[q.id]]}</p>
+                      <p className="text-teal-200">Doğru cevap: {q.options[q.answer]}</p>
+                      <p className="leading-relaxed text-slate-300">{q.why}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        <div className="mt-5 grid gap-3">
+          {wrong.length > 0 && <button onClick={() => start(wrong.map((q) => q.id))} className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950"><RotateCw className="h-4 w-4" /> Yanlışlarımı tekrar çöz</button>}
+          <button onClick={() => { setPhase("setup"); setTab("stats"); top(); }} className="rounded-xl border border-sky-300/15 px-4 py-3 text-sm text-slate-100 hover:bg-white/5">Genel analizime bak</button>
+          <button onClick={() => { setPhase("setup"); top(); }} className="rounded-xl border border-sky-300/15 px-4 py-3 text-sm text-slate-100 hover:bg-white/5">Yeni test</button>
+        </div>
+      </section>
+    );
+  }
+
+  /* ---- Hazırlık ve analiz ---- */
+  const okAll = hist.filter((r) => r.correct).length;
+  const byTopic = tally(hist, (r) => r.topic);
+  const byCourse = tally(hist, (r) => catOf(r.course).short);
+  const weak = byTopic.filter((t) => t.total >= 3 && t.ok / t.total < 0.7).slice(0, 3);
+
+  return (
+    <section className="mx-auto max-w-2xl">
+      <SectionHead title="Test" desc="Derslere göre soru çöz, hangi konuda eksiğin olduğunu gör." />
+      <div className="mb-4 flex gap-1 rounded-xl bg-white/5 p-1">
+        {[["solve", "Test çöz"], ["stats", "Analizim"]].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${tab === id ? "bg-teal-500 text-slate-950" : "text-slate-300"}`}>{label}</button>
+        ))}
+      </div>
+
+      {tab === "solve" && (
+        <div className={`${card} space-y-5`}>
+          <div>
+            <p className="mb-2 text-sm font-medium text-slate-200">Mod</p>
+            <div className="flex flex-wrap gap-2">{chip(cfg.mode === "practice", "Alıştırma", () => setCfg({ ...cfg, mode: "practice" }))}{chip(cfg.mode === "exam", "Sınav", () => setCfg({ ...cfg, mode: "exam" }))}</div>
+            <p className="mt-2 text-xs text-slate-400">{cfg.mode === "practice" ? "Her soruda cevap ve açıklama hemen görünür." : "Sonuçlar ve açıklamalar test bitince gösterilir."}</p>
+          </div>
+          <Field label="Ders">
+            <select value={cfg.course} onChange={(e) => setCfg({ ...cfg, course: e.target.value })} className={inp}>
+              <option value="all" className="bg-slate-900">Tüm dersler ({TEST_BANK.length} soru)</option>
+              {courses.map((c) => <option key={c} value={c} className="bg-slate-900">{catOf(c).short} · {catOf(c).name} ({TEST_BANK.filter((q) => q.course === c).length})</option>)}
+            </select>
+          </Field>
+          <div>
+            <p className="mb-2 text-sm font-medium text-slate-200">Zorluk</p>
+            <div className="flex flex-wrap gap-2">{[0, 1, 2, 3].map((l) => <span key={l}>{chip(cfg.level === l, l ? LV[l] : "Hepsi", () => setCfg({ ...cfg, level: l }))}</span>)}</div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm font-medium text-slate-200">Soru sayısı</p>
+            <div className="flex flex-wrap gap-2">{[10, 20, 0].map((n) => <span key={n}>{chip(cfg.count === n, n ? String(n) : "Hepsi", () => setCfg({ ...cfg, count: n }))}</span>)}</div>
+          </div>
+          <button onClick={() => start()} disabled={total === 0} className="w-full rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-[0.98] disabled:opacity-40">{total === 0 ? "Bu seçimde soru yok" : `Teste başla (${total} soru)`}</button>
+          <p className="text-xs leading-relaxed text-slate-500">Sorular öğrenme amaçlıdır; klinik uygulamada kurumunuzun protokolü ve hekim talimatı esastır.</p>
+        </div>
+      )}
+
+      {tab === "stats" && (
+        hist.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-sky-300/20 p-8 text-center">
+            <p className="font-medium text-white">Henüz çözülmüş soru yok.</p>
+            <p className="mt-1 text-sm text-slate-400">Bir test çözünce analizin burada görünür.</p>
+            <button onClick={() => setTab("solve")} className="mt-4 rounded-full bg-teal-500 px-5 py-2.5 text-sm font-semibold text-slate-950">Test çöz</button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className={card}><div className="font-display text-2xl font-bold text-white">{hist.length}</div><div className="text-xs text-slate-400">çözülen soru</div></div>
+              <div className={card}><div className="font-display text-2xl font-bold text-white">%{Math.round((okAll / hist.length) * 100)}</div><div className="text-xs text-slate-400">doğru oranı</div></div>
+            </div>
+            <div className={card}>
+              <h3 className="font-display text-lg font-bold text-white">Önce şuralara çalış</h3>
+              {weak.length === 0 ? (
+                <p className="mt-2 text-sm text-slate-300">{byTopic.some((t) => t.total >= 3) ? "Çözdüğün konularda %70'in altında kalan konu yok. Böyle devam!" : "Konu önerisi için her konudan en az 3 soru çözmen gerekiyor."}</p>
+              ) : (
+                <ul className="mt-2 space-y-2">
+                  {weak.map((t) => (
+                    <li key={t.label} className="rounded-xl bg-rose-500/15 px-3 py-2.5 text-sm text-slate-100">
+                      <span className="font-semibold text-rose-100">{t.label}</span> · %{Math.round((t.ok / t.total) * 100)} <span className="text-slate-400">({catOf(TEST_BANK.find((q) => q.topic === t.label)?.course).short})</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className={card}><h3 className="mb-3 font-display text-lg font-bold text-white">Konulara göre</h3><Bars rows={byTopic} /></div>
+            <div className={card}><h3 className="mb-3 font-display text-lg font-bold text-white">Derslere göre</h3><Bars rows={byCourse} /></div>
+            {!loggedIn && <p className="text-xs leading-relaxed text-slate-500">Giriş yaparsan sonuçların hesabında saklanır. Şimdilik bu cihazda tutuluyor.</p>}
+          </div>
+        )
+      )}
+    </section>
+  );
+}
+
 /* ---------- Sayfalar / menü ---------- */
 const PAGES = [
   { id: "home", label: "Ana sayfa", Icon: HeartPulse },
   { id: "notlar", label: "Notlar", Icon: FileText },
+  { id: "test", label: "Test", Icon: ClipboardList },
   { id: "mitler", label: "Doğru mu?", Icon: Lightbulb },
   { id: "instagram", label: "Instagram", Icon: Insta },
-  { id: "hakkimizda", label: "Biz kimiz", Icon: Users },
 ];
 const pageFromHash = () => {
   const h = window.location.hash.replace("#/", "");
-  return PAGES.some((p) => p.id === h) || h === "yonetim" ? h : "home";
+  return PAGES.some((p) => p.id === h) || h === "yonetim" || h === "hakkimizda" ? h : "home";
 };
 
 // Tanıtım videosu: public/tanitim.mp4 için "/tanitim.mp4" ya da bir YouTube linki yaz.
@@ -807,6 +1103,7 @@ export default function App() {
   const [recovery, setRecovery] = useState(false);
   const [igPosts, setIgPosts] = useState([]);
   const [igLink, setIgLink] = useState("");
+  const [quizHist, setQuizHist] = useState([]);
   const [userNotes, setUserNotes] = useState(() => load("afsu_notes", []));
   const [cat, setCat] = useState("all");
   const [grp, setGrp] = useState("all");
@@ -862,6 +1159,14 @@ export default function App() {
     setIgPosts(data || []);
   }, []);
   useEffect(() => { loadPosts(); }, [loadPosts]);
+  useEffect(() => {
+    if (sb && uid) {
+      sb.from("quiz_answers").select("question_id,course,topic,correct,created_at").eq("user_id", uid).order("created_at", { ascending: false }).limit(1000)
+        .then(({ data }) => setQuizHist(data || []));
+    } else {
+      setQuizHist(load("afsu_quiz", []));
+    }
+  }, [uid]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 2600); return () => clearTimeout(t); }, [toast]);
 
   const notes = useMemo(() => {
@@ -894,6 +1199,18 @@ export default function App() {
     if (error) { await sb.storage.from("note-files").remove([path]); return { error: "Not gönderilemedi. Biraz sonra tekrar dene." }; }
     await loadNotes();
     return {};
+  };
+  const saveQuiz = async (rows) => {
+    const stamped = rows.map((r) => ({ ...r, created_at: new Date().toISOString() }));
+    if (sb && user) {
+      const { error } = await sb.from("quiz_answers").insert(rows.map((r) => ({ ...r, user_id: user.id })));
+      if (error) setToast("Sonuçların hesabına kaydedilemedi.");
+      setQuizHist((h) => [...stamped, ...h].slice(0, 1000));
+      return;
+    }
+    const next = [...stamped, ...quizHist].slice(0, 1000);
+    setQuizHist(next);
+    save("afsu_quiz", next);
   };
   const addPost = async (raw = igLink) => {
     const p = parseIg(raw);
@@ -932,6 +1249,7 @@ export default function App() {
 
   const tiles = [
     { id: "notlar", Icon: FileText, title: "Not havuzu", sub: `${notes.length} not`, cls: "border-teal-400/40 from-teal-600/40 to-teal-950/70", ic: "text-teal-200" },
+    { id: "test", Icon: ClipboardList, title: "Test çöz", sub: `${TEST_BANK.length} soru`, cls: "border-cyan-400/40 from-cyan-600/40 to-cyan-950/70", ic: "text-cyan-200" },
     { id: "mitler", Icon: Lightbulb, title: "Doğru mu, yanlış mı?", sub: `${QUESTIONS.length} soru · 3 seviye`, cls: "border-indigo-400/40 from-indigo-600/40 to-indigo-950/70", ic: "text-indigo-200" },
     { id: "instagram", Icon: Insta, title: "Instagram", sub: "Duyuru ve anketler", cls: "border-rose-400/40 from-rose-600/40 to-rose-950/70", ic: "text-rose-200" },
     { id: "hakkimizda", Icon: Play, title: "Bizi tanı", sub: "Video ve amacımız", cls: "border-sky-400/40 from-sky-600/40 to-sky-950/70", ic: "text-sky-200" },
@@ -974,6 +1292,7 @@ export default function App() {
               {PAGES.map(({ id, label }) => (
                 <button key={id} onClick={() => go(id)} aria-current={page === id ? "page" : undefined} className={`rounded-full px-3.5 py-2 text-sm font-medium transition ${page === id ? "bg-teal-500/20 text-teal-200" : "text-slate-300 hover:bg-white/5"}`}>{label}</button>
               ))}
+              <button onClick={() => go("hakkimizda")} aria-current={page === "hakkimizda" ? "page" : undefined} className={`rounded-full px-3.5 py-2 text-sm font-medium transition ${page === "hakkimizda" ? "bg-teal-500/20 text-teal-200" : "text-slate-300 hover:bg-white/5"}`}>Biz kimiz</button>
             </nav>
             <div className="flex shrink-0 items-center gap-2">
               <button onClick={() => setAuthOpen(true)} className="flex h-10 items-center gap-2 rounded-full bg-gradient-to-r from-teal-500 to-sky-600 px-4 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-95">
@@ -995,8 +1314,8 @@ export default function App() {
                 <path className="ecg" d="M0 62 H110 L130 62 L146 22 L168 104 L190 42 L206 62 H330 L350 62 L366 22 L388 104 L410 42 L426 62 H600" stroke="url(#g)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <div className="mt-6 grid w-full max-w-xl grid-cols-2 gap-3 text-left">
-                {tiles.map(({ id, Icon, title, sub, cls, ic }) => (
-                  <button key={id} onClick={() => go(id)} className={`flex flex-col justify-between rounded-3xl border bg-gradient-to-br p-4 transition active:scale-[0.97] ${cls}`} style={{ minHeight: "7.5rem" }}>
+                {tiles.map(({ id, Icon, title, sub, cls, ic }, ti) => (
+                  <button key={id} onClick={() => go(id)} className={`flex flex-col justify-between rounded-3xl border bg-gradient-to-br p-4 transition active:scale-[0.97] ${cls} ${ti === tiles.length - 1 && tiles.length % 2 ? "col-span-2" : ""}`} style={{ minHeight: "7.5rem" }}>
                     <Icon className={`h-6 w-6 ${ic}`} />
                     <span><span className="block font-display text-base font-bold leading-tight text-white">{title}</span><span className="mt-0.5 block text-xs text-slate-300">{sub}</span></span>
                   </button>
@@ -1060,6 +1379,8 @@ export default function App() {
               )}
             </section>
           )}
+
+          {page === "test" && <TestPage hist={quizHist} onSave={saveQuiz} loggedIn={!!user} onLogin={() => setAuthOpen(true)} />}
 
           {/* DOĞRU MU, YANLIŞ MI */}
           {page === "mitler" && (
