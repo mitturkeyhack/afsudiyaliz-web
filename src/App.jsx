@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity, ArrowUpRight, Check, ChevronDown, ClipboardList, Download, Droplets, Eye,
+  Trophy, Activity, ArrowUpRight, Check, ChevronDown, ClipboardList, Download, Droplets, Eye,
   GraduationCap, HeartPulse, Link2, Mail, MessageCircle, Plus, Presentation, RotateCw,
   Search, Send, Upload, X, FileText, Lightbulb, Play, Users, LogOut, Shield, Trash2, Bell, Megaphone,
 } from "lucide-react";
@@ -232,7 +232,7 @@ const trErr = (m = "") =>
   : /password/i.test(m) ? "Şifre yeterince güçlü değil."
   : "Bir sorun oluştu. Tekrar dene.";
 
-function AuthModal({ open, onClose, user, profile, onAdmin, onDone, onPrivacy, recovery, onRecovered }) {
+function AuthModal({ open, onClose, user, profile, onAdmin, onDone, onPrivacy, recovery, onRecovered, podiums }) {
   const [mode, setMode] = useState("signup");
   const [step, setStep] = useState("form"); // form | code | forgot | reset
   const [f, setF] = useState({ name: "", email: "", pass: "" });
@@ -346,6 +346,7 @@ function AuthModal({ open, onClose, user, profile, onAdmin, onDone, onPrivacy, r
           <h3 className="font-display text-xl font-bold text-white">{profile?.full_name || "Öğrenci"}</h3>
           <p className="text-sm text-slate-400">{user.email}</p>
           {profile?.role === "admin" && <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-rose-500/25 px-3 py-1 text-xs text-rose-100 ring-1 ring-rose-400/50"><Shield className="h-3.5 w-3.5" /> Yönetici</span>}
+          {podiums?.length > 0 && <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-500/25 px-3 py-1 text-xs text-amber-100 ring-1 ring-amber-400/50">🏆 {podiums.some((p) => p.rank === 1) ? "Düello Şampiyonu" : "Düello Podyumu"}{podiums.length > 1 ? ` · ${podiums.length}×` : ""}</span>}
           <div className="mt-5 grid gap-3">
             {profile?.role === "admin" && <button onClick={onAdmin} className="rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950">Yönetim paneli</button>}
             <button onClick={logout} className="flex items-center justify-center gap-2 rounded-xl border border-sky-300/15 px-4 py-3 text-sm text-slate-200 hover:bg-white/5"><LogOut className="h-4 w-4" /> Çıkış yap</button>
@@ -909,6 +910,529 @@ function TestPage({ hist, onSave, loggedIn, onLogin }) {
   );
 }
 
+/* ---------- Site içi onay penceresi (tarayıcının kendi penceresi yerine) ---------- */
+let confirmHandler = null;
+const ask = (message, opts = {}) => (confirmHandler ? confirmHandler(message, opts) : Promise.resolve(false));
+
+function ConfirmHost() {
+  const [st, setSt] = useState(null);
+  useEffect(() => {
+    confirmHandler = (message, opts) => new Promise((resolve) => setSt({ message, opts, resolve }));
+    return () => { confirmHandler = null; };
+  }, []);
+  if (!st) return null;
+  const { message, opts } = st;
+  const done = (v) => { st.resolve(v); setSt(null); };
+  return (
+    <Modal open onClose={() => done(false)} title={opts.title || "Onay"}>
+      <div className="text-center">
+        <div className={`mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full ring-1 ${opts.danger ? "bg-rose-500/25 text-rose-100 ring-rose-400/50" : "bg-teal-500/25 text-teal-100 ring-teal-400/50"}`}>{opts.danger ? <Trash2 className="h-7 w-7" /> : <Check className="h-7 w-7" />}</div>
+        <h3 className="font-display text-xl font-bold text-white">{opts.title || "Emin misin?"}</h3>
+        <p className="mt-2 text-sm leading-relaxed text-slate-300">{message}</p>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <button onClick={() => done(false)} className="rounded-xl border border-sky-300/15 px-4 py-3 text-sm text-slate-200 hover:bg-white/5">Vazgeç</button>
+          <button onClick={() => done(true)} className={`rounded-xl px-4 py-3 text-sm font-semibold active:scale-[0.98] ${opts.danger ? "bg-rose-500 text-white" : "bg-gradient-to-r from-teal-500 to-sky-600 text-slate-950"}`}>{opts.confirmText || "Evet"}</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- Düello ---------- */
+const pad2 = (n) => String(n).padStart(2, "0");
+const clock = (sec) => {
+  const s = Math.max(0, Math.floor(sec)), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h ? `${h}:${pad2(m)}:${pad2(s % 60)}` : `${pad2(m)}:${pad2(s % 60)}`;
+};
+const dtText = (iso) => new Date(iso).toLocaleString("tr-TR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+const hm = (iso) => new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+const MEDAL = ["", "🥇", "🥈", "🥉"];
+
+// Yapay zekâya soru yazdırırken kullanılacak istem (yönetim panelinde kopyalanır)
+const AI_PROMPT = `Hemodiyaliz teknikerliği öğrencileri için ORTA ve ZOR düzeyde çoktan seçmeli sorular yaz. Her soru tam olarak şu biçimde olsun, sorular arasına tek satır --- koy:
+DERS: ...
+KONU: ...
+ZORLUK: Orta veya Zor
+SORU: ...
+A) ...
+B) ...
+C) ...
+D) ...
+E) ...
+DOĞRU CEVAP: (tek harf)
+AÇIKLAMA: ... (1-2 cümle)
+Kurallar: 5 şık olsun. TÜM ŞIKLAR BENZER UZUNLUKTA olsun; doğru şık diğerlerinden daha uzun ya da daha ayrıntılı olmasın. Doğru şık harfleri dengeli dağılsın. "Hepsi" ya da "Hiçbiri" şıkkı kullanma. Güncel kılavuzlara (KDIGO, ISPD, ISO/AAMI) uygun yaz, eski eşik değerleri kullanma. Klinik vakalı sorular da olsun.`;
+
+const parseQuestions = (txt) => {
+  const ok = [];
+  let bad = 0;
+  txt.split(/^\s*-{3,}\s*$/m).map((b) => b.trim()).filter(Boolean).forEach((blk) => {
+    const f = { opts: [] };
+    let cur = null;
+    blk.split("\n").forEach((raw) => {
+      const line = raw.trim();
+      if (!line) return;
+      let m;
+      if ((m = line.match(/^(DERS|KONU|ZORLUK|SORU|DOĞRU CEVAP|AÇIKLAMA)\s*:\s*(.*)$/i))) { cur = m[1].toUpperCase(); f[cur] = m[2]; }
+      else if ((m = line.match(/^([A-E])\s*[).]\s*(.*)$/))) { cur = "OPT"; f.opts.push(m[2]); }
+      else if (cur === "OPT") f.opts[f.opts.length - 1] += " " + line;
+      else if (cur) f[cur] += " " + line;
+    });
+    const ans = "ABCDE".indexOf(((f["DOĞRU CEVAP"] || "").trim()[0] || "").toUpperCase());
+    const lvl = { KOLAY: 1, ORTA: 2, ZOR: 3 }[(f.ZORLUK || "").trim().toUpperCase()] || 2;
+    if (!f.SORU || f.opts.length !== 5 || ans < 0) { bad += 1; return; }
+    ok.push({ topic: (f.KONU || f.DERS || "Genel").trim().slice(0, 120), level: lvl, text: f.SORU.trim(), options: f.opts.map((o) => o.trim()), answer: ans, why: (f["AÇIKLAMA"] || "").trim() });
+  });
+  return { ok, bad };
+};
+
+async function makeMedalImage({ rank, name, title, correct, total, used_sec, ends_at }) {
+  const W = 1080, H = 1920;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  const th = [null, { a: "#f7e08a", b: "#c9971c", t: "ALTIN" }, { a: "#eef2f8", b: "#8fa0b5", t: "GÜMÜŞ" }, { a: "#f3b988", b: "#a45a22", t: "BRONZ" }][rank] || { a: "#8be0d4", b: "#0d9488", t: "" };
+  try { await document.fonts?.ready; } catch { /* yoksay */ }
+  const fit = (txt, size, weight, max) => { let s = size; do { g.font = `${weight} ${s}px 'Bricolage Grotesque', system-ui, sans-serif`; s -= 4; } while (g.measureText(txt).width > max && s > 28); };
+  const bg = g.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#040b17"); bg.addColorStop(1, "#0b2a4a");
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  const glow = g.createRadialGradient(W / 2, 800, 40, W / 2, 800, 700);
+  glow.addColorStop(0, th.b + "88"); glow.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = glow; g.fillRect(0, 0, W, H);
+  const img = await new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = LOGO_SRC; });
+  if (img) { g.save(); g.beginPath(); g.arc(W / 2, 250, 130, 0, Math.PI * 2); g.clip(); g.drawImage(img, W / 2 - 130, 120, 260, 260); g.restore(); }
+  g.textAlign = "center";
+  g.fillStyle = "#cfe3f5"; fit("AFSÜ DİYALİZ TEAM · DÜELLO", 46, 600, 940); g.fillText("AFSÜ DİYALİZ TEAM · DÜELLO", W / 2, 470);
+  const mg = g.createLinearGradient(W / 2 - 240, 560, W / 2 + 240, 1040);
+  mg.addColorStop(0, th.a); mg.addColorStop(1, th.b);
+  g.fillStyle = mg; g.beginPath(); g.arc(W / 2, 800, 240, 0, Math.PI * 2); g.fill();
+  g.lineWidth = 14; g.strokeStyle = "rgba(255,255,255,.35)"; g.stroke();
+  g.fillStyle = "#1b1405"; g.font = "800 320px 'Bricolage Grotesque', system-ui, sans-serif"; g.fillText(String(rank), W / 2, 915);
+  g.fillStyle = "#ffffff"; fit("TEBRİKLER", 110, 800, 940); g.fillText("TEBRİKLER", W / 2, 1180);
+  g.fillStyle = th.a; fit(name, 96, 800, 940); g.fillText(name, W / 2, 1300);
+  g.fillStyle = "#e6f0fa"; fit(`Düelloda ${rank}. oldu`, 64, 600, 940); g.fillText(`Düelloda ${rank}. oldu`, W / 2, 1385);
+  g.fillStyle = "#ffffff"; fit(`${correct}/${total} doğru · ${clock(used_sec)}`, 76, 700, 940); g.fillText(`${correct}/${total} doğru · ${clock(used_sec)}`, W / 2, 1520);
+  g.fillStyle = "#9fb7cf"; fit(title, 48, 500, 940); g.fillText(title, W / 2, 1610);
+  g.fillText(new Date(ends_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" }), W / 2, 1670);
+  g.fillStyle = th.a; g.font = "700 52px system-ui, sans-serif"; g.fillText("@afsudiyalizteam", W / 2, 1820);
+  return new Promise((res) => c.toBlob(res, "image/png"));
+}
+
+function PodiumModal({ pod, name, onClose }) {
+  const [busy, setBusy] = useState(false);
+  if (!pod) return null;
+  const download = async () => {
+    setBusy(true);
+    try {
+      const blob = await makeMedalImage({ ...pod, name });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `afsu-diyaliz-duello-${pod.rank}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+    } catch { /* görsel oluşturulamadı */ }
+    setBusy(false);
+  };
+  return (
+    <Modal open onClose={onClose} title="Tebrikler">
+      <div className="text-center">
+        <div className="text-7xl">{MEDAL[pod.rank]}</div>
+        <h3 className="mt-3 font-display text-2xl font-bold text-white">Tebrikler, düelloda {pod.rank}. oldun!</h3>
+        <p className="mt-2 text-sm text-slate-300">{pod.title} · {pod.correct}/{pod.total} doğru · {clock(pod.used_sec)}</p>
+        <div className="mt-5 grid gap-3">
+          <button onClick={download} disabled={busy} className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60"><Download className="h-4 w-4" /> {busy ? "Hazırlanıyor…" : "Instagram görselini indir"}</button>
+          <button onClick={onClose} className="rounded-xl border border-sky-300/15 px-4 py-3 text-sm text-slate-200 hover:bg-white/5">Kapat</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function DuelBanner({ duels, go }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const cur = duels.filter((d) => new Date(d.ends_at).getTime() > now).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))[0];
+  if (!cur) return null;
+  const st = new Date(cur.starts_at).getTime(), en = new Date(cur.ends_at).getTime();
+  const soon = now < st;
+  return (
+    <button onClick={() => go("duello")} className="mt-6 flex w-full max-w-xl items-center gap-4 rounded-3xl border border-amber-400/50 bg-gradient-to-br from-amber-600/35 to-amber-950/70 p-4 text-left active:scale-[0.98]">
+      <Trophy className="h-9 w-9 shrink-0 text-amber-200" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-display text-base font-bold text-white">{cur.title}</span>
+        <span className="text-xs text-amber-100/90">{soon ? `Başlamasına ${clock((st - now) / 1000)}` : `Şimdi açık! Bitişine ${clock((en - now) / 1000)}`}</span>
+      </span>
+      <span className="shrink-0 rounded-full bg-amber-400 px-3 py-1.5 text-xs font-semibold text-slate-950">{soon ? "Detay" : "Katıl"}</span>
+    </button>
+  );
+}
+
+function DuelPage({ user, onLogin, setToast, duels, openPod }) {
+  const [now, setNow] = useState(Date.now());
+  const [mine, setMine] = useState({});
+  const [count, setCount] = useState({});
+  const [play, setPlay] = useState(null);
+  const [res, setRes] = useState(null);
+  const [open, setOpen] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const leaves = useRef(0);
+  const uid = user?.id;
+  const card = "rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 backdrop-blur-xl";
+  const btn = "w-full rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-[0.98] disabled:opacity-50";
+
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(t); }, []);
+
+  const refresh = useCallback(async () => {
+    if (!sb || !duels.length) return;
+    if (uid) {
+      const { data } = await sb.from("duel_attempts").select("duel_id,started_at,finished_at").in("duel_id", duels.map((d) => d.id)).eq("user_id", uid);
+      setMine(Object.fromEntries((data || []).map((a) => [a.duel_id, a])));
+    }
+    const cur = duels.filter((d) => new Date(d.ends_at).getTime() > Date.now());
+    const e = await Promise.all(cur.map(async (d) => [d.id, (await sb.rpc("duel_participants", { p_duel: d.id })).data || 0]));
+    setCount(Object.fromEntries(e));
+  }, [duels, uid]);
+  useEffect(() => { refresh(); const t = setInterval(refresh, 30000); return () => clearInterval(t); }, [refresh]);
+
+  useEffect(() => {
+    if (!play) return;
+    const f = () => { if (document.hidden) leaves.current += 1; };
+    document.addEventListener("visibilitychange", f);
+    return () => document.removeEventListener("visibilitychange", f);
+  }, [play]);
+
+  const finish = useCallback(async () => {
+    if (!play) return;
+    const d = play.duel;
+    setPlay(null);
+    await sb.rpc("duel_finish", { p_duel: d.id, p_leaves: leaves.current });
+    setToast("Cevapların kaydedildi. Sonuçlar düello bitince açılır.");
+    refresh();
+  }, [play, refresh, setToast]);
+  const left = play ? Math.max(0, Math.ceil((play.deadline - now) / 1000)) : 0;
+  useEffect(() => { if (play && left <= 0) finish(); }, [play, left, finish]);
+
+  const begin = async (d) => {
+    setBusy(true);
+    const { data, error } = await sb.rpc("duel_start", { p_duel: d.id });
+    setBusy(false);
+    if (error) return setToast(error.message);
+    if (data.state === "done") { setToast("Bu düelloyu zaten tamamladın."); return refresh(); }
+    const off = new Date(data.server_now).getTime() - Date.now();
+    leaves.current = 0;
+    setPlay({ duel: d, qs: data.questions, deadline: new Date(data.deadline).getTime() - off, i: 0, ans: data.answers || {} });
+    window.scrollTo({ top: 0 });
+  };
+  const pick = (oi) => {
+    const q = play.qs[play.i];
+    setPlay({ ...play, ans: { ...play.ans, [q.id]: oi } });
+    sb.rpc("duel_answer", { p_duel: play.duel.id, p_q: q.id, p_choice: oi }).then(({ error }) => { if (error) setToast("Cevabın kaydedilemedi. Bağlantını kontrol et."); });
+  };
+  const showResults = async (d) => {
+    setBusy(true);
+    const { data, error } = await sb.rpc("duel_results", { p_duel: d.id });
+    setBusy(false);
+    if (error) return setToast(error.message);
+    setRes({ duel: d, ...data }); setOpen(null); window.scrollTo({ top: 0 });
+  };
+
+  const head = <SectionHead title="Düello" desc="Herkes aynı sorularla yarışır. Sonuçlar düello bitince açılır." />;
+  if (!sb) return <section className="mx-auto max-w-2xl">{head}<div className={card}><p className="text-sm text-slate-300">Düello için sunucu bağlantısı gerekir.</p></div></section>;
+  if (!user) {
+    return (
+      <section className="mx-auto max-w-2xl">{head}
+        <div className={`${card} text-center`}>
+          <Trophy className="mx-auto h-12 w-12 text-amber-300" />
+          <h3 className="mt-3 font-display text-xl font-bold text-white">Düelloya katılmak için giriş yap</h3>
+          <button onClick={onLogin} className={`${btn} mt-4`}>Giriş yap / Kayıt ol</button>
+        </div>
+      </section>
+    );
+  }
+
+  /* ---- Oyun ---- */
+  if (play) {
+    const q = play.qs[play.i];
+    const sel = play.ans[q.id];
+    const last = play.i + 1 === play.qs.length;
+    return (
+      <section className="mx-auto max-w-2xl">
+        <div className="mb-3 flex items-center justify-between text-sm">
+          <span className="text-slate-300">Soru {play.i + 1} / {play.qs.length}</span>
+          <span className={`rounded-full px-3 py-1 font-display text-base font-bold ${left <= 60 ? "bg-rose-500/30 text-rose-100" : "bg-white/10 text-white"}`}>{clock(left)}</span>
+        </div>
+        <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-amber-400 transition-all" style={{ width: `${((play.i + 1) / play.qs.length) * 100}%` }} /></div>
+        <article className={card}>
+          <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-slate-300">{q.topic}</span>
+          <h3 className="mt-3 font-display text-lg font-bold leading-snug text-white">{q.text}</h3>
+          <div className="mt-4 space-y-2.5">
+            {q.options.map((o, oi) => (
+              <button key={oi} onClick={() => pick(oi)} className={`flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left text-sm transition active:scale-[0.99] ${sel === oi ? "border-amber-300 bg-amber-500/20" : "border-sky-300/15 hover:bg-white/10"}`}>
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold text-slate-200">{LETTERS[oi]}</span>
+                <span className="pt-0.5 text-slate-100">{o}</span>
+              </button>
+            ))}
+          </div>
+        </article>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <button onClick={() => setPlay({ ...play, i: play.i - 1 })} disabled={play.i === 0} className="rounded-xl border border-sky-300/15 px-4 py-3 text-sm text-slate-100 disabled:opacity-40">Önceki</button>
+          {last
+            ? <button onClick={() => { ask("Düelloyu bitirmek istiyor musun? Bir daha giremezsin.", { title: "Düelloyu bitir", confirmText: "Bitir" }).then((ok) => ok && finish()); }} className="rounded-xl bg-amber-400 px-4 py-3 text-sm font-semibold text-slate-950">Bitir</button>
+            : <button onClick={() => setPlay({ ...play, i: play.i + 1 })} className={btn}>Sonraki</button>}
+        </div>
+        <p className="mt-3 text-center text-xs text-slate-500">Sayfayı kapatsan da süren işler. Aynı düelloya tekrar girip kaldığın yerden devam edebilirsin.</p>
+      </section>
+    );
+  }
+
+  /* ---- Sonuçlar ---- */
+  if (res) {
+    const top3 = res.ranking.slice(0, 3);
+    const me = res.me;
+    return (
+      <section className="mx-auto max-w-2xl">
+        <button onClick={() => setRes(null)} className="mb-3 text-sm text-slate-400 underline underline-offset-2">← Düello sayfası</button>
+        <div className={card}>
+          <h3 className="text-center font-display text-xl font-bold text-white">{res.duel.title}</h3>
+          <p className="mt-1 text-center text-xs text-slate-400">{res.participants} kişi katıldı · {res.total} soru</p>
+          <div className="mt-5 flex items-end gap-2">
+            {[1, 0, 2].map((k) => top3[k] && (
+              <div key={k} className="flex flex-1 flex-col items-center">
+                <div className="text-3xl">{MEDAL[k + 1]}</div>
+                <p className="mt-1 w-full truncate text-center text-xs font-semibold text-white">{top3[k].name}</p>
+                <p className="text-[11px] text-slate-400">{top3[k].correct}/{res.total} · {clock(top3[k].used_sec)}</p>
+                <div className={`mt-2 w-full rounded-t-2xl ${["h-24 bg-amber-400/60", "h-16 bg-slate-300/50", "h-12 bg-orange-500/50"][k]}`} />
+              </div>
+            ))}
+          </div>
+        </div>
+        {me ? (
+          <div className={`${card} mt-3 text-center`}>
+            <p className="text-sm text-slate-400">Sıralaman</p>
+            <p className="font-display text-3xl font-extrabold text-white">{me.rank}. <span className="text-base font-medium text-slate-300">· {me.correct}/{res.total} doğru · {clock(me.used_sec)}</span></p>
+            {me.rank <= 3 && <button onClick={() => openPod({ id: res.duel.id, title: res.duel.title, rank: me.rank, correct: me.correct, total: res.total, used_sec: me.used_sec, ends_at: res.duel.ends_at })} className={`${btn} mt-3`}>{MEDAL[me.rank]} Instagram görselini indir</button>}
+          </div>
+        ) : <p className="mt-3 text-center text-sm text-slate-400">Bu düelloya katılmadın.</p>}
+        <h3 className="mb-2 mt-5 font-display text-lg font-bold text-white">Sıralama</h3>
+        <div className="space-y-1.5">
+          {res.ranking.map((r) => (
+            <div key={r.rank} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm ${r.me ? "border-amber-300/60 bg-amber-500/15" : "border-sky-300/15 bg-[#0a1a30]/90"}`}>
+              <span className="w-8 shrink-0 text-center font-display font-bold text-white">{MEDAL[r.rank] || r.rank}</span>
+              <span className="min-w-0 flex-1 truncate text-slate-100">{r.name}</span>
+              <span className="shrink-0 text-xs text-slate-400">{r.correct}/{res.total} · {clock(r.used_sec)}{r.leaves ? ` · ${r.leaves}× sekme` : ""}</span>
+            </div>
+          ))}
+        </div>
+        <h3 className="mb-2 mt-5 font-display text-lg font-bold text-white">Doğru cevaplar</h3>
+        <div className="space-y-2">
+          {(res.questions || []).map((q, n) => (
+            <div key={q.id} className={card}>
+              <button onClick={() => setOpen(open === q.id ? null : q.id)} aria-expanded={open === q.id} className="flex w-full items-start justify-between gap-3 text-left text-sm font-medium text-slate-100">
+                <span>{n + 1}. {q.text}</span><ChevronDown className={`mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition ${open === q.id ? "rotate-180" : ""}`} />
+              </button>
+              {open === q.id && (
+                <div className="pop mt-3 space-y-2 text-sm">
+                  {q.voided && <p className="text-amber-200">Bu soru iptal edildi, herkese doğru sayıldı.</p>}
+                  <p className="text-teal-200">Doğru cevap: {q.options[q.answer]}</p>
+                  {q.why && <p className="leading-relaxed text-slate-300">{q.why}</p>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  /* ---- Düello sayfası ---- */
+  const cur = duels.filter((d) => new Date(d.ends_at).getTime() > now).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))[0];
+  const past = duels.filter((d) => new Date(d.ends_at).getTime() <= now);
+  let body = null;
+  if (cur) {
+    const st = new Date(cur.starts_at).getTime(), en = new Date(cur.ends_at).getTime();
+    const lastStart = en - cur.duration_sec * 1000;
+    const a = mine[cur.id];
+    const running = a && !a.finished_at && now < new Date(a.started_at).getTime() + cur.duration_sec * 1000;
+    const done = a && !running;
+    body = (
+      <div className={`${card} border-amber-400/40`}>
+        <div className="flex items-center gap-3"><Trophy className="h-8 w-8 text-amber-300" /><h3 className="font-display text-xl font-bold text-white">{cur.title}</h3></div>
+        <ul className="mt-3 space-y-1 text-sm text-slate-300">
+          <li>📅 {dtText(cur.starts_at)} – {hm(cur.ends_at)}</li>
+          <li>⏱ {Math.round(cur.duration_sec / 60)} dakika süre · {cur.question_ids.length} soru</li>
+          <li>👥 {count[cur.id] ?? 0} kişi katıldı</li>
+        </ul>
+        <div className="mt-4">
+          {now < st && <div className="rounded-2xl bg-white/5 p-4 text-center"><p className="text-xs text-slate-400">Başlamasına</p><p className="font-display text-3xl font-bold text-white">{clock((st - now) / 1000)}</p></div>}
+          {now >= st && done && <p className="rounded-2xl bg-teal-500/15 p-4 text-center text-sm text-teal-100">Düelloyu tamamladın. Sonuçlar {hm(cur.ends_at)}'de açılacak.</p>}
+          {now >= st && running && <button onClick={() => begin(cur)} disabled={busy} className={btn}>Devam et</button>}
+          {now >= st && !a && now <= lastStart && (
+            <>
+              <button onClick={() => { ask(`${Math.round(cur.duration_sec / 60)} dakikalık sürenin başlayacak. Tek hakkın var. Hazır mısın?`, { title: "Düelloya başla", confirmText: "Başla" }).then((ok) => ok && begin(cur)); }} disabled={busy} className={btn}>Şimdi katıl</button>
+              <p className="mt-2 text-center text-xs text-slate-500">En geç {hm(new Date(lastStart).toISOString())}'e kadar başlayabilirsin.</p>
+            </>
+          )}
+          {now >= st && !a && now > lastStart && <p className="rounded-2xl bg-white/5 p-4 text-center text-sm text-slate-300">Katılım süresi doldu. Sonuçlar {hm(cur.ends_at)}'de açılacak.</p>}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <section className="mx-auto max-w-2xl">
+      {head}
+      {body || <div className="rounded-3xl border border-dashed border-sky-300/20 p-8 text-center"><p className="font-medium text-white">Şu an planlı bir düello yok.</p><p className="mt-1 text-sm text-slate-400">Yeni düello WhatsApp grubundan ve duyurulardan haber verilir.</p></div>}
+      {past.length > 0 && (
+        <>
+          <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Düello Salonu</h3>
+          <div className="space-y-2">
+            {past.map((d) => (
+              <button key={d.id} onClick={() => showResults(d)} disabled={busy} className="flex w-full items-center gap-3 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3.5 text-left hover:bg-white/5">
+                <span className="text-2xl">🏆</span>
+                <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-white">{d.title}</span><span className="text-xs text-slate-400">{dtText(d.starts_at)}</span></span>
+                <ArrowUpRight className="h-4 w-4 shrink-0 text-slate-400" />
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function DuelAdmin({ setToast }) {
+  const [qs, setQs] = useState([]);
+  const [ds, setDs] = useState([]);
+  const [cnt, setCnt] = useState({});
+  const [paste, setPaste] = useState("");
+  const [pick, setPick] = useState([]);
+  const [f, setF] = useState({ title: "", start: "", end: "", min: 10 });
+  const [rows, setRows] = useState(null);
+  const [showQs, setShowQs] = useState(false);
+  const [openD, setOpenD] = useState(null);
+  const box = "rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3";
+
+  const load = useCallback(async () => {
+    const a = await sb.from("duel_questions").select("*").order("created_at", { ascending: false });
+    const b = await sb.from("duels").select("*").order("starts_at", { ascending: false });
+    setQs(a.data || []); setDs(b.data || []);
+    const e = await Promise.all((b.data || []).map(async (d) => [d.id, (await sb.rpc("duel_participants", { p_duel: d.id })).data || 0]));
+    setCnt(Object.fromEntries(e));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const importQs = async () => {
+    const { ok, bad } = parseQuestions(paste);
+    if (!ok.length) return setToast("Soru bulunamadı. Biçimi kontrol et.");
+    const { error } = await sb.from("duel_questions").insert(ok);
+    if (error) return setToast("Eklenemedi: " + error.message);
+    const longest = ok.filter((q) => q.options.every((o, i) => i === q.answer || o.length < q.options[q.answer].length)).length;
+    const warn = longest / ok.length > 0.5 ? ` Uyarı: doğru şık %${Math.round((longest / ok.length) * 100)} oranında en uzun şık.` : "";
+    setPaste(""); load();
+    setToast(`${ok.length} soru eklendi${bad ? `, ${bad} hatalı atlandı` : ""}.${warn}`);
+  };
+  const delQ = async (id) => {
+    if (ds.some((d) => d.question_ids.includes(id))) return setToast("Bu soru bir düelloda kullanılıyor.");
+    if (!(await ask("Bu soru havuzdan silinsin mi?", { title: "Soruyu sil", confirmText: "Sil", danger: true }))) return;
+    await sb.from("duel_questions").delete().eq("id", id);
+    setPick((p) => p.filter((x) => x !== id)); load();
+  };
+  const randomPick = (n) => { const hard = qs.filter((q) => q.level >= 2); setPick(shuffle(hard.length >= n ? hard : qs).slice(0, n).map((q) => q.id)); };
+  const create = async () => {
+    const s = new Date(f.start), e = new Date(f.end), sec = Math.round(Number(f.min) * 60);
+    if (f.title.trim().length < 3 || isNaN(s) || isNaN(e)) return setToast("Başlık, başlangıç ve bitiş saatini gir.");
+    if (!pick.length) return setToast("En az bir soru seç.");
+    if (!(sec >= 60) || (e - s) / 1000 < sec) return setToast("Düello penceresi, süreden kısa olamaz.");
+    const { error } = await sb.from("duels").insert({ title: f.title.trim(), starts_at: s.toISOString(), ends_at: e.toISOString(), duration_sec: sec, question_ids: pick });
+    if (error) return setToast("Oluşturulamadı: " + error.message);
+    setPick([]); setF({ title: "", start: "", end: "", min: 10 }); setToast("Düello oluşturuldu."); load();
+  };
+  const delDuel = async (id) => { if (!(await ask("Düello ve tüm sonuçları silinsin mi? Bu geri alınamaz.", { title: "Düelloyu sil", confirmText: "Sil", danger: true }))) return; await sb.from("duels").delete().eq("id", id); load(); };
+  const toggleVoid = async (d, qid) => {
+    const v = d.voided.includes(qid) ? d.voided.filter((x) => x !== qid) : [...d.voided, qid];
+    const { error } = await sb.from("duels").update({ voided: v }).eq("id", d.id);
+    setToast(error ? "İşlem başarısız." : "Güncellendi."); load();
+  };
+  const results = async (d) => {
+    const { data, error } = await sb.rpc("duel_results", { p_duel: d.id });
+    if (error) return setToast(error.message);
+    setRows({ id: d.id, ...data });
+  };
+
+  return (
+    <div className="mt-6">
+      <h3 className="mb-2 font-display text-lg font-bold text-white">Düello</h3>
+      <div className={`${box} space-y-2`}>
+        <p className="text-sm font-medium text-white">1. Soru ekle ({qs.length} soru havuzda)</p>
+        <textarea value={paste} onChange={(e) => setPaste(e.target.value)} rows={5} placeholder={"DERS: ...\nKONU: ...\nZORLUK: Orta\nSORU: ...\nA) ...\nB) ...\nC) ...\nD) ...\nE) ...\nDOĞRU CEVAP: B\nAÇIKLAMA: ...\n---"} className={`${inp} resize-none text-xs`} />
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={importQs} className="rounded-xl bg-teal-500 px-3 py-2.5 text-sm font-semibold text-slate-950">Soruları ekle</button>
+          <button onClick={() => navigator.clipboard?.writeText(AI_PROMPT).then(() => setToast("İstem kopyalandı. Yapay zekâya yapıştır."))} className="rounded-xl border border-sky-300/15 px-3 py-2.5 text-sm text-slate-100">Yapay zekâ istemini kopyala</button>
+        </div>
+        <button onClick={() => setShowQs(!showQs)} className="text-xs text-teal-300 underline underline-offset-2">{showQs ? "Soru listesini gizle" : "Soru listesini göster"}</button>
+        {showQs && (
+          <div className="max-h-64 space-y-1.5 overflow-y-auto">
+            {qs.map((q) => (
+              <div key={q.id} className="flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2 text-xs">
+                <input type="checkbox" checked={pick.includes(q.id)} onChange={() => setPick(pick.includes(q.id) ? pick.filter((x) => x !== q.id) : [...pick, q.id])} className="h-4 w-4 shrink-0 accent-amber-400" />
+                <span className={`shrink-0 rounded px-1.5 py-0.5 ${LV_CLS[q.level]}`}>{LV[q.level]}</span>
+                <span className="min-w-0 flex-1 truncate text-slate-200">{q.topic} · {q.text}</span>
+                <button onClick={() => delQ(q.id)} aria-label="Soruyu sil" className="shrink-0 text-rose-300"><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className={`${box} mt-2 space-y-2`}>
+        <p className="text-sm font-medium text-white">2. Düello oluştur ({pick.length} soru seçili)</p>
+        <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} maxLength={120} placeholder="Başlık (ör. Pazartesi Düellosu)" className={inp} />
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-xs text-slate-400">Başlangıç<input type="datetime-local" value={f.start} onChange={(e) => setF({ ...f, start: e.target.value })} className={`${inp} mt-1`} /></label>
+          <label className="text-xs text-slate-400">Bitiş<input type="datetime-local" value={f.end} onChange={(e) => setF({ ...f, end: e.target.value })} className={`${inp} mt-1`} /></label>
+        </div>
+        <label className="block text-xs text-slate-400">Kişi başı süre (dakika)<input type="number" min="1" max="120" value={f.min} onChange={(e) => setF({ ...f, min: e.target.value })} className={`${inp} mt-1`} /></label>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="self-center text-slate-400">Rastgele orta/zor seç:</span>
+          {[4, 10].map((n) => <button key={n} onClick={() => randomPick(n)} className="rounded-full border border-sky-300/15 px-3 py-1.5 text-slate-100">{n} soru</button>)}
+          {pick.length > 0 && <button onClick={() => setPick([])} className="rounded-full px-3 py-1.5 text-slate-400">Temizle</button>}
+        </div>
+        <button onClick={create} className="w-full rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950">Düelloyu oluştur</button>
+        <p className="text-xs text-slate-500">Son başlama saati = bitiş − süre. Böylece herkes tam süreyi kullanır.</p>
+      </div>
+      <div className="mt-2 space-y-2">
+        {ds.map((d) => (
+          <div key={d.id} className={box}>
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-white">{d.title}</p><p className="text-xs text-slate-400">{dtText(d.starts_at)} · {Math.round(d.duration_sec / 60)} dk · {d.question_ids.length} soru · {cnt[d.id] ?? 0} katılımcı</p></div>
+              <button onClick={() => delDuel(d.id)} aria-label="Düelloyu sil" className="shrink-0 rounded-lg p-2 text-rose-300 hover:bg-rose-500/15"><Trash2 className="h-4 w-4" /></button>
+            </div>
+            <div className="mt-2 flex gap-2 text-xs">
+              <button onClick={() => results(d)} className="rounded-lg border border-sky-300/15 px-3 py-1.5 text-slate-100">Sonuçlar</button>
+              <button onClick={() => setOpenD(openD === d.id ? null : d.id)} className="rounded-lg border border-sky-300/15 px-3 py-1.5 text-slate-100">Sorular / iptal</button>
+            </div>
+            {openD === d.id && (
+              <div className="mt-2 space-y-1.5">
+                {d.question_ids.map((qid) => { const q = qs.find((x) => x.id === qid); return (
+                  <div key={qid} className="flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2 text-xs">
+                    <span className="min-w-0 flex-1 truncate text-slate-200">{q ? q.text : "(silinmiş soru)"}</span>
+                    <button onClick={() => toggleVoid(d, qid)} className={`shrink-0 rounded px-2 py-1 ${d.voided.includes(qid) ? "bg-amber-500/30 text-amber-100" : "border border-sky-300/15 text-slate-300"}`}>{d.voided.includes(qid) ? "İptal edildi" : "Hatalı → herkese doğru"}</button>
+                  </div>
+                ); })}
+              </div>
+            )}
+            {rows?.id === d.id && (
+              <div className="mt-2 space-y-1 text-xs text-slate-300">
+                <p className="text-slate-400">{rows.participants} katılımcı</p>
+                {rows.ranking.map((r) => <p key={r.rank}>{r.rank}. {r.name} · {r.correct}/{rows.total} · {clock(r.used_sec)}{r.leaves ? ` · ${r.leaves}× sekme değiştirdi` : ""}</p>)}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Sayfalar / menü ---------- */
 const PAGES = [
   { id: "home", label: "Ana sayfa", Icon: HeartPulse },
@@ -919,7 +1443,7 @@ const PAGES = [
 ];
 const pageFromHash = () => {
   const h = window.location.hash.replace("#/", "");
-  return PAGES.some((p) => p.id === h) || h === "yonetim" || h === "hakkimizda" ? h : "home";
+  return PAGES.some((p) => p.id === h) || h === "yonetim" || h === "hakkimizda" || h === "duello" ? h : "home";
 };
 
 // Tanıtım videosu: public/tanitim.mp4 için "/tanitim.mp4" ya da bir YouTube linki yaz.
@@ -1239,6 +1763,9 @@ export default function App() {
   const [igPosts, setIgPosts] = useState([]);
   const [igLink, setIgLink] = useState("");
   const [quizHist, setQuizHist] = useState([]);
+  const [duels, setDuels] = useState([]);
+  const [podiums, setPodiums] = useState([]);
+  const [pod, setPod] = useState(null);
   const [userNotes, setUserNotes] = useState(() => load("afsu_notes", []));
   const [cat, setCat] = useState("all");
   const [grp, setGrp] = useState("all");
@@ -1302,6 +1829,26 @@ export default function App() {
     setIgPosts(data || []);
   }, []);
   useEffect(() => { loadPosts(); }, [loadPosts]);
+  const loadDuels = useCallback(async () => {
+    if (!sb) return;
+    const { data } = await sb.from("duels").select("*").order("starts_at", { ascending: false }).limit(30);
+    setDuels(data || []);
+  }, []);
+  useEffect(() => { loadDuels(); const t = setInterval(loadDuels, 60000); return () => clearInterval(t); }, [loadDuels]);
+  useEffect(() => {
+    if (!sb || !uid) { setPodiums([]); return; }
+    sb.rpc("duel_my_podiums").then(({ data }) => {
+      const list = Array.isArray(data) ? data : [];
+      setPodiums(list);
+      const seen = load("afsu_podium_seen", []);
+      const fresh = list.find((p) => !seen.includes(p.id));
+      if (fresh) setPod(fresh);
+    });
+  }, [uid]);
+  const closePod = () => {
+    if (pod?.id) save("afsu_podium_seen", [...new Set([...load("afsu_podium_seen", []), pod.id])]);
+    setPod(null);
+  };
   const loadAnns = useCallback(async () => {
     if (!sb) return;
     const { data } = await sb.from("announcements").select("*").order("created_at", { ascending: false }).limit(30);
@@ -1389,19 +1936,19 @@ export default function App() {
     setIgLink(""); setToast("Gönderi eklendi."); loadPosts();
   };
   const deletePost = async (id) => {
-    if (!window.confirm("Bu gönderi kaldırılsın mı?")) return;
+    if (!(await ask("Bu gönderi sitenden kaldırılsın mı?", { title: "Gönderiyi kaldır", confirmText: "Kaldır", danger: true }))) return;
     const { error } = await sb.from("ig_posts").delete().eq("id", id);
     setToast(error ? "Kaldırılamadı." : "Gönderi kaldırıldı."); loadPosts();
   };
   const approveNote = async (id) => { const { error } = await sb.from("notes").update({ status: "approved" }).eq("id", id); setToast(error ? "İşlem başarısız." : "Not onaylandı."); loadNotes(); };
   const deleteNote = async (n) => {
-    if (!window.confirm("Bu not silinsin mi?")) return;
+    if (!(await ask("Bu not ve PDF dosyası silinsin mi?", { title: "Notu sil", confirmText: "Sil", danger: true }))) return;
     const { error } = await sb.from("notes").delete().eq("id", n.id);
     if (!error && n.file_path) await sb.storage.from("note-files").remove([n.file_path]);
     setToast(error ? "Silinemedi." : "Not silindi."); loadNotes();
   };
   const toggleRole = async (u) => {
-    if (!window.confirm(`${u.full_name || u.email} için rol değiştirilsin mi?`)) return;
+    if (!(await ask(`${u.full_name || u.email} için rol değiştirilsin mi?`, { title: "Rolü değiştir", confirmText: "Değiştir" }))) return;
     const { error } = await sb.from("profiles").update({ role: u.role === "admin" ? "student" : "admin" }).eq("id", u.id);
     setToast(error ? "İşlem başarısız." : "Rol güncellendi."); loadUsers();
   };
@@ -1422,14 +1969,14 @@ export default function App() {
     setAnnTitle(""); setAnnBody(""); setToast("Duyuru yayınlandı."); loadAnns();
   };
   const deleteAnn = async (id) => {
-    if (!window.confirm("Bu duyuru silinsin mi?")) return;
+    if (!(await ask("Bu duyuru silinsin mi?", { title: "Duyuruyu sil", confirmText: "Sil", danger: true }))) return;
     const { error } = await sb.from("announcements").delete().eq("id", id);
     setToast(error ? "Silinemedi." : "Duyuru silindi."); loadAnns();
   };
   const toggleSuspend = async (u) => {
     const on = !u.suspended;
     const who = u.full_name || u.email;
-    if (!window.confirm(on ? `${who} askıya alınsın mı? Giriş yapamaz ve not paylaşamaz.` : `${who} için askı kaldırılsın mı?`)) return;
+    if (!(await ask(on ? `${who} askıya alınsın mı? Giriş yapamaz ve not paylaşamaz.` : `${who} için askı kaldırılsın mı?`, { title: on ? "Hesabı askıya al" : "Askıyı kaldır", confirmText: on ? "Askıya al" : "Kaldır", danger: on }))) return;
     const { error } = await sb.rpc("admin_set_suspended", { target: u.id, flag: on });
     if (error) setToast(/yonetici/i.test(error.message) ? "Yönetici askıya alınamaz. Önce öğrenci yap." : "İşlem başarısız. SQL güncellemesini yaptın mı?");
     else setToast(on ? "Hesap askıya alındı." : "Askı kaldırıldı.");
@@ -1437,7 +1984,7 @@ export default function App() {
   };
   const deleteUser = async (u) => {
     const who = u.full_name || u.email;
-    if (!window.confirm(`${who} kalıcı olarak silinsin mi? Hesabı, notları ve test sonuçları silinir. Bu geri alınamaz.`)) return;
+    if (!(await ask(`${who} kalıcı olarak silinsin mi? Hesabı, notları ve test sonuçları silinir. Bu geri alınamaz.`, { title: "Kullanıcıyı sil", confirmText: "Kalıcı sil", danger: true }))) return;
     const { data: files } = await sb.from("notes").select("file_path").eq("user_id", u.id);
     const paths = (files || []).map((f) => f.file_path).filter(Boolean);
     if (paths.length) await sb.storage.from("note-files").remove(paths);
@@ -1460,6 +2007,7 @@ export default function App() {
   const tiles = [
     { id: "notlar", Icon: FileText, title: "Not havuzu", sub: `${notes.length} not`, cls: "border-teal-400/40 from-teal-600/40 to-teal-950/70", ic: "text-teal-200" },
     { id: "test", Icon: ClipboardList, title: "Test çöz", sub: `${TEST_BANK.length} soru`, cls: "border-cyan-400/40 from-cyan-600/40 to-cyan-950/70", ic: "text-cyan-200" },
+    { id: "duello", Icon: Trophy, title: "Düello", sub: "Haftalık yarışma", cls: "border-amber-400/40 from-amber-600/40 to-amber-950/70", ic: "text-amber-200" },
     { id: "mitler", Icon: Lightbulb, title: "Doğru mu, yanlış mı?", sub: `${QUESTIONS.length} soru · 3 seviye`, cls: "border-indigo-400/40 from-indigo-600/40 to-indigo-950/70", ic: "text-indigo-200" },
     { id: "instagram", Icon: Insta, title: "Instagram", sub: "Duyuru ve anketler", cls: "border-rose-400/40 from-rose-600/40 to-rose-950/70", ic: "text-rose-200" },
     { id: "hakkimizda", Icon: Play, title: "Bizi tanı", sub: "Video ve amacımız", cls: "border-sky-400/40 from-sky-600/40 to-sky-950/70", ic: "text-sky-200" },
@@ -1527,6 +2075,7 @@ export default function App() {
                 <defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stopColor="#2dd4bf" /><stop offset="0.6" stopColor="#38bdf8" /><stop offset="1" stopColor="#e11d48" /></linearGradient></defs>
                 <path className="ecg" d="M0 62 H110 L130 62 L146 22 L168 104 L190 42 L206 62 H330 L350 62 L366 22 L388 104 L410 42 L426 62 H600" stroke="url(#g)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
+              <DuelBanner duels={duels} go={go} />
               <div className="mt-6 grid w-full max-w-xl grid-cols-2 gap-3 text-left">
                 {tiles.map(({ id, Icon, title, sub, cls, ic }, ti) => (
                   <button key={id} onClick={() => go(id)} className={`flex flex-col justify-between rounded-3xl border bg-gradient-to-br p-4 transition active:scale-[0.97] ${cls} ${ti === tiles.length - 1 && tiles.length % 2 ? "col-span-2" : ""}`} style={{ minHeight: "7.5rem" }}>
@@ -1597,6 +2146,8 @@ export default function App() {
           {page === "test" && <TestPage hist={quizHist} onSave={saveQuiz} loggedIn={!!user} onLogin={() => setAuthOpen(true)} />}
 
           {/* DOĞRU MU, YANLIŞ MI */}
+          {page === "duello" && <DuelPage user={user} onLogin={() => setAuthOpen(true)} setToast={setToast} duels={duels} openPod={setPod} />}
+
           {page === "mitler" && (
             <section>
               <SectionHead title="Doğru mu, yanlış mı?" desc="Seviyeni seç, ifadeye karar ver, sonra gerçeği gör." />
@@ -1699,6 +2250,7 @@ export default function App() {
                       <div key={l} className="rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-4"><div className="font-display text-2xl font-bold text-white">{n}</div><div className="text-xs text-slate-400">{l}</div></div>
                     ))}
                   </div>
+                  <DuelAdmin setToast={setToast} />
                   <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Duyurular</h3>
                   <div className="space-y-2 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
                     <input value={annTitle} onChange={(e) => setAnnTitle(e.target.value)} maxLength={120} placeholder="Duyuru başlığı" className={inp} />
@@ -1814,8 +2366,10 @@ export default function App() {
         </div>
       </nav>
 
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} user={user} profile={profile} onAdmin={() => { setAuthOpen(false); go("yonetim"); }} onDone={setToast} onPrivacy={() => setPrivOpen(true)} recovery={recovery} onRecovered={() => setRecovery(false)} />
+      <AuthModal podiums={podiums} open={authOpen} onClose={() => setAuthOpen(false)} user={user} profile={profile} onAdmin={() => { setAuthOpen(false); go("yonetim"); }} onDone={setToast} onPrivacy={() => setPrivOpen(true)} recovery={recovery} onRecovered={() => setRecovery(false)} />
       <WelcomeModal open={welcomeOpen && !authOpen && !!VIDEO_URL} onClose={() => setWelcomeOpen(false)} onGo={go} />
+      <ConfirmHost />
+      <PodiumModal pod={pod} name={profile?.full_name || "Öğrenci"} onClose={closePod} />
       <PrivacyModal open={privOpen} onClose={() => setPrivOpen(false)} />
       <AnnouncementsModal open={annOpen} onClose={() => setAnnOpen(false)} items={anns} seenAt={annMark} />
       <FeedbackModal open={fbOpen} onClose={() => setFbOpen(false)} user={user} profile={profile} page={page} onDone={setToast} />
