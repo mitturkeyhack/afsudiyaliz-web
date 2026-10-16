@@ -10,7 +10,7 @@ const IG_URL = "https://instagram.com/afsudiyalizteam";
 const IG_DM = "https://ig.me/m/afsudiyalizteam";
 const YT_URL = "https://youtube.com/@afsudiyalizteam"; // Boş bırakırsan simge görünmez.
 const FEEDBACK_EMAIL = "afsudiyalizteam@gmail.com";
-const WEB3FORMS_KEY = ""; // web3forms.com anahtarı. Boşsa e-posta uygulaması hazır mesajla açılır.
+const WEB3FORMS_KEY = "b6bda1d0-547f-435a-8457-b0bbd7161f4f"; // web3forms.com anahtarı. Boşsa e-posta uygulaması hazır mesajla açılır.
 // Sunucu bağlantısı. İstersen .env.local ile değiştirilebilir.
 // Publishable anahtar herkese açık olacak şekilde tasarlanmıştır; yetkiyi RLS kuralları belirler.
 const SB_URL = import.meta.env.VITE_SUPABASE_URL || "https://dhkhlptixkbyennclhji.supabase.co";
