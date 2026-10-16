@@ -16,6 +16,13 @@ const WEB3FORMS_KEY = ""; // web3forms.com anahtarı. Boşsa e-posta uygulaması
 const SB_URL = import.meta.env.VITE_SUPABASE_URL || "https://dhkhlptixkbyennclhji.supabase.co";
 const SB_KEY = import.meta.env.VITE_SUPABASE_KEY || "sb_publishable_TSKGByByQcjLoa5F7FseeQ_bMDGErae";
 const sb = SB_URL && SB_KEY ? createClient(SB_URL, SB_KEY) : null;
+// Ana ekrana ekleme (PWA): tarayıcının "yükle" isteğini erken yakala, sonra butonla göster.
+let installEvt = null;
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; window.dispatchEvent(new Event("afsu-install")); });
+  window.addEventListener("appinstalled", () => { installEvt = null; window.dispatchEvent(new Event("afsu-install")); });
+}
+const isStandalone = () => { try { return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true; } catch { return false; } };
 const SHOW_SEED_NOTES = false; // Gerçek notlar gelince false yap, örnek kartlar kalkar.
 // Logo gömülü (webp). Dosya yolu sorunlarından etkilenmez.
 const LOGO_SRC = "data:image/webp;base64,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";
@@ -214,6 +221,30 @@ function Field({ label, error, children }) {
   );
 }
 
+function InstallCard({ compact }) {
+  const [, tick] = useState(0);
+  const [hide, setHide] = useState(() => { try { return localStorage.getItem("afsu_install_hide") === "1"; } catch { return false; } });
+  useEffect(() => { const f = () => tick((n) => n + 1); window.addEventListener("afsu-install", f); return () => window.removeEventListener("afsu-install", f); }, []);
+  if (isStandalone() || (compact && hide)) return null;
+  const ua = navigator.userAgent || "";
+  const ios = /iPhone|iPad|iPod/i.test(ua);
+  const close = () => { try { localStorage.setItem("afsu_install_hide", "1"); } catch { /* sessizce geç */ } setHide(true); };
+  const install = async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice.catch(() => null); installEvt = null; tick((n) => n + 1); };
+  return (
+    <div className="mb-3 flex items-center gap-3 rounded-2xl border border-sky-300/20 bg-sky-500/10 px-4 py-3">
+      <Download className="h-5 w-5 shrink-0 text-sky-200" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-white">Telefonuna ekle</p>
+        <p className="text-xs text-slate-300">
+          {installEvt ? "Ana ekrana simge olarak ekle, düelloya tek dokunuşla gir." : ios ? "Safari'de Paylaş simgesine, sonra \"Ana Ekrana Ekle\"ye dokun." : "Tarayıcı menüsünden (⋮) \"Ana ekrana ekle\" ya da \"Uygulamayı yükle\"yi seç."}
+        </p>
+      </div>
+      {installEvt && <button onClick={install} className="shrink-0 rounded-xl bg-sky-500 px-3.5 py-2 text-sm font-semibold text-slate-950">Ekle</button>}
+      {compact && <button onClick={close} aria-label="Kapat" className="shrink-0 p-1 text-slate-400"><X className="h-4 w-4" /></button>}
+    </div>
+  );
+}
+
 function SectionHead({ title, desc }) {
   return (
     <div className="mb-4 max-w-xl">
@@ -232,7 +263,7 @@ const trErr = (m = "") =>
   : /password/i.test(m) ? "Şifre yeterince güçlü değil."
   : "Bir sorun oluştu. Tekrar dene.";
 
-function AuthModal({ open, onClose, user, profile, onAdmin, onDone, onPrivacy, recovery, onRecovered, podiums }) {
+function AuthModal({ open, onClose, user, profile, onAdmin, onDone, onPrivacy, recovery, onRecovered, podiums, onClass, onKarne, onProfile }) {
   const [mode, setMode] = useState("signup");
   const [step, setStep] = useState("form"); // form | code | forgot | reset
   const [f, setF] = useState({ name: "", email: "", pass: "" });
@@ -347,8 +378,11 @@ function AuthModal({ open, onClose, user, profile, onAdmin, onDone, onPrivacy, r
           <p className="text-sm text-slate-400">{user.email}</p>
           {profile?.role === "admin" && <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-rose-500/25 px-3 py-1 text-xs text-rose-100 ring-1 ring-rose-400/50"><Shield className="h-3.5 w-3.5" /> Yönetici</span>}
           {podiums?.length > 0 && <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-500/25 px-3 py-1 text-xs text-amber-100 ring-1 ring-amber-400/50">🏆 {podiums.some((p) => p.rank === 1) ? "Düello Şampiyonu" : "Düello Podyumu"}{podiums.length > 1 ? ` · ${podiums.length}×` : ""}</span>}
+          {profile && "entry_year" in profile && <ClassChip entry={profile.entry_year} onClass={onClass} />}
           <div className="mt-5 grid gap-3">
             {profile?.role === "admin" && <button onClick={onAdmin} className="rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950">Yönetim paneli</button>}
+            {onProfile && <button onClick={onProfile} className="rounded-xl border border-teal-400/40 px-4 py-3 text-sm font-semibold text-teal-100 hover:bg-teal-500/10">Profilim</button>}
+            {onKarne && <button onClick={onKarne} className="rounded-xl border border-teal-400/40 px-4 py-3 text-sm font-semibold text-teal-100 hover:bg-teal-500/10">Karnem</button>}
             <button onClick={logout} className="flex items-center justify-center gap-2 rounded-xl border border-sky-300/15 px-4 py-3 text-sm text-slate-200 hover:bg-white/5"><LogOut className="h-4 w-4" /> Çıkış yap</button>
           </div>
         </div>
@@ -948,6 +982,26 @@ const dtText = (iso) => new Date(iso).toLocaleString("tr-TR", { weekday: "long",
 const hm = (iso) => new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 const MEDAL = ["", "🥇", "🥈", "🥉"];
 
+// Sınıf: profilde "giriş yılı" saklanır, sınıf her Eylülde kendiliğinden hesaplanır (sunucudaki class_year_of ile aynı kural).
+const academicStart = () => {
+  const p = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Istanbul", year: "numeric", month: "numeric" }).formatToParts(new Date());
+  const y = Number(p.find((x) => x.type === "year").value), m = Number(p.find((x) => x.type === "month").value);
+  return m >= 9 ? y : y - 1;
+};
+const classOf = (entry) => (typeof entry === "number" ? academicStart() - entry + 1 : null);
+const classLabel = (c) => (c === 1 || c === 2 ? `${c}. Sınıf` : c >= 3 ? "Mezun" : "");
+
+function ClassChip({ entry, onClass }) {
+  const c = classOf(entry);
+  return (
+    <div className="mt-2 flex items-center justify-center gap-2">
+      {(c === 1 || c === 2) && <span className="inline-flex items-center rounded-full bg-sky-500/25 px-3 py-1 text-xs text-sky-100 ring-1 ring-sky-400/50">{c}. Sınıf Takımı</span>}
+      {c >= 3 && <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs text-slate-200">Mezun</span>}
+      {onClass && !(c >= 3) && <button type="button" onClick={onClass} className="text-xs text-teal-200 underline underline-offset-2">{c === 1 || c === 2 ? "Değiştir" : "Sınıfını seç"}</button>}
+    </div>
+  );
+}
+
 // Yapay zekâya soru yazdırırken kullanılacak istem (yönetim panelinde kopyalanır)
 const AI_PROMPT = `Hemodiyaliz teknikerliği öğrencileri için ORTA ve ZOR düzeyde çoktan seçmeli sorular yaz. Her soru tam olarak şu biçimde olsun, sorular arasına tek satır --- koy:
 DERS: ...
@@ -1049,6 +1103,225 @@ function PodiumModal({ pod, name, onClose }) {
   );
 }
 
+function ClassPickModal({ open, onClose, onSaved, current }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [sel, setSel] = useState(null);
+  useEffect(() => { if (open) { setSel(null); setErr(""); } }, [open]);
+  const save = async () => {
+    if (!sel) return;
+    setBusy(true); setErr("");
+    const { error } = await sb.rpc("set_my_class", { p_class: sel });
+    setBusy(false);
+    if (error) return setErr("Kaydedilemedi. Biraz sonra tekrar dene.");
+    onSaved(sel);
+  };
+  const opt = (c, desc) => (
+    <button type="button" aria-pressed={sel === c} disabled={busy} onClick={() => setSel(c)} className={`w-full rounded-2xl border px-4 py-4 text-left transition active:scale-[0.99] disabled:opacity-50 ${sel === c ? "border-amber-300 bg-amber-500/20 ring-2 ring-amber-300/60" : "border-sky-300/20 bg-white/5 hover:bg-white/10"}`}>
+      <span className="flex items-center justify-between gap-3">
+        <span className="block font-display text-lg font-bold text-white">{c}. Sınıf</span>
+        {sel === c ? <span className="text-sm font-semibold text-amber-200">Seçildi ✓</span> : current === c ? <span className="text-xs text-slate-400">Şu anki sınıfın</span> : null}
+      </span>
+      <span className="text-xs text-slate-400">{desc}</span>
+    </button>
+  );
+  return (
+    <Modal open={open} onClose={onClose} title="Sınıfını seç">
+      <div className="space-y-3">
+        <p className="text-sm leading-relaxed text-slate-300">Hangi sınıftasın? Sınıf yarışında takımına dahil olursun ve düello sonuçlarında takımın görünür. İstediğin zaman profilinden değiştirebilirsin.</p>
+        {opt(1, "Bu yıl başladım")}
+        {opt(2, "Geçen yıl başladım")}
+        {sel && (
+          <div className="pop rounded-2xl border border-amber-300/40 bg-amber-500/10 p-4 text-center">
+            <p className="text-sm text-slate-100"><span className="font-semibold text-white">{sel}. Sınıf Takımı</span> olarak devam edilsin mi?</p>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => setSel(null)} disabled={busy} className="rounded-xl border border-sky-300/20 px-4 py-3 text-sm text-slate-200 hover:bg-white/5 disabled:opacity-50">Vazgeç</button>
+              <button type="button" onClick={save} disabled={busy} className="rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60">{busy ? "Kaydediliyor…" : "Onayla"}</button>
+            </div>
+          </div>
+        )}
+        {err && <p role="alert" className="text-sm text-rose-300">{err}</p>}
+        <button type="button" onClick={onClose} className="w-full py-2 text-sm text-slate-400 hover:text-slate-200">Sonra</button>
+      </div>
+    </Modal>
+  );
+}
+
+function ClassCard({ cls, total, card }) {
+  const rows = cls.classes || [];
+  const both = rows.length === 2 && rows.every((c) => c.enough);
+  const num = (v) => String(v).replace(".", ",");
+  return (
+    <div className={`${card} mt-3`}>
+      <h3 className="font-display text-lg font-bold text-white">Sınıf yarışı</h3>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        {rows.map((c) => (
+          <div key={c.class} className={`rounded-2xl border p-3 text-center ${cls.leader === c.class ? "border-amber-300/60 bg-amber-500/15" : "border-sky-300/15 bg-white/5"}`}>
+            <p className="text-xs font-semibold text-slate-300">{c.class}. Sınıf Takımı{cls.leader === c.class ? " 🏆" : ""}</p>
+            <p className="mt-1 font-display text-3xl font-extrabold text-white">{c.rate == null ? "–" : `%${num(c.rate)}`}</p>
+            <p className="text-[11px] text-slate-400">katılım · {c.participants}/{c.members} kişi</p>
+            {c.avg_correct != null && <p className="mt-2 text-xs text-slate-300">Ortalama {num(c.avg_correct)}/{total} doğru</p>}
+            {c.top && <p className="mt-1 truncate text-xs text-slate-400">Sınıf birincisi: <span className="text-slate-200">{c.top.name}</span></p>}
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-center text-xs leading-relaxed text-slate-400">
+        {cls.leader ? `Katılım şampiyonu ${cls.leader}. Sınıf Takımı oldu.` : both ? "İki sınıfın katılım oranı eşit." : "Katılım şampiyonu için her sınıftan en az 3 kişinin katılması gerekir."} İlk dönemde takımlar katılım oranıyla yarışır, ortalama doğru sayısı bilgi amaçlıdır.
+      </p>
+      {cls.my_class && cls.my_rank && <p className="mt-1 text-center text-xs text-teal-200">Kendi sınıfında {cls.my_rank}. sıradasın.</p>}
+      {cls.unclassified > 0 && <p className="mt-1 text-center text-[11px] text-slate-500">{cls.unclassified} katılımcının sınıfı seçili olmadığı için takımlara dahil edilmedi.</p>}
+    </div>
+  );
+}
+
+function KarnePage({ user, onLogin, quizHist, embedded }) {
+  const [data, setData] = useState(null);
+  const [state, setState] = useState("loading");
+  const [more, setMore] = useState(false);
+  const uid = user?.id;
+  const card = "rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 backdrop-blur-xl";
+  const head = embedded ? null : <SectionHead title="Karnem" desc="Düello ve test sonuçlarından kişisel analizin. Bir konuda en az 5 soru çözmeden o konu için yorum yapılmaz." />;
+
+  useEffect(() => {
+    if (!sb || !uid) return undefined;
+    let off = false;
+    setState("loading");
+    sb.rpc("my_analysis").then(({ data: d, error }) => {
+      if (off) return;
+      if (error || !d) setState("error"); else { setData(d); setState("ok"); }
+    });
+    return () => { off = true; };
+  }, [uid]);
+
+  if (!user) {
+    return (
+      <section className="mx-auto max-w-2xl">{head}
+        <div className={`${card} text-center`}>
+          <p className="text-sm text-slate-300">Karnemi görmek için giriş yap.</p>
+          <button onClick={onLogin} className="mt-4 w-full rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950">Giriş yap / Kayıt ol</button>
+        </div>
+      </section>
+    );
+  }
+  if (state === "loading") return <section className="mx-auto max-w-2xl">{head}<p className="text-center text-sm text-slate-400">Karnen hazırlanıyor…</p></section>;
+  if (state === "error") return <section className="mx-auto max-w-2xl">{head}<div className={card}><p className="text-sm text-slate-300">Karnen şu an açılamadı. Biraz sonra tekrar dene.</p></div></section>;
+
+  const min = data.min_n || 5;
+  const pct = (t) => (t.total ? Math.round((t.correct / t.total) * 100) : 0);
+  const level = (p) => (p < 50 ? { t: "Zayıf, tekrar et", c: "text-rose-300" } : p < 70 ? { t: "Orta", c: "text-amber-200" } : { t: "Güçlü", c: "text-teal-200" });
+  const topics = data.topics || [];
+  const ready = topics.filter((t) => t.enough).sort((a, b) => pct(a) - pct(b));
+  const waiting = topics.filter((t) => !t.enough);
+  const totalAns = topics.reduce((n, t) => n + t.total, 0);
+  const totalOk = topics.reduce((n, t) => n + t.correct, 0);
+  const weak = ready.filter((t) => pct(t) < 70).slice(0, 3);
+  const duelsList = data.duels || [];
+  const dp = (d) => (d.answered ? Math.round((d.correct / d.answered) * 100) : 0);
+  const diff = duelsList.length >= 2 ? dp(duelsList[0]) - dp(duelsList[1]) : null;
+  const wrong = data.wrong || [];
+
+  // Test bölümü (bu cihazdaki / hesaptaki alıştırma sonuçları)
+  const tm = {};
+  (quizHist || []).forEach((r) => { const k = (r.topic || "Genel").trim(); tm[k] = tm[k] || { topic: k, total: 0, correct: 0 }; tm[k].total += 1; if (r.correct) tm[k].correct += 1; });
+  const testTopics = Object.values(tm).map((t) => ({ ...t, enough: t.total >= min })).sort((a, b) => (b.enough - a.enough) || (pct(a) - pct(b)));
+
+  const row = (t) => {
+    const p = pct(t);
+    const lv = level(p);
+    return (
+      <div key={t.topic}>
+        <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+          <span className="truncate text-slate-200">{t.topic}</span>
+          <span className="shrink-0 text-slate-400">{t.correct}/{t.total} · %{p}</span>
+        </div>
+        <div className="h-2.5 overflow-hidden rounded-full bg-white/10"><div className={`h-full rounded-full ${t.enough ? pctColor(p) : "bg-slate-500/60"}`} style={{ width: `${p}%` }} /></div>
+        <p className="mt-1 text-[11px] text-slate-500">
+          {t.enough ? <span className={lv.c}>{lv.t}</span> : t.total === 0 ? "Bu konuda cevap vermedin" : `Yorum için ${min - t.total} soru daha çöz`}
+          {t.class_pct != null && ` · Sınıf ortalaması %${t.class_pct}`}
+        </p>
+      </div>
+    );
+  };
+
+  return (
+    <section className="mx-auto max-w-2xl">
+      {head}
+      <div className={`${card} text-center`}>
+        {totalAns > 0 ? (
+          <>
+            <p className="text-sm text-slate-400">Düellolardaki genel başarın</p>
+            <p className="font-display text-4xl font-extrabold text-white">%{Math.round((totalOk / totalAns) * 100)}</p>
+            <p className="text-xs text-slate-400">{totalAns} soru cevapladın · {duelsList.length} düello{data.my_class ? ` · ${data.my_class}. Sınıf Takımı` : ""}</p>
+          </>
+        ) : (
+          <p className="text-sm leading-relaxed text-slate-300">Henüz sonucu açılmış bir düello cevabın yok. Düello bitince sonuçların burada konu konu görünecek.</p>
+        )}
+      </div>
+
+      <h3 className="mb-2 mt-5 font-display text-lg font-bold text-white">Önce şunlara çalış</h3>
+      <div className={card}>
+        {ready.length === 0
+          ? <p className="text-sm leading-relaxed text-slate-300">Henüz hiçbir konuda yeterli veri yok. Bir konuda en az {min} soru çözdüğünde analiz başlar.</p>
+          : weak.length === 0
+            ? <p className="text-sm leading-relaxed text-teal-100">Yeterli veri olan tüm konularında %70 ve üzerindesin. Böyle devam!</p>
+            : <div className="space-y-3">{weak.map(row)}</div>}
+      </div>
+
+      {(ready.length > 0 || waiting.length > 0) && (
+        <>
+          <h3 className="mb-2 mt-5 font-display text-lg font-bold text-white">Konularım</h3>
+          <div className={`${card} space-y-3`}>{[...ready, ...waiting].map(row)}</div>
+        </>
+      )}
+
+      {duelsList.length > 0 && (
+        <>
+          <h3 className="mb-2 mt-5 font-display text-lg font-bold text-white">Düello gelişimi</h3>
+          <div className={`${card} space-y-3`}>
+            {diff !== null && <p className={`text-xs ${diff >= 0 ? "text-teal-200" : "text-amber-200"}`}>{diff === 0 ? "Son düelloda bir öncekiyle aynı başarıdaydın." : `Son düelloda bir öncekine göre %${Math.abs(diff)} ${diff > 0 ? "yükseldin" : "düştün"}.`}</p>}
+            {duelsList.map((d) => (
+              <div key={d.id}>
+                <div className="mb-1 flex justify-between gap-3 text-xs"><span className="truncate text-slate-200">{d.title}</span><span className="shrink-0 text-slate-400">{d.correct}/{d.answered} · %{dp(d)}</span></div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-white/10"><div className={`h-full rounded-full ${pctColor(dp(d))}`} style={{ width: `${dp(d)}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {testTopics.length > 0 && (
+        <>
+          <h3 className="mb-2 mt-5 font-display text-lg font-bold text-white">Test bölümünden</h3>
+          <div className={`${card} space-y-3`}>{testTopics.map(row)}</div>
+        </>
+      )}
+
+      {wrong.length > 0 && (
+        <>
+          <h3 className="mb-2 mt-5 font-display text-lg font-bold text-white">Yanlışlarım</h3>
+          <div className="space-y-2">
+            {(more ? wrong : wrong.slice(0, 8)).map((w, i) => (
+              <details key={i} className={card}>
+                <summary className="cursor-pointer list-none text-sm font-medium text-slate-100">
+                  <span className="mr-2 rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-slate-300">{w.topic}</span>{w.text}
+                </summary>
+                <div className="mt-3 space-y-2 text-sm">
+                  <p className="text-rose-300">Senin cevabın: {w.mine}</p>
+                  <p className="text-teal-200">Doğru cevap: {w.correct}</p>
+                  {w.why && <p className="leading-relaxed text-slate-300">{w.why}</p>}
+                  <p className="text-[11px] text-slate-500">{w.duel}</p>
+                </div>
+              </details>
+            ))}
+          </div>
+          {wrong.length > 8 && !more && <button onClick={() => setMore(true)} className="mt-3 w-full rounded-xl border border-sky-300/15 px-4 py-3 text-sm text-slate-200 hover:bg-white/5">Hepsini göster ({wrong.length})</button>}
+        </>
+      )}
+      <p className="mt-6 text-center text-[11px] leading-relaxed text-slate-500">Karnen sadece sana görünür. Yalnızca sonucu açılmış düellolar hesaba katılır. Sınıf ortalaması, aynı sınıftan en az 3 kişi o konuda cevap verdiyse gösterilir.</p>
+    </section>
+  );
+}
+
 function DuelBanner({ duels, go }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
@@ -1068,7 +1341,7 @@ function DuelBanner({ duels, go }) {
   );
 }
 
-function DuelPage({ user, onLogin, setToast, duels, openPod }) {
+function DuelPage({ user, onLogin, setToast, duels, openPod, needClass, onPickClass, onKarne }) {
   const [now, setNow] = useState(Date.now());
   const [mine, setMine] = useState({});
   const [count, setCount] = useState({});
@@ -1076,7 +1349,9 @@ function DuelPage({ user, onLogin, setToast, duels, openPod }) {
   const [res, setRes] = useState(null);
   const [open, setOpen] = useState(null);
   const [busy, setBusy] = useState(false);
-  const leaves = useRef(0);
+  const lastLeave = useRef(0);
+  const hid = useRef(false);
+  const [warn, setWarn] = useState(null);
   const uid = user?.id;
   const card = "rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 backdrop-blur-xl";
   const btn = "w-full rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 active:scale-[0.98] disabled:opacity-50";
@@ -1086,7 +1361,9 @@ function DuelPage({ user, onLogin, setToast, duels, openPod }) {
   const refresh = useCallback(async () => {
     if (!sb || !duels.length) return;
     if (uid) {
-      const { data } = await sb.from("duel_attempts").select("duel_id,started_at,finished_at").in("duel_id", duels.map((d) => d.id)).eq("user_id", uid);
+      const ids = duels.map((d) => d.id);
+      let { data, error } = await sb.from("duel_attempts").select("duel_id,started_at,finished_at,disqualified,disq_reason").in("duel_id", ids).eq("user_id", uid);
+      if (error) ({ data } = await sb.from("duel_attempts").select("duel_id,started_at,finished_at").in("duel_id", ids).eq("user_id", uid));
       setMine(Object.fromEntries((data || []).map((a) => [a.duel_id, a])));
     }
     const cur = duels.filter((d) => new Date(d.ends_at).getTime() > Date.now());
@@ -1095,18 +1372,30 @@ function DuelPage({ user, onLogin, setToast, duels, openPod }) {
   }, [duels, uid]);
   useEffect(() => { refresh(); const t = setInterval(refresh, 30000); return () => clearInterval(t); }, [refresh]);
 
+  // Sekme/uygulama değiştirme: sunucu sayar, hak aşılırsa katılım iptal edilir.
+  const playId = play ? play.duel.id : null;
   useEffect(() => {
-    if (!play) return;
-    const f = () => { if (document.hidden) leaves.current += 1; };
+    if (!playId) { setWarn(null); return undefined; }
+    const f = async () => {
+      if (document.hidden) { hid.current = true; return; }
+      if (!hid.current) return;
+      hid.current = false;
+      if (Date.now() - lastLeave.current < 4000) return;
+      lastLeave.current = Date.now();
+      const { data, error } = await sb.rpc("duel_note_leave", { p_duel: playId });
+      if (error || !data) return;
+      if (data.disqualified) { setPlay(null); setWarn(null); setToast("Sekme değiştirme hakkın aşıldığı için katılımın iptal edildi. Yönetici inceleyebilir."); refresh(); return; }
+      setWarn({ n: data.leaves, max: data.max });
+    };
     document.addEventListener("visibilitychange", f);
     return () => document.removeEventListener("visibilitychange", f);
-  }, [play]);
+  }, [playId, refresh, setToast]);
 
   const finish = useCallback(async () => {
     if (!play) return;
     const d = play.duel;
     setPlay(null);
-    await sb.rpc("duel_finish", { p_duel: d.id, p_leaves: leaves.current });
+    await sb.rpc("duel_finish", { p_duel: d.id, p_leaves: 0 });
     setToast("Cevapların kaydedildi. Sonuçlar düello bitince açılır.");
     refresh();
   }, [play, refresh, setToast]);
@@ -1120,7 +1409,7 @@ function DuelPage({ user, onLogin, setToast, duels, openPod }) {
     if (error) return setToast(error.message);
     if (data.state === "done") { setToast("Bu düelloyu zaten tamamladın."); return refresh(); }
     const off = new Date(data.server_now).getTime() - Date.now();
-    leaves.current = 0;
+    lastLeave.current = 0; hid.current = false; setWarn(null);
     setPlay({ duel: d, qs: data.questions, deadline: new Date(data.deadline).getTime() - off, i: 0, ans: data.answers || {} });
     window.scrollTo({ top: 0 });
   };
@@ -1131,10 +1420,10 @@ function DuelPage({ user, onLogin, setToast, duels, openPod }) {
   };
   const showResults = async (d) => {
     setBusy(true);
-    const { data, error } = await sb.rpc("duel_results", { p_duel: d.id });
+    const [r, c] = await Promise.all([sb.rpc("duel_results", { p_duel: d.id }), sb.rpc("duel_class_summary", { p_duel: d.id })]);
     setBusy(false);
-    if (error) return setToast(error.message);
-    setRes({ duel: d, ...data }); setOpen(null); window.scrollTo({ top: 0 });
+    if (r.error) return setToast(r.error.message);
+    setRes({ duel: d, ...r.data, cls: c.error ? null : c.data }); setOpen(null); window.scrollTo({ top: 0 });
   };
 
   const head = <SectionHead title="Düello" desc="Herkes aynı sorularla yarışır. Sonuçlar düello bitince açılır." />;
@@ -1163,6 +1452,11 @@ function DuelPage({ user, onLogin, setToast, duels, openPod }) {
           <span className={`rounded-full px-3 py-1 font-display text-base font-bold ${left <= 60 ? "bg-rose-500/30 text-rose-100" : "bg-white/10 text-white"}`}>{clock(left)}</span>
         </div>
         <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-amber-400 transition-all" style={{ width: `${((play.i + 1) / play.qs.length) * 100}%` }} /></div>
+        {warn && (
+          <div role="alert" className="mb-3 rounded-2xl border border-rose-400/40 bg-rose-500/15 px-4 py-3 text-sm text-rose-100">
+            <b>Sekme değiştirdin ({warn.n}/{warn.max}).</b> Yöneticiye iletildi. Lütfen tekrarlama. {warn.n >= warn.max ? "Bir sonraki sefer katılımın iptal edilir." : `Kalan hakkın: ${warn.max - warn.n}.`}
+          </div>
+        )}
         <article className={card}>
           <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-slate-300">{q.topic}</span>
           <h3 className="mt-3 font-display text-lg font-bold leading-snug text-white">{q.text}</h3>
@@ -1181,7 +1475,7 @@ function DuelPage({ user, onLogin, setToast, duels, openPod }) {
             ? <button onClick={() => { ask("Düelloyu bitirmek istiyor musun? Bir daha giremezsin.", { title: "Düelloyu bitir", confirmText: "Bitir" }).then((ok) => ok && finish()); }} className="rounded-xl bg-amber-400 px-4 py-3 text-sm font-semibold text-slate-950">Bitir</button>
             : <button onClick={() => setPlay({ ...play, i: play.i + 1 })} className={btn}>Sonraki</button>}
         </div>
-        <p className="mt-3 text-center text-xs text-slate-500">Sayfayı kapatsan da süren işler. Aynı düelloya tekrar girip kaldığın yerden devam edebilirsin.</p>
+        <p className="mt-3 text-center text-xs text-slate-500">Düello sırasında başka sekmeye veya uygulamaya geçme; yöneticiye iletilir. Sayfayı kapatsan da süren işler, aynı düelloya girip kaldığın yerden devam edebilirsin.</p>
       </section>
     );
   }
@@ -1214,6 +1508,7 @@ function DuelPage({ user, onLogin, setToast, duels, openPod }) {
             {me.rank <= 3 && <button onClick={() => openPod({ id: res.duel.id, title: res.duel.title, rank: me.rank, correct: me.correct, total: res.total, used_sec: me.used_sec, ends_at: res.duel.ends_at })} className={`${btn} mt-3`}>{MEDAL[me.rank]} Instagram görselini indir</button>}
           </div>
         ) : <p className="mt-3 text-center text-sm text-slate-400">Bu düelloya katılmadın.</p>}
+        {res.cls && <ClassCard cls={res.cls} total={res.total} card={card} />}
         <h3 className="mb-2 mt-5 font-display text-lg font-bold text-white">Sıralama</h3>
         <div className="space-y-1.5">
           {res.ranking.map((r) => (
@@ -1254,7 +1549,9 @@ function DuelPage({ user, onLogin, setToast, duels, openPod }) {
     const lastStart = en - cur.duration_sec * 1000;
     const a = mine[cur.id];
     const running = a && !a.finished_at && now < new Date(a.started_at).getTime() + cur.duration_sec * 1000;
-    const done = a && !running;
+    const done = a && !running && !a.disqualified;
+    const dq = a && a.disqualified;
+    const maxL = cur.max_leaves;
     body = (
       <div className={`${card} border-amber-400/40`}>
         <div className="flex items-center gap-3"><Trophy className="h-8 w-8 text-amber-300" /><h3 className="font-display text-xl font-bold text-white">{cur.title}</h3></div>
@@ -1265,11 +1562,12 @@ function DuelPage({ user, onLogin, setToast, duels, openPod }) {
         </ul>
         <div className="mt-4">
           {now < st && <div className="rounded-2xl bg-white/5 p-4 text-center"><p className="text-xs text-slate-400">Başlamasına</p><p className="font-display text-3xl font-bold text-white">{clock((st - now) / 1000)}</p></div>}
+          {now >= st && dq && <p className="rounded-2xl bg-rose-500/15 p-4 text-center text-sm text-rose-100">Katılımın iptal edildi{a.disq_reason ? `: ${a.disq_reason}` : ""}. Bir yanlışlık olduğunu düşünüyorsan yöneticiye ulaş.</p>}
           {now >= st && done && <p className="rounded-2xl bg-teal-500/15 p-4 text-center text-sm text-teal-100">Düelloyu tamamladın. Sonuçlar {hm(cur.ends_at)}'de açılacak.</p>}
           {now >= st && running && <button onClick={() => begin(cur)} disabled={busy} className={btn}>Devam et</button>}
           {now >= st && !a && now <= lastStart && (
             <>
-              <button onClick={() => { ask(`${Math.round(cur.duration_sec / 60)} dakikalık sürenin başlayacak. Tek hakkın var. Hazır mısın?`, { title: "Düelloya başla", confirmText: "Başla" }).then((ok) => ok && begin(cur)); }} disabled={busy} className={btn}>Şimdi katıl</button>
+              <button onClick={() => { ask(`${Math.round(cur.duration_sec / 60)} dakikalık sürenin başlayacak. Tek hakkın var.${maxL != null ? ` Düello sırasında başka sekmeye veya uygulamaya geçersen yöneticiye iletilir; ${maxL} uyarıdan sonra katılımın iptal edilir.` : ""} Hazır mısın?`, { title: "Düelloya başla", confirmText: "Başla" }).then((ok) => ok && begin(cur)); }} disabled={busy} className={btn}>Şimdi katıl</button>
               <p className="mt-2 text-center text-xs text-slate-500">En geç {hm(new Date(lastStart).toISOString())}'e kadar başlayabilirsin.</p>
             </>
           )}
@@ -1281,6 +1579,14 @@ function DuelPage({ user, onLogin, setToast, duels, openPod }) {
   return (
     <section className="mx-auto max-w-2xl">
       {head}
+      <InstallCard compact />
+      {onKarne && <button onClick={onKarne} className="mb-3 flex w-full items-center justify-between rounded-2xl border border-teal-400/30 bg-teal-500/10 px-4 py-3 text-left text-sm font-semibold text-teal-100"><span>Karnem · konu analizin</span><ArrowUpRight className="h-4 w-4" /></button>}
+      {needClass && (
+        <div className={`${card} mb-3 flex items-center gap-3`}>
+          <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-white">Sınıfını seç</p><p className="text-xs text-slate-400">Takımın düello sonuçlarında görünsün.</p></div>
+          <button onClick={onPickClass} className="shrink-0 rounded-xl bg-teal-500 px-4 py-2 text-sm font-semibold text-slate-950">Seç</button>
+        </div>
+      )}
       {body || <div className="rounded-3xl border border-dashed border-sky-300/20 p-8 text-center"><p className="font-medium text-white">Şu an planlı bir düello yok.</p><p className="mt-1 text-sm text-slate-400">Yeni düello WhatsApp grubundan ve duyurulardan haber verilir.</p></div>}
       {past.length > 0 && (
         <>
@@ -1300,6 +1606,223 @@ function DuelPage({ user, onLogin, setToast, duels, openPod }) {
   );
 }
 
+const toLocalInput = (iso) => {
+  const d = new Date(iso); const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+// Soru düzenleme formu (metin, şıklar, doğru cevap, açıklama). Cevap anahtarını düzeltince sonuçlar kendiliğinden yeniden hesaplanır.
+function QuestionEditor({ q, usedIn, onClose, onSaved, setToast }) {
+  const [t, setT] = useState({ topic: q.topic, level: q.level, text: q.text, options: [...q.options], answer: q.answer, why: q.why || "" });
+  const [busy, setBusy] = useState(false);
+  const setOpt = (i, v) => setT({ ...t, options: t.options.map((o, k) => (k === i ? v : o)) });
+  const save = async () => {
+    const clean = { topic: t.topic.trim(), level: Number(t.level), text: t.text.trim(), options: t.options.map((o) => o.trim()), answer: Number(t.answer), why: t.why.trim() };
+    if (clean.topic.length < 2) return setToast("Konu en az 2 harf olmalı.");
+    if (clean.text.length < 10) return setToast("Soru metni en az 10 harf olmalı.");
+    if (clean.options.some((o) => !o)) return setToast("Beş şıkkın hepsini doldur.");
+    if (clean.answer !== q.answer && usedIn > 0 && !(await ask(`Doğru şık değişiyor. Bu soru ${usedIn} düelloda geçiyor; o düellolardaki herkesin puanı yeniden hesaplanır. Devam edilsin mi?`, { title: "Cevap anahtarı değişiyor", confirmText: "Değiştir", danger: true }))) return;
+    setBusy(true);
+    const { error } = await sb.from("duel_questions").update(clean).eq("id", q.id);
+    setBusy(false);
+    if (error) return setToast("Kaydedilemedi: " + error.message);
+    setToast("Soru güncellendi."); onSaved();
+  };
+  return (
+    <div className="mt-2 space-y-2 rounded-xl border border-amber-300/30 bg-amber-500/5 p-3">
+      <div className="grid grid-cols-3 gap-2">
+        <input value={t.topic} onChange={(e) => setT({ ...t, topic: e.target.value })} maxLength={120} placeholder="Konu" className={`${inp} col-span-2 !py-2 text-xs`} />
+        <select value={t.level} onChange={(e) => setT({ ...t, level: e.target.value })} className={`${inp} !py-2 text-xs`}>{[1, 2, 3].map((l) => <option key={l} value={l}>{LV[l]}</option>)}</select>
+      </div>
+      <textarea value={t.text} onChange={(e) => setT({ ...t, text: e.target.value })} rows={3} maxLength={1500} className={`${inp} resize-none text-xs`} />
+      {t.options.map((o, i) => (
+        <label key={i} className="flex items-center gap-2 text-xs">
+          <input type="radio" name={`ans-${q.id}`} checked={Number(t.answer) === i} onChange={() => setT({ ...t, answer: i })} className="h-4 w-4 shrink-0 accent-teal-400" aria-label={`${LETTERS[i]} doğru cevap`} />
+          <span className="w-4 shrink-0 text-slate-400">{LETTERS[i]}</span>
+          <input value={o} onChange={(e) => setOpt(i, e.target.value)} className={`${inp} !py-2 text-xs ${Number(t.answer) === i ? "!border-teal-300/60" : ""}`} />
+        </label>
+      ))}
+      <textarea value={t.why} onChange={(e) => setT({ ...t, why: e.target.value })} rows={2} placeholder="Açıklama" className={`${inp} resize-none text-xs`} />
+      <p className="text-[11px] text-slate-500">Soldaki yuvarlak doğru cevabı gösterir.</p>
+      <div className="grid grid-cols-2 gap-2">
+        <button onClick={save} disabled={busy} className="rounded-xl bg-teal-500 px-3 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50">Kaydet</button>
+        <button onClick={onClose} className="rounded-xl border border-sky-300/15 px-3 py-2.5 text-sm text-slate-100">Vazgeç</button>
+      </div>
+    </div>
+  );
+}
+
+// Katılımcı listesi ve canlı izleme (10 saniyede bir yenilenir)
+const STATE_UI = {
+  cozuyor: ["Çözüyor", "bg-sky-500/25 text-sky-100"],
+  bitirdi: ["Bitirdi", "bg-teal-500/25 text-teal-100"],
+  sure_doldu: ["Süresi doldu", "bg-white/10 text-slate-200"],
+  iptal: ["İptal", "bg-rose-500/25 text-rose-100"],
+};
+function DuelLive({ duel, setToast }) {
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState("");
+  const load = useCallback(async () => {
+    const { data, error } = await sb.rpc("admin_duel_attempts", { p_duel: duel.id });
+    if (error) setErr(error.message); else { setErr(""); setD(data); }
+  }, [duel.id]);
+  useEffect(() => { load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [load]);
+  const act = async (u, action, text) => {
+    if (!(await ask(text, { title: "Katılımcı işlemi", confirmText: "Onayla", danger: action !== "restore" }))) return;
+    const { error } = await sb.rpc("admin_attempt_action", { p_duel: duel.id, p_user: u.user_id, p_action: action, p_reason: action === "disqualify" ? "Yönetici kararı" : null });
+    setToast(error ? "İşlem başarısız: " + error.message : "Tamam."); load();
+  };
+  if (err) return <p className="mt-2 text-xs text-rose-300">Canlı izleme açılamadı: {err}. admin_sistemi.sql çalıştırıldı mı?</p>;
+  if (!d) return <p className="mt-2 text-xs text-slate-400">Yükleniyor…</p>;
+  const s = d.summary;
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="grid grid-cols-4 gap-1.5 text-center">
+        {[[s.participants, "katıldı"], [s.solving, "çözüyor"], [s.finished, "bitirdi"], [s.disqualified, "iptal"]].map(([n, l]) => (
+          <div key={l} className="rounded-xl bg-white/5 py-2"><p className="font-display text-xl font-bold text-white">{n}</p><p className="text-[11px] text-slate-400">{l}</p></div>
+        ))}
+      </div>
+      <p className="text-[11px] text-slate-500">Sekme hakkı: {d.max_leaves}. Liste 10 saniyede bir kendiliğinden yenilenir.</p>
+      {d.rows.length === 0 && <p className="text-xs text-slate-400">Henüz katılan yok.</p>}
+      {d.rows.map((r) => {
+        const [lab, cls] = STATE_UI[r.state] || ["", ""];
+        return (
+          <div key={r.user_id} className="rounded-xl bg-white/5 px-3 py-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate font-medium text-slate-100">{r.name}{r.class ? ` · ${r.class}. sınıf` : ""}</span>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 ${cls}`}>{lab}</span>
+            </div>
+            <p className="mt-1 text-slate-400">{r.answered}/{d.total} cevap · {r.correct} doğru · {r.leaves} sekme{r.reason ? ` · ${r.reason}` : ""}</p>
+            <div className="mt-1.5 flex gap-2">
+              {r.state === "iptal"
+                ? <button onClick={() => act(r, "restore", `${r.name} katılımı geri alınsın mı? Puanı sıralamaya döner.`)} className="rounded-lg border border-sky-300/15 px-2.5 py-1 text-slate-100">Geri al</button>
+                : <button onClick={() => act(r, "disqualify", `${r.name} katılımı iptal edilsin mi? Sıralamadan düşer.`)} className="rounded-lg border border-rose-400/30 px-2.5 py-1 text-rose-200">İptal et</button>}
+              <button onClick={() => act(r, "reset", `${r.name} katılımı silinsin ve yeniden hak verilsin mi? Cevapları silinir.`)} className="rounded-lg border border-sky-300/15 px-2.5 py-1 text-slate-100">Yeniden hak ver</button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------- Bakım modu ---------- */
+function MaintenancePage({ message, onAdminLogin }) {
+  return (
+    <div translate="no" lang="tr" className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#040b17] px-6 text-center text-slate-100" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+      <style>{`
+        @keyframes mspin{to{transform:rotate(360deg)}}@keyframes mspinr{to{transform:rotate(-360deg)}}
+        @keyframes mfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+        @keyframes mglow{0%,100%{opacity:.35}50%{opacity:.7}}
+      `}</style>
+      <div className="pointer-events-none absolute -top-40 left-1/2 h-[480px] w-[480px] -translate-x-1/2 rounded-full bg-sky-500/20 blur-[110px]" style={{ animation: "mglow 4s ease-in-out infinite" }} />
+      <div className="pointer-events-none absolute -bottom-40 right-0 h-[380px] w-[380px] rounded-full bg-indigo-500/20 blur-[110px]" style={{ animation: "mglow 5s ease-in-out infinite" }} />
+      <div className="relative z-10 w-full max-w-md">
+        <div className="mx-auto mb-6 h-28 w-28" style={{ animation: "mfloat 4s ease-in-out infinite" }}>
+          <div className="relative h-full w-full">
+            <svg viewBox="0 0 24 24" className="absolute left-0 top-2 h-20 w-20 text-sky-300" style={{ animation: "mspin 9s linear infinite" }} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" />
+              <circle cx="12" cy="12" r="6.5" />
+            </svg>
+            <svg viewBox="0 0 24 24" className="absolute bottom-0 right-0 h-14 w-14 text-indigo-300" style={{ animation: "mspinr 6s linear infinite" }} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="2.6" />
+              <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" />
+              <circle cx="12" cy="12" r="6" />
+            </svg>
+          </div>
+        </div>
+        <img src={LOGO_SRC} alt="" className="mx-auto mb-3 h-10 w-10 rounded-xl opacity-90" />
+        <div className="text-[11px] font-semibold uppercase tracking-[0.25em] text-sky-300/80">AFSÜ Diyaliz Team</div>
+        <h1 className="mt-3 font-display text-3xl font-extrabold text-white sm:text-4xl" style={{ fontFamily: "'Bricolage Grotesque', system-ui, sans-serif" }}>Sitemiz bakımda</h1>
+        <p className="mt-4 text-[15px] leading-relaxed text-slate-300">Daha iyi bir deneyim için siteyi güncelliyoruz. Kısa süre sonra yeniden buradayız.</p>
+        {message ? <p className="mt-4 rounded-2xl border border-sky-300/20 bg-sky-400/10 px-4 py-3 text-sm leading-relaxed text-sky-100">{message}</p> : null}
+        <a href={IG_URL} target="_blank" rel="noreferrer" className="mt-6 inline-block rounded-full border border-rose-300/30 bg-rose-500/10 px-5 py-2.5 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/20">Duyurular için Instagram: @afsudiyalizteam</a>
+        <div className="mt-6 text-xs text-slate-500">Bu sayfa kendiliğinden yenilenir, tekrar girmene gerek yok.</div>
+        <button type="button" onClick={onAdminLogin} className="mt-8 text-[11px] text-slate-600 underline-offset-2 hover:text-slate-400 hover:underline">Yönetici girişi</button>
+      </div>
+    </div>
+  );
+}
+
+function MaintenanceAdmin({ maint, reload, setToast }) {
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setMsg(maint.message || ""); }, [maint.message]);
+  const on = !!maint.on;
+  const toggle = async () => {
+    const okk = await ask(on ? "Bakım modu kapatılsın mı? Site herkese tekrar açılır." : "Site bakıma alınsın mı? Yönetici dışındaki herkes (giriş yapmış ya da yapmamış) 'Sitemiz bakımda' sayfasını görür.");
+    if (!okk) return;
+    setBusy(true);
+    const { error } = await sb.rpc("admin_set_maintenance", { p_on: !on, p_message: msg.trim() || null });
+    setBusy(false);
+    if (error) { setToast("Bakım modu değişmedi. bakim_modu.sql Supabase'de çalıştırıldı mı?"); return; }
+    setToast(on ? "Bakım modu kapatıldı. Site herkese açık." : "Site bakıma alındı.");
+    reload();
+  };
+  return (
+    <div className={"mb-4 rounded-2xl border p-4 " + (on ? "border-amber-300/40 bg-amber-500/10" : "border-sky-300/15 bg-[#0a1a30]/90")}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="font-display text-base font-bold text-white">Bakım modu</div>
+          <div className={"text-xs " + (on ? "text-amber-200" : "text-slate-400")}>{on ? "AÇIK: kullanıcılar bakım sayfasını görüyor" : "Kapalı: site herkese açık"}</div>
+        </div>
+        <button type="button" disabled={busy} onClick={toggle} className={"shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 " + (on ? "bg-emerald-600 hover:bg-emerald-500" : "bg-amber-600 hover:bg-amber-500")}>{on ? "Bakımı kapat" : "Bakıma al"}</button>
+      </div>
+      <textarea value={msg} onChange={(e) => setMsg(e.target.value.slice(0, 300))} rows={2} placeholder="İstersen kısa bir not yaz (örn. Gece 02.00'de açılır)" className={inp + " mt-3"} />
+      <div className="mt-1 text-right text-[11px] text-slate-500">{msg.length}/300</div>
+    </div>
+  );
+}
+
+// Yönetici işlem kaydı (kim, ne zaman, ne yaptı)
+const LOG_LABEL = {
+  duels_eklendi: "Düello oluşturuldu", duels_guncellendi: "Düello güncellendi", duels_silindi: "Düello silindi",
+  bakim_acildi: "Bakım modu açıldı", bakim_kapandi: "Bakım modu kapatıldı",
+  duel_questions_eklendi: "Soru eklendi", duel_questions_guncellendi: "Soru güncellendi", duel_questions_silindi: "Soru silindi",
+  kullanici_silindi: "Kullanıcı silindi", kullanici_rolu: "Rol değişti", kullanici_askiya_alindi: "Kullanıcı askıya alındı", kullanici_askisi_kalkti: "Askı kaldırıldı",
+  katilim_iptal: "Katılım iptal edildi", katilim_geri_alindi: "Katılım geri alındı", katilim_sifirlandi: "Katılım sıfırlandı", katilim_otomatik_iptal: "Otomatik iptal (sekme hakkı aşıldı)",
+};
+const LOG_FIELD = { title: "Başlık", starts_at: "Başlangıç", ends_at: "Bitiş", duration_sec: "Süre (sn)", max_leaves: "Sekme hakkı", cancelled_at: "İptal", cancel_reason: "İptal nedeni", voided: "Hatalı sorular", answer: "Doğru şık", text: "Soru metni", options: "Şıklar", why: "Açıklama", topic: "Konu", level: "Seviye", question_ids: "Sorular", neden: "Neden", adet: "Adet" };
+const logVal = (k, v) => {
+  if (v === null || v === undefined) return "yok";
+  if (k.endsWith("_at")) { try { return new Date(v).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); } catch { return String(v); } }
+  if (k === "answer") return LETTERS[v] || String(v);
+  const s = typeof v === "object" ? JSON.stringify(v) : String(v);
+  return s.length > 50 ? s.slice(0, 50) + "…" : s;
+};
+function logDetail(det) {
+  if (!det || typeof det !== "object") return [];
+  const out = [];
+  for (const [k, v] of Object.entries(det)) {
+    if (k === "silinen" || (k === "yeni" && v && typeof v === "object" && !("eski" in v))) continue;
+    if (v && typeof v === "object" && "eski" in v && "yeni" in v) out.push(`${LOG_FIELD[k] || k}: ${logVal(k, v.eski)} → ${logVal(k, v.yeni)}`);
+    else out.push(`${LOG_FIELD[k] || k}: ${logVal(k, v)}`);
+  }
+  return out.slice(0, 5);
+}
+function AdminLog() {
+  const [rows, setRows] = useState(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    sb.from("admin_log").select("*").order("at", { ascending: false }).limit(100).then(({ data, error }) => { if (error) setErr(error.message); else setRows(data || []); });
+  }, []);
+  if (err) return <p className="text-xs text-rose-300">Kayıt açılamadı: {err}. admin_sistemi.sql çalıştırıldı mı?</p>;
+  if (!rows) return <p className="text-xs text-slate-400">Yükleniyor…</p>;
+  if (!rows.length) return <p className="text-xs text-slate-400">Henüz kayıt yok.</p>;
+  return (
+    <div className="max-h-96 space-y-1.5 overflow-y-auto">
+      {rows.map((r) => (
+        <div key={r.id} className="rounded-lg bg-white/5 px-3 py-2 text-xs">
+          <p className="text-slate-100"><span className="font-semibold">{LOG_LABEL[r.action] || r.action}</span>{r.target ? ` · ${r.target}` : ""}</p>
+          {logDetail(r.detail).map((l, i) => <p key={i} className="text-slate-400">{l}</p>)}
+          <p className="mt-0.5 text-[11px] text-slate-500">{r.admin_name || "Sistem"} · {new Date(r.at).toLocaleString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DuelAdmin({ setToast }) {
   const [qs, setQs] = useState([]);
   const [ds, setDs] = useState([]);
@@ -1310,7 +1833,12 @@ function DuelAdmin({ setToast }) {
   const [rows, setRows] = useState(null);
   const [showQs, setShowQs] = useState(false);
   const [openD, setOpenD] = useState(null);
+  const [liveD, setLiveD] = useState(null);
+  const [edit, setEdit] = useState(null);
+  const [editQ, setEditQ] = useState(null);
+  const [showLog, setShowLog] = useState(false);
   const box = "rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3";
+  const usedIn = (qid) => ds.filter((d) => d.question_ids.includes(qid)).length;
 
   const load = useCallback(async () => {
     const a = await sb.from("duel_questions").select("*").order("created_at", { ascending: false });
@@ -1347,7 +1875,7 @@ function DuelAdmin({ setToast }) {
     if (error) return setToast("Oluşturulamadı: " + error.message);
     setPick([]); setF({ title: "", start: "", end: "", min: 10 }); setToast("Düello oluşturuldu."); load();
   };
-  const delDuel = async (id) => { if (!(await ask("Düello ve tüm sonuçları silinsin mi? Bu geri alınamaz.", { title: "Düelloyu sil", confirmText: "Sil", danger: true }))) return; await sb.from("duels").delete().eq("id", id); load(); };
+  const delDuel = async (id) => { if (!(await ask("Düello ve tüm sonuçları silinsin mi? Bu geri alınamaz. (Silmek yerine 'İptal et' seçeneği sonuçları saklar.)", { title: "Düelloyu sil", confirmText: "Sil", danger: true }))) return; await sb.from("duels").delete().eq("id", id); load(); };
   const toggleVoid = async (d, qid) => {
     const v = d.voided.includes(qid) ? d.voided.filter((x) => x !== qid) : [...d.voided, qid];
     const { error } = await sb.from("duels").update({ voided: v }).eq("id", d.id);
@@ -1358,6 +1886,44 @@ function DuelAdmin({ setToast }) {
     if (error) return setToast(error.message);
     setRows({ id: d.id, ...data });
   };
+  const startEdit = (d) => setEdit({ id: d.id, title: d.title, start: toLocalInput(d.starts_at), end: toLocalInput(d.ends_at), min: d.duration_sec / 60, leaves: d.max_leaves ?? 3, hasLeaves: "max_leaves" in d, orig: d });
+  const shiftEnd = (mins) => setEdit({ ...edit, end: toLocalInput(new Date(new Date(edit.end).getTime() + mins * 60000).toISOString()) });
+  const saveEdit = async () => {
+    const o = edit.orig, s = new Date(edit.start), e = new Date(edit.end), sec = Math.round(Number(edit.min) * 60);
+    if (edit.title.trim().length < 3 || isNaN(s) || isNaN(e)) return setToast("Başlık ve saatleri kontrol et.");
+    if (!(sec >= 60) || (e - s) / 1000 < sec) return setToast("Düello penceresi, süreden kısa olamaz.");
+    const timeChanged = s.getTime() !== new Date(o.starts_at).getTime() || e.getTime() !== new Date(o.ends_at).getTime() || sec !== o.duration_sec;
+    if (timeChanged) {
+      const { error } = await sb.rpc("admin_duel_reschedule", { p_duel: o.id, p_starts: s.toISOString(), p_ends: e.toISOString(), p_duration: sec });
+      if (error) return setToast(error.message);
+    }
+    const patch = {};
+    if (edit.title.trim() !== o.title) patch.title = edit.title.trim();
+    if (edit.hasLeaves && Number(edit.leaves) !== o.max_leaves) patch.max_leaves = Math.min(50, Math.max(0, Math.round(Number(edit.leaves))));
+    if (Object.keys(patch).length) {
+      const { error } = await sb.from("duels").update(patch).eq("id", o.id);
+      if (error) return setToast("Kaydedilemedi: " + error.message);
+    }
+    setEdit(null); setToast("Düello güncellendi."); load();
+  };
+  const cancelDuel = async (d, cancel) => {
+    const text = cancel ? "Düello iptal edilsin mi? Öğrencilere görünmez, sonuçlar ve rozetler sayılmaz. Veriler silinmez, istersen geri alabilirsin." : "Düello iptali geri alınsın mı?";
+    if (!(await ask(text, { title: cancel ? "Düelloyu iptal et" : "İptali geri al", confirmText: "Onayla", danger: cancel }))) return;
+    const { error } = await sb.rpc("admin_duel_cancel", { p_duel: d.id, p_cancel: cancel, p_reason: null });
+    setToast(error ? "İşlem başarısız: " + error.message : cancel ? "Düello iptal edildi." : "İptal geri alındı."); load();
+  };
+  const qRow = (q, extra) => (
+    <div key={q.id}>
+      <div className="flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2 text-xs">
+        {extra}
+        <span className={`shrink-0 rounded px-1.5 py-0.5 ${LV_CLS[q.level]}`}>{LV[q.level]}</span>
+        <span className="min-w-0 flex-1 truncate text-slate-200">{q.topic} · {q.text}</span>
+        <button onClick={() => setEditQ(editQ === q.id ? null : q.id)} className="shrink-0 text-teal-300 underline underline-offset-2">Düzenle</button>
+        <button onClick={() => delQ(q.id)} aria-label="Soruyu sil" className="shrink-0 text-rose-300"><Trash2 className="h-3.5 w-3.5" /></button>
+      </div>
+      {editQ === q.id && <QuestionEditor q={q} usedIn={usedIn(q.id)} onClose={() => setEditQ(null)} onSaved={() => { setEditQ(null); load(); }} setToast={setToast} />}
+    </div>
+  );
 
   return (
     <div className="mt-6">
@@ -1369,17 +1935,10 @@ function DuelAdmin({ setToast }) {
           <button onClick={importQs} className="rounded-xl bg-teal-500 px-3 py-2.5 text-sm font-semibold text-slate-950">Soruları ekle</button>
           <button onClick={() => navigator.clipboard?.writeText(AI_PROMPT).then(() => setToast("İstem kopyalandı. Yapay zekâya yapıştır."))} className="rounded-xl border border-sky-300/15 px-3 py-2.5 text-sm text-slate-100">Yapay zekâ istemini kopyala</button>
         </div>
-        <button onClick={() => setShowQs(!showQs)} className="text-xs text-teal-300 underline underline-offset-2">{showQs ? "Soru listesini gizle" : "Soru listesini göster"}</button>
+        <button onClick={() => setShowQs(!showQs)} className="text-xs text-teal-300 underline underline-offset-2">{showQs ? "Soru listesini gizle" : "Soru listesini göster / düzenle"}</button>
         {showQs && (
-          <div className="max-h-64 space-y-1.5 overflow-y-auto">
-            {qs.map((q) => (
-              <div key={q.id} className="flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2 text-xs">
-                <input type="checkbox" checked={pick.includes(q.id)} onChange={() => setPick(pick.includes(q.id) ? pick.filter((x) => x !== q.id) : [...pick, q.id])} className="h-4 w-4 shrink-0 accent-amber-400" />
-                <span className={`shrink-0 rounded px-1.5 py-0.5 ${LV_CLS[q.level]}`}>{LV[q.level]}</span>
-                <span className="min-w-0 flex-1 truncate text-slate-200">{q.topic} · {q.text}</span>
-                <button onClick={() => delQ(q.id)} aria-label="Soruyu sil" className="shrink-0 text-rose-300"><Trash2 className="h-3.5 w-3.5" /></button>
-              </div>
-            ))}
+          <div className="max-h-96 space-y-1.5 overflow-y-auto">
+            {qs.map((q) => qRow(q, <input type="checkbox" checked={pick.includes(q.id)} onChange={() => setPick(pick.includes(q.id) ? pick.filter((x) => x !== q.id) : [...pick, q.id])} className="h-4 w-4 shrink-0 accent-amber-400" aria-label="Düelloya seç" />))}
           </div>
         )}
       </div>
@@ -1401,35 +1960,145 @@ function DuelAdmin({ setToast }) {
       </div>
       <div className="mt-2 space-y-2">
         {ds.map((d) => (
-          <div key={d.id} className={box}>
+          <div key={d.id} className={`${box} ${d.cancelled_at ? "opacity-70" : ""}`}>
             <div className="flex items-center gap-2">
-              <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-white">{d.title}</p><p className="text-xs text-slate-400">{dtText(d.starts_at)} · {Math.round(d.duration_sec / 60)} dk · {d.question_ids.length} soru · {cnt[d.id] ?? 0} katılımcı</p></div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-white">{d.title}{d.cancelled_at && <span className="ml-2 rounded-full bg-rose-500/25 px-2 py-0.5 text-[11px] text-rose-100">İptal edildi</span>}</p>
+                <p className="text-xs text-slate-400">{dtText(d.starts_at)} · {Math.round(d.duration_sec / 60)} dk · {d.question_ids.length} soru · {cnt[d.id] ?? 0} katılımcı</p>
+              </div>
               <button onClick={() => delDuel(d.id)} aria-label="Düelloyu sil" className="shrink-0 rounded-lg p-2 text-rose-300 hover:bg-rose-500/15"><Trash2 className="h-4 w-4" /></button>
             </div>
-            <div className="mt-2 flex gap-2 text-xs">
+            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              <button onClick={() => setLiveD(liveD === d.id ? null : d.id)} className="rounded-lg border border-teal-400/30 px-3 py-1.5 text-teal-100">Katılımcılar / canlı</button>
               <button onClick={() => results(d)} className="rounded-lg border border-sky-300/15 px-3 py-1.5 text-slate-100">Sonuçlar</button>
-              <button onClick={() => setOpenD(openD === d.id ? null : d.id)} className="rounded-lg border border-sky-300/15 px-3 py-1.5 text-slate-100">Sorular / iptal</button>
+              <button onClick={() => (edit?.id === d.id ? setEdit(null) : startEdit(d))} className="rounded-lg border border-sky-300/15 px-3 py-1.5 text-slate-100">Düzenle</button>
+              <button onClick={() => setOpenD(openD === d.id ? null : d.id)} className="rounded-lg border border-sky-300/15 px-3 py-1.5 text-slate-100">Sorular</button>
+              <button onClick={() => cancelDuel(d, !d.cancelled_at)} className={`rounded-lg border px-3 py-1.5 ${d.cancelled_at ? "border-sky-300/15 text-slate-100" : "border-rose-400/30 text-rose-200"}`}>{d.cancelled_at ? "İptali geri al" : "Düelloyu iptal et"}</button>
             </div>
+            {liveD === d.id && <DuelLive duel={d} setToast={setToast} />}
+            {edit?.id === d.id && (
+              <div className="mt-2 space-y-2 rounded-xl border border-amber-300/30 bg-amber-500/5 p-3">
+                <input value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} maxLength={120} className={`${inp} !py-2 text-sm`} aria-label="Başlık" />
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-xs text-slate-400">Başlangıç<input type="datetime-local" value={edit.start} onChange={(e) => setEdit({ ...edit, start: e.target.value })} className={`${inp} mt-1 !py-2`} /></label>
+                  <label className="text-xs text-slate-400">Bitiş<input type="datetime-local" value={edit.end} onChange={(e) => setEdit({ ...edit, end: e.target.value })} className={`${inp} mt-1 !py-2`} /></label>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="text-slate-400">Bitişi uzat:</span>
+                  {[15, 30, 60].map((m) => <button key={m} onClick={() => shiftEnd(m)} className="rounded-full border border-sky-300/15 px-3 py-1 text-slate-100">+{m} dk</button>)}
+                  <button onClick={() => shiftEnd(-15)} className="rounded-full border border-sky-300/15 px-3 py-1 text-slate-100">−15 dk</button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-xs text-slate-400">Kişi başı süre (dk)<input type="number" min="1" max="120" value={edit.min} onChange={(e) => setEdit({ ...edit, min: e.target.value })} className={`${inp} mt-1 !py-2`} /></label>
+                  {edit.hasLeaves && <label className="text-xs text-slate-400">Sekme hakkı (0–50)<input type="number" min="0" max="50" value={edit.leaves} onChange={(e) => setEdit({ ...edit, leaves: e.target.value })} className={`${inp} mt-1 !py-2`} /></label>}
+                </div>
+                <p className="text-[11px] text-slate-500">Katılım başladıysa süre kısaltılamaz, bitiş devam edenlerin süresinden önceye alınamaz. Bunu sistem kendisi denetler.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={saveEdit} className="rounded-xl bg-teal-500 px-3 py-2.5 text-sm font-semibold text-slate-950">Kaydet</button>
+                  <button onClick={() => setEdit(null)} className="rounded-xl border border-sky-300/15 px-3 py-2.5 text-sm text-slate-100">Vazgeç</button>
+                </div>
+              </div>
+            )}
             {openD === d.id && (
               <div className="mt-2 space-y-1.5">
-                {d.question_ids.map((qid) => { const q = qs.find((x) => x.id === qid); return (
-                  <div key={qid} className="flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2 text-xs">
-                    <span className="min-w-0 flex-1 truncate text-slate-200">{q ? q.text : "(silinmiş soru)"}</span>
-                    <button onClick={() => toggleVoid(d, qid)} className={`shrink-0 rounded px-2 py-1 ${d.voided.includes(qid) ? "bg-amber-500/30 text-amber-100" : "border border-sky-300/15 text-slate-300"}`}>{d.voided.includes(qid) ? "İptal edildi" : "Hatalı → herkese doğru"}</button>
+                {d.question_ids.map((qid) => { const q = qs.find((x) => x.id === qid); return q ? (
+                  <div key={qid}>
+                    <div className="flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2 text-xs">
+                      <span className="min-w-0 flex-1 truncate text-slate-200">{q.text}</span>
+                      <button onClick={() => setEditQ(editQ === qid ? null : qid)} className="shrink-0 text-teal-300 underline underline-offset-2">Düzenle</button>
+                      <button onClick={() => toggleVoid(d, qid)} className={`shrink-0 rounded px-2 py-1 ${d.voided.includes(qid) ? "bg-amber-500/30 text-amber-100" : "border border-sky-300/15 text-slate-300"}`}>{d.voided.includes(qid) ? "İptal edildi" : "Hatalı → herkese doğru"}</button>
+                    </div>
+                    {editQ === qid && <QuestionEditor q={q} usedIn={usedIn(qid)} onClose={() => setEditQ(null)} onSaved={() => { setEditQ(null); load(); }} setToast={setToast} />}
                   </div>
-                ); })}
+                ) : <p key={qid} className="px-2.5 py-2 text-xs text-slate-500">(silinmiş soru)</p>; })}
               </div>
             )}
             {rows?.id === d.id && (
               <div className="mt-2 space-y-1 text-xs text-slate-300">
-                <p className="text-slate-400">{rows.participants} katılımcı</p>
+                <p className="text-slate-400">{rows.participants} katılımcı (iptal edilenler sayılmaz)</p>
                 {rows.ranking.map((r) => <p key={r.rank}>{r.rank}. {r.name} · {r.correct}/{rows.total} · {clock(r.used_sec)}{r.leaves ? ` · ${r.leaves}× sekme değiştirdi` : ""}</p>)}
               </div>
             )}
           </div>
         ))}
       </div>
+      <button onClick={() => setShowLog(!showLog)} className="mt-4 flex w-full items-center justify-between rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 px-4 py-3 text-left text-sm font-medium text-white">
+        <span>İşlem kaydı</span><ChevronDown className={`h-4 w-4 text-slate-400 transition ${showLog ? "rotate-180" : ""}`} />
+      </button>
+      {showLog && <div className="mt-2"><AdminLog /></div>}
     </div>
+  );
+}
+
+/* ---------- Profilim: kişisel bilgiler, Karnem, notlarım ---------- */
+function ProfilePage({ user, profile, onLogin, podiums, notes, quizHist, onClass, setToast }) {
+  const [tab, setTab] = useState("genel");
+  const card = "rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 backdrop-blur-xl";
+  const head = <SectionHead title="Profilim" desc="Adın, rozetlerin, Karnem ve paylaştığın notlar burada." />;
+  if (!user) {
+    return (
+      <section className="mx-auto max-w-2xl">{head}
+        <div className={`${card} text-center`}>
+          <p className="text-sm text-slate-300">Profilini görmek için giriş yap.</p>
+          <button onClick={onLogin} className="mt-4 w-full rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950">Giriş yap / Kayıt ol</button>
+        </div>
+      </section>
+    );
+  }
+  const name = profile?.full_name || "Öğrenci";
+  const mine = (notes || []).filter((n) => n.user_id === user.id);
+  const tabs = [["genel", "Genel"], ["karne", "Karnem"], ["notlar", `Notlarım${mine.length ? ` (${mine.length})` : ""}`]];
+  const gold = (podiums || []).filter((p) => p.rank === 1).length;
+  return (
+    <section className="mx-auto max-w-2xl">
+      {head}
+      <div className={`${card} text-center`}>
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-teal-500/25 font-display text-2xl font-bold text-teal-100 ring-1 ring-teal-400/50">{name[0].toUpperCase()}</div>
+        <h3 className="mt-3 font-display text-xl font-bold text-white">{name}</h3>
+        <p className="text-sm text-slate-400">{user.email}</p>
+        {profile && "entry_year" in profile && <ClassChip entry={profile.entry_year} onClass={onClass} />}
+      </div>
+      <div role="tablist" className="mt-3 grid grid-cols-3 gap-2">
+        {tabs.map(([id, label]) => (
+          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`rounded-xl px-2 py-2.5 text-sm font-medium transition ${tab === id ? "bg-teal-500 text-slate-950" : "border border-sky-300/15 text-slate-200 hover:bg-white/5"}`}>{label}</button>
+        ))}
+      </div>
+      {tab === "genel" && (
+        <div className="mt-3 space-y-3">
+          <InstallCard />
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {[[(podiums || []).length, "podyum"], [gold, "birincilik"], [(quizHist || []).length, "çözülen test"]].map(([n, l]) => (
+              <div key={l} className={`${card} !p-3`}><p className="font-display text-2xl font-bold text-white">{n}</p><p className="text-xs text-slate-400">{l}</p></div>
+            ))}
+          </div>
+          {(podiums || []).length > 0 ? (
+            <div className={card}>
+              <p className="mb-2 text-sm font-semibold text-white">Düello rozetlerin</p>
+              <div className="space-y-1.5">
+                {podiums.map((p) => (
+                  <p key={p.id} className="flex items-center gap-2 text-sm text-slate-200"><span className="text-xl">{MEDAL[p.rank]}</span><span className="min-w-0 flex-1 truncate">{p.title}</span><span className="shrink-0 text-xs text-slate-400">{p.correct}/{p.total}</span></p>
+                ))}
+              </div>
+            </div>
+          ) : <div className={card}><p className="text-sm text-slate-300">Henüz düello rozetin yok. İlk üçe girdiğinde burada görünür.</p></div>}
+          <button onClick={() => { window.location.hash = "/duello"; }} className="flex w-full items-center justify-between rounded-2xl border border-teal-400/30 bg-teal-500/10 px-4 py-3 text-left text-sm font-semibold text-teal-100"><span>Düelloya git</span><ArrowUpRight className="h-4 w-4" /></button>
+          <button onClick={async () => { await sb?.auth.signOut(); setToast("Çıkış yapıldı."); window.location.hash = "/"; }} className="flex w-full items-center justify-center gap-2 rounded-xl border border-sky-300/15 px-4 py-3 text-sm text-slate-200 hover:bg-white/5"><LogOut className="h-4 w-4" /> Çıkış yap</button>
+        </div>
+      )}
+      {tab === "karne" && <div className="mt-3"><KarnePage user={user} onLogin={onLogin} quizHist={quizHist} embedded /></div>}
+      {tab === "notlar" && (
+        <div className="mt-3 space-y-2">
+          {mine.length === 0 && <div className={card}><p className="text-sm text-slate-300">Henüz not paylaşmadın. Not havuzundan ilk notunu paylaşabilirsin.</p></div>}
+          {mine.map((n) => (
+            <div key={n.id} className={`${card} flex items-center gap-3 !p-3`}>
+              <FileText className="h-5 w-5 shrink-0 text-teal-300" />
+              <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-white">{n.title}</p><p className="truncate text-xs text-slate-400">{n.course}</p></div>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${n.status === "approved" ? "bg-teal-500/25 text-teal-100" : "bg-amber-500/25 text-amber-100"}`}>{n.status === "approved" ? "Yayında" : "Onay bekliyor"}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1443,7 +2112,7 @@ const PAGES = [
 ];
 const pageFromHash = () => {
   const h = window.location.hash.replace("#/", "");
-  return PAGES.some((p) => p.id === h) || h === "yonetim" || h === "hakkimizda" || h === "duello" ? h : "home";
+  return PAGES.some((p) => p.id === h) || h === "yonetim" || h === "hakkimizda" || h === "duello" || h === "karne" || h === "profil" ? h : "home";
 };
 
 // Tanıtım videosu: public/tanitim.mp4 için "/tanitim.mp4" ya da bir YouTube linki yaz.
@@ -1781,12 +2450,23 @@ export default function App() {
   const [annTitle, setAnnTitle] = useState("");
   const [annBody, setAnnBody] = useState("");
   const [stats, setStats] = useState(null);
+  const [classOpen, setClassOpen] = useState(false);
+  const [classLater, setClassLater] = useState(() => { try { return !!sessionStorage.getItem("afsu_class_later"); } catch { return false; } });
   const [welcomeOpen, setWelcomeOpen] = useState(() => { try { return !sessionStorage.getItem("afsu_welcome") && load("afsu_welcome_seen", "") !== WELCOME_VER; } catch { return false; } });
 
   useEffect(() => {
     const onHash = () => { setPage(pageFromHash()); window.scrollTo({ top: 0 }); };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  useEffect(() => {
+    // Uygulama olarak kurulabilirlik: manifest, tema rengi, simge ve hizmet çalışanı.
+    const add = (tag, attrs) => { if (document.head.querySelector(`${tag}[data-pwa="${attrs.rel || attrs.name}"]`)) return; const el = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v)); el.setAttribute("data-pwa", attrs.rel || attrs.name); document.head.appendChild(el); };
+    add("link", { rel: "manifest", href: "/manifest.webmanifest" });
+    add("link", { rel: "apple-touch-icon", href: "/icon-192.png" });
+    add("meta", { name: "theme-color", content: "#040b17" });
+    add("meta", { name: "mobile-web-app-capable", content: "yes" });
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
   }, []);
   useEffect(() => {
     // Chrome'un otomatik çevirisi yazıları bozuyordu ("Not" -> "Değil"): çeviriyi kapat.
@@ -1798,6 +2478,21 @@ export default function App() {
   }, []);
   const uid = user?.id;
   const isAdmin = profile?.role === "admin";
+  const [maint, setMaint] = useState({ on: false });
+  const loadMaint = useCallback(async () => {
+    if (!sb) return;
+    try {
+      const { data, error } = await sb.rpc("site_maintenance");
+      if (!error && data && typeof data === "object") setMaint(data);
+    } catch (e) { /* ağ hatasında mevcut durum korunur */ }
+  }, []);
+  useEffect(() => {
+    loadMaint();
+    const t = setInterval(loadMaint, 45000);
+    const vis = () => { if (document.visibilityState === "visible") loadMaint(); };
+    document.addEventListener("visibilitychange", vis);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", vis); };
+  }, [loadMaint]);
   useEffect(() => {
     if (!sb) return;
     sb.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
@@ -1832,7 +2527,7 @@ export default function App() {
   const loadDuels = useCallback(async () => {
     if (!sb) return;
     const { data } = await sb.from("duels").select("*").order("starts_at", { ascending: false }).limit(30);
-    setDuels(data || []);
+    setDuels((data || []).filter((d) => !d.cancelled_at));
   }, []);
   useEffect(() => { loadDuels(); const t = setInterval(loadDuels, 60000); return () => clearInterval(t); }, [loadDuels]);
   useEffect(() => {
@@ -1973,6 +2668,22 @@ export default function App() {
     const { error } = await sb.from("announcements").delete().eq("id", id);
     setToast(error ? "Silinemedi." : "Duyuru silindi."); loadAnns();
   };
+  const needClass = !!user && !!profile && "entry_year" in profile && profile.entry_year == null && !profile.suspended;
+  const askClass = needClass && !classLater && !authOpen && !(welcomeOpen && !!VIDEO_URL) && !pod;
+  const closeClass = () => { setClassOpen(false); setClassLater(true); try { sessionStorage.setItem("afsu_class_later", "1"); } catch { /* sessizce geç */ } };
+  const onClassSaved = async (c) => {
+    setClassOpen(false);
+    if (sb && uid) {
+      const { data } = await sb.from("profiles").select("*").eq("id", uid).maybeSingle();
+      if (data) setProfile(data);
+    }
+    setToast(`${c}. Sınıf Takımına katıldın.`);
+  };
+  const setUserClass = async (u, v) => {
+    const { error } = await sb.rpc("admin_set_class", { target: u.id, p_class: v === "" ? null : Number(v) });
+    if (error) return setToast("Sınıf değiştirilemedi. Sınıf SQL'ini çalıştırdın mı?");
+    setToast("Sınıf güncellendi."); loadUsers();
+  };
   const toggleSuspend = async (u) => {
     const on = !u.suspended;
     const who = u.full_name || u.email;
@@ -2012,6 +2723,23 @@ export default function App() {
     { id: "instagram", Icon: Insta, title: "Instagram", sub: "Duyuru ve anketler", cls: "border-rose-400/40 from-rose-600/40 to-rose-950/70", ic: "text-rose-200" },
     { id: "hakkimizda", Icon: Play, title: "Bizi tanı", sub: "Video ve amacımız", cls: "border-sky-400/40 from-sky-600/40 to-sky-950/70", ic: "text-sky-200" },
   ];
+
+  const authEl = (
+    <AuthModal podiums={podiums} open={authOpen} onClose={() => setAuthOpen(false)} user={user} profile={profile} onAdmin={() => { setAuthOpen(false); go("yonetim"); }} onDone={setToast} onPrivacy={() => setPrivOpen(true)} recovery={recovery} onRecovered={() => setRecovery(false)} onClass={() => { setAuthOpen(false); setClassOpen(true); }} onKarne={() => { setAuthOpen(false); go("karne"); }} onProfile={() => { setAuthOpen(false); go("profil"); }} />
+  );
+
+  if (maint.on && !isAdmin) {
+    if (user && !profile) {
+      return <div className="flex min-h-screen items-center justify-center bg-[#040b17] text-sm text-slate-400">Yükleniyor…</div>;
+    }
+    return (
+      <>
+        <MaintenancePage message={maint.message} onAdminLogin={() => setAuthOpen(true)} />
+        {authEl}
+        <ConfirmHost />
+      </>
+    );
+  }
 
   return (
     <div translate="no" lang="tr" className="min-h-screen bg-[#040b17] text-slate-100 antialiased" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
@@ -2146,7 +2874,9 @@ export default function App() {
           {page === "test" && <TestPage hist={quizHist} onSave={saveQuiz} loggedIn={!!user} onLogin={() => setAuthOpen(true)} />}
 
           {/* DOĞRU MU, YANLIŞ MI */}
-          {page === "duello" && <DuelPage user={user} onLogin={() => setAuthOpen(true)} setToast={setToast} duels={duels} openPod={setPod} />}
+          {page === "duello" && <DuelPage user={user} onLogin={() => setAuthOpen(true)} setToast={setToast} duels={duels} openPod={setPod} needClass={needClass} onPickClass={() => setClassOpen(true)} onKarne={() => go("karne")} />}
+          {page === "profil" && <ProfilePage user={user} profile={profile} onLogin={() => setAuthOpen(true)} podiums={podiums} notes={dbNotes} quizHist={quizHist} onClass={() => setClassOpen(true)} setToast={setToast} />}
+          {page === "karne" && <KarnePage user={user} onLogin={() => setAuthOpen(true)} quizHist={quizHist} />}
 
           {page === "mitler" && (
             <section>
@@ -2250,6 +2980,7 @@ export default function App() {
                       <div key={l} className="rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-4"><div className="font-display text-2xl font-bold text-white">{n}</div><div className="text-xs text-slate-400">{l}</div></div>
                     ))}
                   </div>
+                  <MaintenanceAdmin maint={maint} reload={loadMaint} setToast={setToast} />
                   <DuelAdmin setToast={setToast} />
                   <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Duyurular</h3>
                   <div className="space-y-2 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
@@ -2308,10 +3039,19 @@ export default function App() {
                             <p className="truncate text-xs text-slate-400">{u.email} · {new Date(u.created_at).toLocaleDateString("tr-TR")}</p>
                           </div>
                           {u.suspended && <span className="shrink-0 rounded-full bg-amber-500/25 px-2.5 py-1 text-xs text-amber-100">Askıda</span>}
+                          {classOf(u.entry_year) > 0 && <span className="shrink-0 rounded-full bg-sky-500/20 px-2.5 py-1 text-xs text-sky-100">{classLabel(classOf(u.entry_year))}</span>}
                           <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${u.role === "admin" ? "bg-rose-500/25 text-rose-100" : "bg-white/10 text-slate-300"}`}>{u.role === "admin" ? "Yönetici" : "Öğrenci"}</span>
                         </div>
                         {u.id !== uid && (
                           <div className="mt-3 flex flex-wrap gap-2">
+                            {"entry_year" in u && (
+                              <select aria-label="Sınıf" value={classOf(u.entry_year) >= 3 ? "3" : String(classOf(u.entry_year) ?? "")} onChange={(e) => setUserClass(u, e.target.value)} className="rounded-lg border border-sky-300/15 bg-[#0a1a30] px-2 py-2 text-xs text-slate-200">
+                                <option value="">Sınıf yok</option>
+                                <option value="1">1. Sınıf</option>
+                                <option value="2">2. Sınıf</option>
+                                {classOf(u.entry_year) >= 3 && <option value="3" disabled>Mezun</option>}
+                              </select>
+                            )}
                             <button onClick={() => toggleRole(u)} className="rounded-lg border border-sky-300/15 px-3 py-2 text-xs text-slate-200 hover:bg-white/5">{u.role === "admin" ? "Öğrenci yap" : "Yönetici yap"}</button>
                             {u.role !== "admin" && <button onClick={() => toggleSuspend(u)} className="rounded-lg border border-amber-400/40 px-3 py-2 text-xs text-amber-100 hover:bg-amber-500/10">{u.suspended ? "Askıyı kaldır" : "Askıya al"}</button>}
                             {u.role !== "admin" && <button onClick={() => deleteUser(u)} className="flex items-center gap-1.5 rounded-lg border border-rose-400/40 px-3 py-2 text-xs text-rose-200 hover:bg-rose-500/10"><Trash2 className="h-3.5 w-3.5" /> Sil</button>}
@@ -2366,8 +3106,12 @@ export default function App() {
         </div>
       </nav>
 
-      <AuthModal podiums={podiums} open={authOpen} onClose={() => setAuthOpen(false)} user={user} profile={profile} onAdmin={() => { setAuthOpen(false); go("yonetim"); }} onDone={setToast} onPrivacy={() => setPrivOpen(true)} recovery={recovery} onRecovered={() => setRecovery(false)} />
+      {authEl}
+      <ClassPickModal open={classOpen || askClass} onClose={closeClass} onSaved={onClassSaved} current={classOf(profile?.entry_year)} />
       <WelcomeModal open={welcomeOpen && !authOpen && !!VIDEO_URL} onClose={() => setWelcomeOpen(false)} onGo={go} />
+      {isAdmin && maint.on && (
+        <button type="button" onClick={() => go("yonetim")} className="fixed inset-x-0 top-0 z-[70] bg-amber-500 px-3 py-1.5 text-center text-xs font-semibold text-black">Bakım modu AÇIK — kullanıcılar siteyi göremiyor. Kapatmak için dokun.</button>
+      )}
       <ConfirmHost />
       <PodiumModal pod={pod} name={profile?.full_name || "Öğrenci"} onClose={closePod} />
       <PrivacyModal open={privOpen} onClose={() => setPrivOpen(false)} />
