@@ -262,7 +262,7 @@ const trErr = (m = "") =>
   : /password/i.test(m) ? "Şifre yeterince güçlü değil."
   : "Bir sorun oluştu. Tekrar dene.";
 
-function AuthModal({ open, onClose, user, profile, onAdmin, onDone, onPrivacy, recovery, onRecovered, podiums, onClass, onKarne, onProfile }) {
+function AuthModal({ open, onClose, user, profile, onAdmin, onStaff, onDone, onPrivacy, recovery, onRecovered, podiums, onClass, onKarne, onProfile }) {
   const [mode, setMode] = useState("signup");
   const [step, setStep] = useState("form"); // form | code | forgot | reset
   const [f, setF] = useState({ name: "", email: "", pass: "" });
@@ -379,6 +379,7 @@ function AuthModal({ open, onClose, user, profile, onAdmin, onDone, onPrivacy, r
           {podiums?.length > 0 && <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-500/25 px-3 py-1 text-xs text-amber-100 ring-1 ring-amber-400/50">🏆 {podiums.some((p) => p.rank === 1) ? "Düello Şampiyonu" : "Düello Podyumu"}{podiums.length > 1 ? ` · ${podiums.length}×` : ""}</span>}
           {profile && "entry_year" in profile && <ClassChip entry={profile.entry_year} onClass={onClass} />}
           <div className="mt-5 grid gap-3">
+            {(profile?.role === "moderator" || profile?.role === "elci") && onStaff && <button onClick={onStaff} className="rounded-xl bg-gradient-to-r from-violet-500 to-sky-600 px-4 py-3 text-sm font-semibold text-white">Ekip paneli</button>}
             {profile?.role === "admin" && <button onClick={onAdmin} className="rounded-xl bg-gradient-to-r from-teal-500 to-sky-600 px-4 py-3 text-sm font-semibold text-slate-950">Yönetim paneli</button>}
             {onProfile && <button onClick={onProfile} className="rounded-xl border border-teal-400/40 px-4 py-3 text-sm font-semibold text-teal-100 hover:bg-teal-500/10">Profilim</button>}
             {onKarne && <button onClick={onKarne} className="rounded-xl border border-teal-400/40 px-4 py-3 text-sm font-semibold text-teal-100 hover:bg-teal-500/10">Karnem</button>}
@@ -2178,6 +2179,373 @@ function ArchiveAdmin({ setToast }) {
   );
 }
 
+/* ---------- Ekip: roller, paneller, fikir panosu ---------- */
+const ROLE_LABEL = { admin: "Kurucu ve Yönetici", moderator: "Moderatör" };
+const roleLabel = (role, cls) => (role === "elci" ? `${cls || ""}. Sınıf Elçisi`.replace(/^\./, "").trim() : ROLE_LABEL[role] || "Öğrenci");
+const roleChip = (role) => (role === "admin" ? "bg-rose-500/25 text-rose-100" : role === "moderator" ? "bg-violet-500/25 text-violet-100" : role === "elci" ? "bg-amber-500/25 text-amber-100" : "bg-white/10 text-slate-300");
+const STAFF_CARD = "rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-4";
+const ANN_TEMPLATES = [
+  { key: "yeni_not", label: "Yeni notlar eklendi" },
+  { key: "ders_notu", label: "Belirli bir dersin notları eklendi", course: true },
+  { key: "duello", label: "Yeni düello yakında" },
+  { key: "sinav_takvimi", label: "Sınav takvimi güncellendi" },
+  { key: "anket", label: "Yeni anket yayında" },
+  { key: "arsiv", label: "Çıkmış soru arşivi güncellendi" },
+  { key: "hosgeldin", label: "Aramıza hoş geldin" },
+  { key: "tesekkur", label: "Teşekkür" },
+  { key: "bakim", label: "Kısa bir güncelleme olabilir" },
+];
+
+function TeamSection() {
+  const [list, setList] = useState(null);
+  useEffect(() => {
+    if (!sb) return;
+    sb.rpc("team_list").then(({ data }) => setList(Array.isArray(data) ? data : []));
+  }, []);
+  if (!list || list.length === 0) return null;
+  return (
+    <div className="rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 backdrop-blur-xl">
+      <p className="mb-2 text-sm font-semibold text-white">Ekibimiz</p>
+      <div className="space-y-1.5">
+        {list.map((m, i) => (
+          <div key={i} className="flex items-center justify-between gap-3 text-sm">
+            <span className="min-w-0 truncate text-slate-100">{m.name}</span>
+            <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${roleChip(m.role)}`}>{roleLabel(m.role, m.class)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StaffNotes({ setToast, reloadNotes }) {
+  const [list, setList] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    const { data, error } = await sb.rpc("staff_notes");
+    setList(error ? [] : Array.isArray(data) ? data : []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const approve = async (n) => {
+    setBusy(true);
+    const { error } = await sb.rpc("staff_review_note", { p_id: n.id, p_action: "approve" });
+    setBusy(false);
+    setToast(error ? "Onaylanamadı." : "Not onaylandı.");
+    load(); reloadNotes();
+  };
+  const reject = async (n) => {
+    if (!(await ask(`"${n.title}" reddedilsin mi? Not ve dosyası silinir.`))) return;
+    setBusy(true);
+    const { data: path, error } = await sb.rpc("staff_review_note", { p_id: n.id, p_action: "reject" });
+    if (error) { setBusy(false); return setToast("Reddedilemedi."); }
+    if (path) await sb.storage.from("note-files").remove([path]);
+    await sb.rpc("staff_review_note", { p_id: n.id, p_action: "purge" });
+    setBusy(false);
+    setToast("Not reddedildi.");
+    load(); reloadNotes();
+  };
+  return (
+    <div className={STAFF_CARD + " mb-4"}>
+      <div className="font-display text-base font-bold text-white">Bekleyen notlar {list ? `(${list.length})` : ""}</div>
+      <div className="mt-2 space-y-2">
+        {list && list.length === 0 && <div className="text-xs text-slate-400">Bekleyen not yok.</div>}
+        {(list || []).map((n) => (
+          <div key={n.id} className="rounded-xl bg-white/5 p-3">
+            <div className="truncate text-sm font-semibold text-white">{n.title}</div>
+            <div className="truncate text-xs text-slate-400">{n.course || catOf(n.category).name} · {n.author} · <a href={n.url} target="_blank" rel="noopener noreferrer" className="text-teal-300 underline">PDF'i aç</a></div>
+            <div className="mt-2 flex gap-2">
+              <button type="button" disabled={busy} onClick={() => approve(n)} className="rounded-lg bg-teal-500 px-3 py-2 text-xs font-semibold text-slate-950 disabled:opacity-50">Onayla</button>
+              <button type="button" disabled={busy} onClick={() => reject(n)} className="rounded-lg bg-rose-600/80 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Reddet</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReadyAnnounce({ setToast, anns, uid, reloadAnns }) {
+  const [course, setCourse] = useState(COURSES[0]?.id || "");
+  const send = async (t) => {
+    if (!(await ask(`"${t.label}" duyurusu herkese gönderilsin mi?`))) return;
+    const { error } = await sb.rpc("mod_announce", { p_key: t.key, p_arg: t.course ? course : null });
+    if (error) return setToast("Duyuru gönderilemedi.");
+    setToast("Duyuru yayınlandı."); reloadAnns();
+  };
+  const mine = (anns || []).filter((a) => a.created_by === uid).slice(0, 5);
+  const del = async (a) => {
+    if (!(await ask(`"${a.title}" duyurusu silinsin mi?`))) return;
+    const { error } = await sb.rpc("mod_announce_delete", { p_id: a.id });
+    if (error) return setToast("Silinemedi.");
+    reloadAnns();
+  };
+  return (
+    <div className={STAFF_CARD + " mb-4"}>
+      <div className="font-display text-base font-bold text-white">Hazır duyurular</div>
+      <p className="mt-1 text-xs text-slate-400">Bir kutuya dokun, duyuru herkese gider. Metinler hazırdır.</p>
+      <div className="mt-2 grid gap-2">
+        {ANN_TEMPLATES.map((t) => (
+          <div key={t.key} className="flex items-center gap-2">
+            <button type="button" onClick={() => send(t)} className="flex-1 rounded-xl border border-sky-300/20 bg-white/5 px-4 py-3 text-left text-sm text-white hover:border-teal-300/40">{t.label}</button>
+            {t.course && <select value={course} onChange={(e) => setCourse(e.target.value)} className="w-36 rounded-xl border border-sky-300/15 bg-[#0a1a30] px-2 py-3 text-xs text-white">{COURSES.map((c) => <option key={c.id} value={c.id}>{c.short}</option>)}</select>}
+          </div>
+        ))}
+      </div>
+      {mine.length > 0 && (
+        <div className="mt-3">
+          <div className="text-xs font-semibold text-slate-300">Son duyurularım</div>
+          {mine.map((a) => (
+            <div key={a.id} className="mt-1 flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-200"><span className="truncate">{a.title}</span><button type="button" onClick={() => del(a)} className="shrink-0 text-rose-300"><Trash2 className="h-4 w-4" /></button></div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ExamStaff({ setToast, reload, exams, cls }) {
+  const [f, setF] = useState({ title: "", kind: "vize", at: "", cls: "" });
+  const add = async () => {
+    if (f.title.trim().length < 2) return setToast("Sınav adını yaz (örn. Nefroloji Vize).");
+    if (!f.at) return setToast("Tarih seç.");
+    const { error } = await sb.rpc("staff_exam_add", { p_title: f.title.trim(), p_kind: f.kind, p_at: new Date(f.at).toISOString(), p_class: f.cls ? Number(f.cls) : null });
+    if (error) return setToast("Eklenemedi.");
+    setF({ title: "", kind: "vize", at: "", cls: "" }); setToast("Sınav eklendi."); reload();
+  };
+  const del = async (e) => {
+    if (!(await ask(`"${e.title}" silinsin mi?`))) return;
+    const { error } = await sb.rpc("staff_exam_delete", { p_id: e.id });
+    if (error) return setToast("Silinemedi.");
+    reload();
+  };
+  return (
+    <div className={STAFF_CARD + " mb-4"}>
+      <div className="font-display text-base font-bold text-white">Sınav takvimi {cls ? `(${cls}. sınıf)` : ""}</div>
+      <div className="mt-2 space-y-1.5">
+        {(exams || []).length === 0 && <div className="text-xs text-slate-400">Takvimde sınav yok.</div>}
+        {(exams || []).map((e) => (
+          <div key={e.id} className="flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-200">
+            <span className="min-w-0 truncate">{e.title} · {EXAM_KIND[e.kind]} · {new Date(e.starts_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })}{e.class_no ? ` · ${e.class_no}. sınıf` : ""}</span>
+            {e.mine && <button type="button" onClick={() => del(e)} className="shrink-0 text-rose-300"><Trash2 className="h-4 w-4" /></button>}
+          </div>
+        ))}
+      </div>
+      <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value.slice(0, 80) })} placeholder="Sınav adı (örn. Nefroloji Vize)" className={inp + " mt-3"} />
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} className={inp}>{Object.entries(EXAM_KIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+        {cls ? <div className={inp + " flex items-center text-slate-300"}>{cls}. sınıf</div> : <select value={f.cls} onChange={(e) => setF({ ...f, cls: e.target.value })} className={inp}><option value="">Tüm sınıflar</option><option value="1">1. sınıf</option><option value="2">2. sınıf</option></select>}
+      </div>
+      <input type="datetime-local" value={f.at} onChange={(e) => setF({ ...f, at: e.target.value })} className={inp + " mt-2"} />
+      <button type="button" onClick={add} className="mt-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white">Takvime ekle</button>
+    </div>
+  );
+}
+
+const IDEA_KIND = { fikir: "Fikir", duzeltme: "Düzeltme", istek: "İstek" };
+const IDEA_STATUS = { yeni: "Yeni", dusunuluyor: "Düşünülüyor", yapiliyor: "Yapılıyor", bitti: "Bitti", olmadi: "Olmadı" };
+const IDEA_CHIP = { yeni: "bg-sky-500/20 text-sky-100", dusunuluyor: "bg-amber-500/20 text-amber-100", yapiliyor: "bg-violet-500/25 text-violet-100", bitti: "bg-teal-500/25 text-teal-100", olmadi: "bg-white/10 text-slate-400" };
+
+function IdeaBoard({ setToast, isAdminUser }) {
+  const [list, setList] = useState(null);
+  const [kind, setKind] = useState("fikir");
+  const [body, setBody] = useState("");
+  const load = useCallback(async () => {
+    const { data, error } = await sb.rpc("ideas_list");
+    setList(error ? [] : Array.isArray(data) ? data : []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const add = async () => {
+    if (body.trim().length < 4) return setToast("Biraz daha ayrıntı yaz.");
+    const { error } = await sb.rpc("idea_add", { p_kind: kind, p_body: body.trim() });
+    if (error) return setToast("Eklenemedi.");
+    setBody(""); load();
+  };
+  const vote = async (i) => { await sb.rpc("idea_vote", { p_id: i.id }); load(); };
+  const del = async (i) => { if (!(await ask("Bu yazı silinsin mi?"))) return; await sb.rpc("idea_delete", { p_id: i.id }); load(); };
+  const status = async (i, st) => { const { error } = await sb.rpc("idea_set_status", { p_id: i.id, p_status: st }); if (error) setToast("Durum değişmedi."); load(); };
+  return (
+    <div className={STAFF_CARD + " mb-4"}>
+      <div className="font-display text-base font-bold text-white">Fikir panosu</div>
+      <p className="mt-1 text-xs text-slate-400">Sadece ekip görür: yönetici, moderatörler ve sınıf elçileri. Fikir yaz, beğen.</p>
+      <div className="mt-2 space-y-2">
+        {list && list.length === 0 && <div className="text-xs text-slate-400">Henüz yazı yok. İlk fikri sen yaz.</div>}
+        {(list || []).map((i) => (
+          <div key={i.id} className="rounded-xl bg-white/5 p-3">
+            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-slate-200">{IDEA_KIND[i.kind]}</span>
+              <span className={`rounded-full px-2 py-0.5 ${IDEA_CHIP[i.status]}`}>{IDEA_STATUS[i.status]}</span>
+              <span className="text-slate-400">{i.name} · {roleLabel(i.role, i.class)}</span>
+            </div>
+            <div className="mt-1.5 whitespace-pre-wrap text-sm text-white">{i.body}</div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => vote(i)} className={"rounded-lg px-3 py-1.5 text-xs font-semibold " + (i.voted ? "bg-teal-500 text-slate-950" : "bg-white/10 text-slate-200")}>{i.voted ? "Beğendin" : "Beğen"} · {i.votes}</button>
+              {isAdminUser && <select value={i.status} onChange={(e) => status(i, e.target.value)} className="rounded-lg border border-sky-300/15 bg-[#0a1a30] px-2 py-1.5 text-xs text-white">{Object.entries(IDEA_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>}
+              {(i.mine || isAdminUser) && <button type="button" onClick={() => del(i)} className="ml-auto text-rose-300"><Trash2 className="h-4 w-4" /></button>}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex gap-2">
+        <select value={kind} onChange={(e) => setKind(e.target.value)} className={inp + " !w-32"}>{Object.entries(IDEA_KIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+      </div>
+      <textarea value={body} onChange={(e) => setBody(e.target.value.slice(0, 600))} rows={3} placeholder="Fikrini, isteğini ya da düzeltmeyi yaz" className={inp + " mt-2"} />
+      <button type="button" onClick={add} className="mt-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white">Panoya yaz</button>
+    </div>
+  );
+}
+
+function NoteToAdmin({ setToast }) {
+  const [body, setBody] = useState("");
+  const send = async () => {
+    if (body.trim().length < 4) return setToast("Notu biraz daha ayrıntılı yaz.");
+    const { error } = await sb.rpc("staff_msg_send", { p_body: body.trim() });
+    if (error) return setToast("Not gönderilemedi.");
+    setBody(""); setToast("Yöneticiye iletildi.");
+  };
+  return (
+    <div className={STAFF_CARD + " mb-4"}>
+      <div className="font-display text-base font-bold text-white">Yöneticiye not</div>
+      <p className="mt-1 text-xs text-slate-400">Eksik bilgi, sorun ya da haber. Sadece yönetici görür.</p>
+      <textarea value={body} onChange={(e) => setBody(e.target.value.slice(0, 800))} rows={3} placeholder="Notunu yaz" className={inp + " mt-2"} />
+      <button type="button" onClick={send} className="mt-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white">Gönder</button>
+    </div>
+  );
+}
+
+function AdminInbox({ setToast }) {
+  const [list, setList] = useState([]);
+  const load = useCallback(async () => {
+    const { data } = await sb.rpc("admin_inbox");
+    setList(Array.isArray(data) ? data : []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const mark = async (m) => { await sb.rpc("admin_inbox_mark", { p_id: m.id, p_done: !m.done }); load(); };
+  const del = async (m) => { if (!(await ask("Bu not silinsin mi?"))) return; const { error } = await sb.rpc("admin_inbox_delete", { p_id: m.id }); if (error) setToast("Silinemedi."); load(); };
+  const open = list.filter((m) => !m.done).length;
+  return (
+    <div className={STAFF_CARD + " mb-4"}>
+      <div className="font-display text-base font-bold text-white">Ekipten gelen notlar {open ? `(${open} yeni)` : ""}</div>
+      <div className="mt-2 space-y-2">
+        {list.length === 0 && <div className="text-xs text-slate-400">Henüz not yok.</div>}
+        {list.map((m) => (
+          <div key={m.id} className={"rounded-xl p-3 " + (m.done ? "bg-white/[0.03] opacity-60" : "bg-white/5")}>
+            <div className="text-[11px] text-slate-400">{m.name} · {roleLabel(m.role, m.class)} · {new Date(m.created_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })}</div>
+            <div className="mt-1 whitespace-pre-wrap text-sm text-white">{m.body}</div>
+            <div className="mt-2 flex gap-2">
+              <button type="button" onClick={() => mark(m)} className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100">{m.done ? "Tekrar aç" : "Tamamlandı"}</button>
+              <button type="button" onClick={() => del(m)} className="ml-auto text-rose-300"><Trash2 className="h-4 w-4" /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TeamAdmin({ users, setToast, reloadUsers }) {
+  const [team, setTeam] = useState([]);
+  const [q, setQ] = useState("");
+  const [pick, setPick] = useState("");
+  const [role, setRole] = useState("moderator:");
+  const load = useCallback(async () => {
+    const { data } = await sb.rpc("admin_team");
+    setTeam(Array.isArray(data) ? data : []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const found = q.trim().length < 2 ? [] : (users || []).filter((u) => u.role !== "admin" && `${u.full_name || ""} ${u.email || ""}`.toLocaleLowerCase("tr").includes(q.trim().toLocaleLowerCase("tr"))).slice(0, 6);
+  const apply = async (id, r) => {
+    const [rr, cc] = r.split(":");
+    const { error } = await sb.rpc("admin_set_role", { p_user: id, p_role: rr, p_class: cc ? Number(cc) : null });
+    if (error) return setToast("Rol değişmedi.");
+    setToast("Rol güncellendi."); setPick(""); setQ(""); load(); reloadUsers();
+  };
+  const remove = async (m) => { if (!(await ask(`${m.name} ekipten çıkarılsın mı? Yetkileri kapanır.`))) return; apply(m.id, "user:"); };
+  return (
+    <div className={STAFF_CARD + " mb-4"}>
+      <div className="font-display text-base font-bold text-white">Ekip yönetimi</div>
+      <div className="mt-2 space-y-1.5">
+        {team.map((m) => (
+          <div key={m.id} className="flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-200">
+            <span className="min-w-0 truncate">{m.name}</span>
+            <span className={`shrink-0 rounded-full px-2.5 py-1 ${roleChip(m.role)}`}>{roleLabel(m.role, m.class)}</span>
+            {m.role !== "admin" && <button type="button" onClick={() => remove(m)} className="shrink-0 text-rose-300"><X className="h-4 w-4" /></button>}
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 text-xs font-semibold text-slate-300">Ekibe kişi ekle</div>
+      <input value={q} onChange={(e) => { setQ(e.target.value); setPick(""); }} placeholder="Ad ya da e-posta ile ara" className={inp + " mt-1"} />
+      <div className="mt-1 space-y-1">
+        {found.map((u) => (
+          <button key={u.id} type="button" onClick={() => setPick(u.id)} className={"w-full rounded-xl border px-3 py-2 text-left text-xs " + (pick === u.id ? "border-teal-300/60 bg-teal-500/10 text-white" : "border-sky-300/15 text-slate-300")}>{u.full_name || "İsimsiz"} · {u.email}</button>
+        ))}
+      </div>
+      {pick && (
+        <div className="mt-2 flex gap-2">
+          <select value={role} onChange={(e) => setRole(e.target.value)} className={inp}>
+            <option value="moderator:">Moderatör</option>
+            <option value="elci:1">1. Sınıf Elçisi</option>
+            <option value="elci:2">2. Sınıf Elçisi</option>
+          </select>
+          <button type="button" onClick={() => apply(pick, role)} className="shrink-0 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white">Ata</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ElciPanel({ cls, setToast }) {
+  const [c, setC] = useState(cls || 1);
+  const [st, setSt] = useState(null);
+  useEffect(() => {
+    let off = false;
+    sb.rpc("elci_stats", { p_class: cls ? null : c }).then(({ data, error }) => { if (!off) setSt(error ? null : data); });
+    return () => { off = true; };
+  }, [c, cls]);
+  const box = (n, l) => <div className="rounded-xl bg-white/5 p-3 text-center"><div className="font-display text-2xl font-bold text-white">{n}</div><div className="text-[11px] text-slate-400">{l}</div></div>;
+  return (
+    <div className={STAFF_CARD + " mb-4"}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="font-display text-base font-bold text-white">Elçi paneli {cls ? `· ${cls}. sınıf` : ""}</div>
+        {!cls && <select value={c} onChange={(e) => setC(Number(e.target.value))} className="rounded-lg border border-sky-300/15 bg-[#0a1a30] px-2 py-1 text-xs text-white"><option value={1}>1. sınıf</option><option value={2}>2. sınıf</option></select>}
+      </div>
+      {!st ? <div className="mt-2 text-xs text-slate-400">Yükleniyor…</div> : (
+        <>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {box(st.members, "kayıtlı öğrenci")}{box(st.active7, "son 7 gün aktif")}{box(st.duel30, "düelloya katılan")}
+            {box(st.notes, "yayında not")}{box(st.pending_notes, "onay bekleyen not")}
+          </div>
+          <p className="mt-3 text-xs font-semibold text-slate-300">En çok çözülen konular</p>
+          {st.hot.length === 0 ? <p className="text-xs text-slate-500">Yeterli veri yok (en az 10 cevap ve 3 öğrenci gerekir).</p> : st.hot.map((t) => <p key={t.topic} className="text-xs text-slate-200">{t.topic} · {t.n} cevap · %{t.pct} doğru</p>)}
+          <p className="mt-2 text-xs font-semibold text-slate-300">En çok zorlanılan konular</p>
+          {st.weak.length === 0 ? <p className="text-xs text-slate-500">Yeterli veri yok.</p> : st.weak.map((t) => <p key={t.topic} className="text-xs text-slate-200">{t.topic} · %{t.pct} doğru ({t.n} cevap)</p>)}
+          <p className="mt-2 text-[11px] text-slate-500">Bu sayılar sınıfın toplamıdır, kişisel bilgi içermez.</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function StaffPage({ profile, uid, setToast, exams, reloadExams, anns, reloadAnns, reloadNotes }) {
+  const role = profile?.role;
+  const isMod = role === "moderator";
+  const isElciRole = role === "elci";
+  if (!isMod && !isElciRole) return <div className="rounded-3xl border border-dashed border-sky-300/20 p-8 text-center text-sm text-slate-300">Bu sayfa ekip üyeleri içindir.</div>;
+  const cls = isElciRole ? profile.staff_class : null;
+  const shownExams = isElciRole ? (exams || []).filter((e) => e.class_no === cls || e.mine) : exams;
+  return (
+    <section>
+      <SectionHead title="Ekip paneli" desc={`${roleLabel(role, cls)}. Yapabildiklerin aşağıda; yetkin olmayan şeyler burada görünmez.`} />
+      <StaffNotes setToast={setToast} reloadNotes={reloadNotes} />
+      {isMod && <ReadyAnnounce setToast={setToast} anns={anns} uid={uid} reloadAnns={reloadAnns} />}
+      <ExamStaff setToast={setToast} reload={reloadExams} exams={shownExams} cls={cls} />
+      {isMod && <PollAdmin setToast={setToast} />}
+      {isElciRole && <ElciPanel cls={cls} setToast={setToast} />}
+      <IdeaBoard setToast={setToast} isAdminUser={false} />
+      <NoteToAdmin setToast={setToast} />
+    </section>
+  );
+}
+
 /* ---------- Bakım modu ---------- */
 function MaintenancePage({ message, onAdminLogin }) {
   return (
@@ -2250,6 +2618,7 @@ function MaintenanceAdmin({ maint, reload, setToast }) {
 // Yönetici işlem kaydı (kim, ne zaman, ne yaptı)
 const LOG_LABEL = {
   duels_eklendi: "Düello oluşturuldu", duels_guncellendi: "Düello güncellendi", duels_silindi: "Düello silindi",
+  rol_atandi: "Rol atandı", not_onaylandi: "Not onaylandı", not_reddedildi: "Not reddedildi", duyuru_sablon: "Hazır duyuru yayınlandı",
   sinav_eklendi: "Sınav eklendi", sinav_silindi: "Sınav silindi", arsiv_eklendi: "Arşive dosya eklendi", arsiv_silindi: "Arşivden dosya silindi", arsiv_iptal: "Arşiv erişimi kapatıldı", arsiv_geri: "Arşiv erişimi geri verildi",
   anket_acildi: "Anket başlatıldı", anket_kapandi: "Anket kapatıldı",
   bakim_acildi: "Bakım modu açıldı", bakim_kapandi: "Bakım modu kapatıldı",
@@ -2530,6 +2899,7 @@ function ProfilePage({ user, profile, onLogin, podiums, notes, quizHist, onClass
         <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-teal-500/25 font-display text-2xl font-bold text-teal-100 ring-1 ring-teal-400/50">{name[0].toUpperCase()}</div>
         <h3 className="mt-3 font-display text-xl font-bold text-white">{name}</h3>
         <p className="text-sm text-slate-400">{user.email}</p>
+        {["admin", "moderator", "elci"].includes(profile?.role) && <span className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold ${roleChip(profile.role)}`}>{roleLabel(profile.role, profile.staff_class)}</span>}
         {profile && "entry_year" in profile && <ClassChip entry={profile.entry_year} onClass={onClass} />}
       </div>
       <div role="tablist" className="mt-3 grid grid-cols-3 gap-2">
@@ -2540,6 +2910,7 @@ function ProfilePage({ user, profile, onLogin, podiums, notes, quizHist, onClass
       {tab === "genel" && (
         <div className="mt-3 space-y-3">
           <InstallCard />
+          {(profile?.role === "moderator" || profile?.role === "elci") && <button onClick={() => { window.location.hash = "/ekip"; }} className="flex w-full items-center justify-between rounded-2xl border border-violet-400/40 bg-violet-500/10 px-4 py-3 text-left text-sm font-semibold text-violet-100"><span>Ekip paneli</span><ArrowUpRight className="h-4 w-4" /></button>}
           <div className="grid grid-cols-3 gap-2 text-center">
             {[[(podiums || []).length, "podyum"], [gold, "birincilik"], [(quizHist || []).length, "çözülen test"]].map(([n, l]) => (
               <div key={l} className={`${card} !p-3`}><p className="font-display text-2xl font-bold text-white">{n}</p><p className="text-xs text-slate-400">{l}</p></div>
@@ -2555,6 +2926,7 @@ function ProfilePage({ user, profile, onLogin, podiums, notes, quizHist, onClass
               </div>
             </div>
           ) : <div className={card}><p className="text-sm text-slate-300">Henüz düello rozetin yok. İlk üçe girdiğinde burada görünür.</p></div>}
+          <TeamSection />
           <button onClick={() => { window.location.hash = "/duello"; }} className="flex w-full items-center justify-between rounded-2xl border border-teal-400/30 bg-teal-500/10 px-4 py-3 text-left text-sm font-semibold text-teal-100"><span>Düelloya git</span><ArrowUpRight className="h-4 w-4" /></button>
           <button onClick={async () => { await sb?.auth.signOut(); setToast("Çıkış yapıldı."); window.location.hash = "/"; }} className="flex w-full items-center justify-center gap-2 rounded-xl border border-sky-300/15 px-4 py-3 text-sm text-slate-200 hover:bg-white/5"><LogOut className="h-4 w-4" /> Çıkış yap</button>
         </div>
@@ -2586,7 +2958,7 @@ const PAGES = [
 ];
 const pageFromHash = () => {
   const h = window.location.hash.replace("#/", "");
-  return PAGES.some((p) => p.id === h) || h === "yonetim" || h === "hakkimizda" || h === "duello" || h === "karne" || h === "profil" || h === "arsiv" ? h : "home";
+  return PAGES.some((p) => p.id === h) || h === "yonetim" || h === "hakkimizda" || h === "duello" || h === "karne" || h === "profil" || h === "arsiv" || h === "ekip" ? h : "home";
 };
 
 // Tanıtım videosu: public/tanitim.mp4 için "/tanitim.mp4" ya da bir YouTube linki yaz.
@@ -2971,6 +3343,7 @@ export default function App() {
   const uid = user?.id;
   useEffect(() => { loadPoll(); }, [uid, loadPoll]);
   const isAdmin = profile?.role === "admin";
+  const isStaffMember = profile?.role === "moderator" || profile?.role === "elci";
   const [maint, setMaint] = useState({ on: false });
   const loadMaint = useCallback(async () => {
     if (!sb) return;
@@ -3002,7 +3375,7 @@ export default function App() {
   const loadNotes = useCallback(async () => {
     if (!sb) return;
     const { data } = await sb.from("notes").select("*").order("created_at", { ascending: false });
-    setDbNotes(data || []);
+    setDbNotes((data || []).filter((n) => n.status !== "rejected"));
   }, []);
   const loadUsers = useCallback(async () => {
     if (!sb) return;
@@ -3226,7 +3599,7 @@ export default function App() {
   ];
 
   const authEl = (
-    <AuthModal podiums={podiums} open={authOpen} onClose={() => setAuthOpen(false)} user={user} profile={profile} onAdmin={() => { setAuthOpen(false); go("yonetim"); }} onDone={setToast} onPrivacy={() => setPrivOpen(true)} recovery={recovery} onRecovered={() => setRecovery(false)} onClass={() => { setAuthOpen(false); setClassOpen(true); }} onKarne={() => { setAuthOpen(false); go("karne"); }} onProfile={() => { setAuthOpen(false); go("profil"); }} />
+    <AuthModal podiums={podiums} open={authOpen} onClose={() => setAuthOpen(false)} user={user} profile={profile} onAdmin={() => { setAuthOpen(false); go("yonetim"); }} onStaff={() => { setAuthOpen(false); go("ekip"); }} onDone={setToast} onPrivacy={() => setPrivOpen(true)} recovery={recovery} onRecovered={() => setRecovery(false)} onClass={() => { setAuthOpen(false); setClassOpen(true); }} onKarne={() => { setAuthOpen(false); go("karne"); }} onProfile={() => { setAuthOpen(false); go("profil"); }} />
   );
 
   if (maint.on && !isAdmin) {
@@ -3378,6 +3751,7 @@ export default function App() {
           {/* DOĞRU MU, YANLIŞ MI */}
           {page === "duello" && <DuelPage user={user} onLogin={() => setAuthOpen(true)} setToast={setToast} duels={duels} openPod={setPod} needClass={needClass} onPickClass={() => setClassOpen(true)} onKarne={() => go("karne")} />}
           {page === "profil" && <ProfilePage user={user} profile={profile} onLogin={() => setAuthOpen(true)} podiums={podiums} notes={dbNotes} quizHist={quizHist} onClass={() => setClassOpen(true)} setToast={setToast} />}
+          {page === "ekip" && <StaffPage profile={profile} uid={uid} setToast={setToast} exams={exams} reloadExams={loadExams} anns={anns} reloadAnns={loadAnns} reloadNotes={loadNotes} />}
           {page === "arsiv" && <ArchivePage user={user} profile={profile} onLogin={() => setAuthOpen(true)} onQuiz={() => go("test")} setToast={setToast} />}
           {page === "karne" && <KarnePage user={user} onLogin={() => setAuthOpen(true)} quizHist={quizHist} />}
 
@@ -3486,7 +3860,7 @@ export default function App() {
             <section>
               <SectionHead title="Yönetim paneli" desc="Kullanıcıları ve not paylaşımlarını buradan yönet." />
               {!isAdmin ? (
-                <div className="rounded-3xl border border-dashed border-sky-300/20 p-8 text-center text-sm text-slate-300">Bu sayfa sadece yöneticiler içindir.</div>
+                <div className="rounded-3xl border border-dashed border-sky-300/20 p-8 text-center text-sm text-slate-300">{isStaffMember ? <>Bu sayfa yöneticiler içindir. <button onClick={() => go("ekip")} className="underline">Ekip paneline git</button></> : "Bu sayfa sadece yöneticiler içindir."}</div>
               ) : (
                 <>
                   <div className="grid grid-cols-3 gap-3">
@@ -3494,6 +3868,10 @@ export default function App() {
                       <div key={l} className="rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-4"><div className="font-display text-2xl font-bold text-white">{n}</div><div className="text-xs text-slate-400">{l}</div></div>
                     ))}
                   </div>
+                  <AdminInbox setToast={setToast} />
+                  <TeamAdmin users={users} setToast={setToast} reloadUsers={loadUsers} />
+                  <IdeaBoard setToast={setToast} isAdminUser />
+                  <ElciPanel setToast={setToast} />
                   <MaintenanceAdmin maint={maint} reload={loadMaint} setToast={setToast} />
                   <PollAdmin setToast={setToast} />
                   <ExamAdmin setToast={setToast} reload={loadExams} />
