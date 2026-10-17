@@ -2546,6 +2546,403 @@ function StaffPage({ profile, uid, setToast, exams, reloadExams, anns, reloadAnn
   );
 }
 
+/* ---------- VIP paketler ---------- */
+const VIP_LETTERS = "ABCDE";
+const vipShuffle = (a) => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+const vipErr = (e) => String(e?.message || e || "");
+
+function VipWatermark({ text }) {
+  const row = Array.from({ length: 24 }, () => text).join("   ·   ");
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 select-none overflow-hidden rounded-[inherit] text-[11px] font-semibold text-white" style={{ opacity: 0.05 }}>
+      <div style={{ transform: "rotate(-24deg) scale(1.4)", transformOrigin: "center", whiteSpace: "nowrap", lineHeight: "46px" }}>
+        {Array.from({ length: 22 }, (_, i) => <div key={i} style={{ marginLeft: (i % 2) * 90 }}>{row}</div>)}
+      </div>
+    </div>
+  );
+}
+
+function VipQuiz({ list, title, topics, onRecord, onExit, onAgain }) {
+  const [i, setI] = useState(0);
+  const [picked, setPicked] = useState(null);
+  const [missed, setMissed] = useState([]);
+  const [right, setRight] = useState(0);
+  const tt = (id) => topics.find((t) => t.id === id)?.title || "";
+  if (i >= list.length) {
+    const pct = Math.round((right * 100) / Math.max(1, list.length));
+    return (
+      <div>
+        <div className={STAFF_CARD + " text-center"}>
+          <div className="text-xs text-teal-300">{title}</div>
+          <div className="font-display mt-1 text-5xl font-bold text-white">{right}/{list.length}</div>
+          <div className="mt-1 text-sm text-slate-300">%{pct} doğru. {pct >= 80 ? "Bu konularda iyisin." : pct >= 50 ? "Yanlışlarına tekrar bak." : "Önce kartlardan başla."}</div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button type="button" onClick={onExit} className="rounded-xl border border-sky-300/20 px-3 py-3 text-sm font-semibold text-white">Ana sayfa</button>
+            <button type="button" onClick={onAgain} className="rounded-xl bg-teal-500 px-3 py-3 text-sm font-semibold text-slate-950">Yanlışlarımdan deneme</button>
+          </div>
+        </div>
+        {missed.length > 0 && (
+          <div className="mt-4 space-y-3">
+            <div className="font-display text-lg font-bold text-white">Yanlışların</div>
+            {missed.map((q) => (
+              <div key={q.id} className={STAFF_CARD}>
+                <div className="text-sm font-semibold text-white">{q.stem}</div>
+                <div className="mt-2 rounded-xl bg-emerald-500/15 p-3 text-sm text-emerald-100"><b>{VIP_LETTERS[q.answer]}) {q.options[q.answer]}</b><div className="mt-1 text-emerald-50/90">{q.explain}</div></div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+  const q = list[i];
+  const choose = (k) => {
+    if (picked !== null) return;
+    setPicked(k);
+    const ok = k === q.answer;
+    onRecord(q.id, ok);
+    if (ok) setRight((r) => r + 1); else setMissed((m) => [...m, q]);
+  };
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-3">
+        <button type="button" onClick={onExit} className="text-sm font-semibold text-teal-300">← Çık</button>
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-teal-400 transition-all" style={{ width: `${(i * 100) / list.length}%` }} /></div>
+        <div className="text-xs tabular-nums text-slate-400">{i + 1}/{list.length}</div>
+      </div>
+      <div className={STAFF_CARD}>
+        <div className="flex flex-wrap gap-1.5">
+          <span className="rounded-full bg-teal-500/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-teal-200">{tt(q.topic)}</span>
+          {q.exam && <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-200">Çıkmış soru</span>}
+          {q.kind === "degildir" && <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-200">Değildir tipi</span>}
+        </div>
+        <div className="mt-3 text-[17px] font-semibold leading-snug text-white">{q.stem}</div>
+        <div className="mt-3 space-y-2">
+          {q.options.map((o, k) => {
+            const state = picked === null ? "" : k === q.answer ? "ok" : k === picked ? "no" : "";
+            return (
+              <button key={k} type="button" disabled={picked !== null} onClick={() => choose(k)}
+                className={"flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left text-sm " + (state === "ok" ? "border-emerald-400 bg-emerald-500/15 text-white" : state === "no" ? "border-rose-400 bg-rose-500/15 text-white" : "border-sky-300/15 bg-white/5 text-slate-100")}>
+                <span className="mt-0.5 grid h-6 w-6 flex-none place-items-center rounded-full border border-white/20 text-xs font-bold">{VIP_LETTERS[k]}</span>
+                <span className="min-w-0 break-words">{o}</span>
+              </button>
+            );
+          })}
+        </div>
+        {picked !== null && (
+          <>
+            <div className={"mt-3 rounded-xl p-3 text-sm " + (picked === q.answer ? "bg-emerald-500/15 text-emerald-50" : "bg-rose-500/15 text-rose-50")}>
+              <b>{picked === q.answer ? "Doğru" : `Yanlış. Doğru cevap ${VIP_LETTERS[q.answer]}`}</b>
+              <div className="mt-1">{q.explain}</div>
+            </div>
+            <button type="button" onClick={() => { setI(i + 1); setPicked(null); window.scrollTo(0, 0); }} className="mt-3 w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950">{i + 1 < list.length ? "Sonraki soru" : "Sonucu gör"}</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VipCards({ list, topics, prog, onKnow, onExit }) {
+  const [order] = useState(() => list.slice().sort((a, b) => (prog[a.id] || 0) - (prog[b.id] || 0)));
+  const [i, setI] = useState(0);
+  const [flip, setFlip] = useState(false);
+  if (i >= order.length) {
+    return (
+      <div className={STAFF_CARD + " text-center"}>
+        <div className="font-display text-xl font-bold text-white">Kartlar bitti</div>
+        <button type="button" onClick={onExit} className="mt-3 rounded-xl bg-teal-500 px-5 py-3 text-sm font-semibold text-slate-950">Ana sayfa</button>
+      </div>
+    );
+  }
+  const c = order[i];
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-3">
+        <button type="button" onClick={onExit} className="text-sm font-semibold text-teal-300">← Geri</button>
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-teal-400" style={{ width: `${(i * 100) / order.length}%` }} /></div>
+        <div className="text-xs tabular-nums text-slate-400">{i + 1}/{order.length}</div>
+      </div>
+      <button type="button" onClick={() => setFlip(!flip)} className={STAFF_CARD + " flex min-h-[260px] w-full flex-col justify-center gap-3 !p-6 text-left"}>
+        {!flip ? (
+          <>
+            <span className="w-fit rounded-full bg-teal-500/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-teal-200">{topics.find((t) => t.id === c.topic)?.title}</span>
+            <div className="font-display text-2xl font-bold leading-snug text-white">{c.front}</div>
+            <div className="text-center text-xs text-slate-400">Cevap için dokun</div>
+          </>
+        ) : (
+          <>
+            <div className="text-[17px] leading-relaxed text-slate-50">{c.back}</div>
+            {c.trap && <div className="rounded-xl bg-amber-500/15 p-3 text-sm text-amber-100"><b>Tuzak: </b>{c.trap}</div>}
+          </>
+        )}
+      </button>
+      {flip && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => { onKnow(c.id, false); setI(i + 1); setFlip(false); }} className="rounded-xl border border-sky-300/20 py-3 text-sm font-semibold text-white">Tekrar göster</button>
+          <button type="button" onClick={() => { onKnow(c.id, true); setI(i + 1); setFlip(false); }} className="rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950">Biliyorum</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VipRunner({ pkg, user, profile, setToast }) {
+  const isAdminUser = profile?.role === "admin";
+  const [content, setContent] = useState(undefined);
+  const key = `vip_${pkg.id}_${user.id}`;
+  const [prog, setProg] = useState(() => { try { return JSON.parse(localStorage.getItem(key) || "null") || { a: {}, c: {} }; } catch (e) { return { a: {}, c: {} }; } });
+  const [mode, setMode] = useState({ name: "home" });
+  useEffect(() => {
+    let off = false;
+    sb.rpc("vip_content_get", { p_pkg: pkg.id, p_draft: isAdminUser }).then(({ data, error }) => { if (!off) setContent(error ? null : data || null); });
+    return () => { off = true; };
+  }, [pkg.id, isAdminUser]);
+  const saveProg = (p) => { setProg(p); try { localStorage.setItem(key, JSON.stringify(p)); } catch (e) { /* kayıt yoksa sorun değil */ } };
+  const record = (qid, ok) => saveProg({ ...prog, a: { ...prog.a, [qid]: { ok, t: Date.now() } } });
+  const know = (cid, yes) => saveProg({ ...prog, c: { ...prog.c, [cid]: yes ? Math.min(3, (prog.c[cid] || 0) + 1) : 0 } });
+  if (content === undefined) return <div className="py-10 text-center text-sm text-slate-400">Yükleniyor…</div>;
+  if (!content) return <div className={STAFF_CARD + " text-center text-sm text-slate-300"}>Paket içeriği hazırlanıyor. Çok yakında burada olacak.</div>;
+  const D = content.data;
+  const topics = D.topics || [];
+  const topicStat = (id) => { const qs = D.questions.filter((q) => q.topic === id); let ok = 0, no = 0; qs.forEach((q) => { const a = prog.a[q.id]; if (a) { a.ok ? ok++ : no++; } }); return { total: qs.length, ok, no }; };
+  const answered = Object.values(prog.a);
+  const okCount = answered.filter((x) => x.ok).length;
+  const pct = answered.length ? Math.round((okCount * 100) / answered.length) : 0;
+  const startQuiz = (tid) => {
+    const l = D.questions.filter((q) => tid === "all" || q.topic === tid);
+    setMode({ name: "quiz", list: l, title: tid === "all" ? "Tüm konular" : topics.find((t) => t.id === tid)?.title || "", n: Math.random() });
+  };
+  const startDeneme = () => {
+    const tw = {};
+    topics.forEach((t) => { const s = topicStat(t.id); const d = s.ok + s.no; tw[t.id] = d ? 1 + (1.5 * s.no) / d : 1.2; });
+    const pool = D.questions.map((q) => { const a = prog.a[q.id]; return { q, w: (a ? (a.ok ? 0.3 : 3) : 1) * (tw[q.topic] || 1) * (0.6 + Math.random() * 0.8) }; });
+    pool.sort((x, y) => y.w - x.w);
+    setMode({ name: "quiz", list: vipShuffle(pool.slice(0, 15).map((p) => p.q)), title: answered.length ? "Yanlışlarımdan deneme" : "Karışık deneme", n: Math.random() });
+  };
+  const wm = `${profile?.full_name || ""} ${user.email || ""}`.trim();
+  const exit = () => { setMode({ name: "home" }); window.scrollTo(0, 0); };
+  return (
+    <div className="relative select-none" onContextMenu={(e) => e.preventDefault()}>
+      <VipWatermark text={wm} />
+      {!content.published && <div className="mb-3 rounded-xl bg-amber-500/15 p-3 text-xs text-amber-100">Taslak: bu içerik henüz öğrencilere açık değil, sadece sen görüyorsun.</div>}
+      {mode.name === "quiz" && <VipQuiz key={mode.n} list={mode.list} title={mode.title} topics={topics} onRecord={record} onExit={exit} onAgain={startDeneme} />}
+      {mode.name === "cards" && <VipCards list={D.cards.filter((c) => mode.t === "all" || c.topic === mode.t)} topics={topics} prog={prog.c} onKnow={know} onExit={exit} />}
+      {mode.name === "home" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {[[answered.length, "çözülen"], [`%${pct}`, "doğru oranı"], [D.questions.length, "soru havuzu"]].map(([n, l]) => (
+              <div key={l} className={STAFF_CARD + " !p-3"}><div className="font-display text-2xl font-bold text-white">{n}</div><div className="text-[11px] text-slate-400">{l}</div></div>
+            ))}
+          </div>
+          <button type="button" onClick={startDeneme} className="flex w-full items-center gap-3 rounded-2xl bg-teal-500 p-4 text-left text-slate-950">
+            <RotateCw className="h-6 w-6 flex-none" /><span><b className="font-display block text-lg">{answered.length ? "Yanlışlarımdan deneme" : "Karışık deneme"}</b><span className="text-sm opacity-80">{answered.length ? "Eksik olduğun konulardan 15 soru" : "Tüm konulardan 15 soru"}</span></span>
+          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setMode({ name: "cards", t: "all" })} className={STAFF_CARD + " text-left"}><FileText className="h-5 w-5 text-teal-300" /><div className="font-display mt-2 font-bold text-white">Bilgi kartları</div><div className="text-xs text-slate-400">Çevir, bildiklerini ayır</div></button>
+            <button type="button" onClick={() => startQuiz("all")} className={STAFF_CARD + " text-left"}><ClipboardList className="h-5 w-5 text-teal-300" /><div className="font-display mt-2 font-bold text-white">Soru çöz</div><div className="text-xs text-slate-400">Anında açıklama</div></button>
+          </div>
+          <div className="font-display text-lg font-bold text-white">Konular</div>
+          {topics.map((t) => {
+            const st = topicStat(t.id); const nc = D.cards.filter((c) => c.topic === t.id).length;
+            return (
+              <div key={t.id} className={STAFF_CARD + " space-y-2"}>
+                <div className="flex items-start justify-between gap-2"><div className="min-w-0 font-semibold text-white">{t.title}</div>
+                  <span className={"shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide " + (t.priority === "yuksek" ? "bg-teal-500/20 text-teal-200" : "bg-amber-500/20 text-amber-200")}>{t.priority === "yuksek" ? "Yüksek ihtimal" : "Düşük ihtimal"}</span></div>
+                {t.note && <div className="text-xs text-slate-400">{t.note}</div>}
+                <div className="flex h-2 overflow-hidden rounded-full bg-white/10"><div className="bg-emerald-400" style={{ width: `${(st.ok * 100) / Math.max(1, st.total)}%` }} /><div className="bg-rose-400" style={{ width: `${(st.no * 100) / Math.max(1, st.total)}%` }} /></div>
+                <div className="text-xs text-slate-400">{st.ok + st.no}/{st.total} soru çözüldü · {nc} bilgi kartı</div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setMode({ name: "cards", t: t.id })} className="rounded-lg border border-sky-300/20 px-3 py-2 text-xs font-semibold text-white">Kartlar</button>
+                  <button type="button" onClick={() => startQuiz(t.id)} className="rounded-lg bg-teal-500 px-3 py-2 text-xs font-semibold text-slate-950">Soru çöz</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VipSales({ pkg, status, user, onLogin, reload, setToast }) {
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const req = status?.request;
+  const send = async () => {
+    if (!user) return onLogin();
+    setBusy(true);
+    const { error } = await sb.rpc("vip_request_create", { p_pkg: pkg.id, p_note: note.trim() || null });
+    setBusy(false);
+    if (error) return setToast(vipErr(error).includes("bekleyen") ? "Talebin zaten alındı." : "Talep gönderilemedi.");
+    setNote(""); setToast("Talebin alındı. Ödemen kontrol edilince paketin açılır."); reload();
+  };
+  return (
+    <div className={STAFF_CARD + " space-y-3"}>
+      <div className="flex items-center gap-2"><Lock className="h-5 w-5 text-amber-300" /><div className="font-display text-xl font-bold text-white">{pkg.title}</div></div>
+      <p className="text-sm leading-relaxed text-slate-300">{pkg.description}</p>
+      <ul className="space-y-1 text-sm text-slate-200">
+        {["Çıkmış sorulara göre bilgi kartları", "Geniş soru havuzu, anında açıklama", "Yanlışlarından otomatik deneme", "Karıştırılan yerler ve sınav tuzakları"].map((x) => <li key={x} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-none text-teal-300" />{x}</li>)}
+      </ul>
+      <div className="rounded-xl bg-white/5 p-3">
+        <div className="text-xs text-slate-400">Fiyat</div>
+        <div className="font-display text-2xl font-bold text-white">{pkg.price_text}</div>
+        {pkg.valid_days ? <div className="text-xs text-slate-400">Erişim süresi: {pkg.valid_days} gün</div> : null}
+      </div>
+      {!user ? (
+        <button type="button" onClick={onLogin} className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950">Giriş yap ve satın al</button>
+      ) : req === "bekliyor" ? (
+        <div className="rounded-xl bg-sky-500/15 p-3 text-sm text-sky-100">Talebin alındı. Ödemen kontrol edilince paketin açılır.</div>
+      ) : (
+        <>
+          {pkg.pay_info && <div className="whitespace-pre-wrap rounded-xl border border-dashed border-sky-300/25 p-3 text-sm text-slate-100"><div className="mb-1 text-xs text-slate-400">Ödeme bilgisi</div>{pkg.pay_info}</div>}
+          {req === "reddedildi" && <div className="rounded-xl bg-rose-500/15 p-3 text-sm text-rose-100">Önceki talebin onaylanmadı. Ödemeyi kontrol edip tekrar talep gönderebilirsin.</div>}
+          <input value={note} onChange={(e) => setNote(e.target.value.slice(0, 200))} placeholder="Ödeme yaparken yazdığın ad soyad ya da açıklama" className={inp} />
+          <button type="button" disabled={busy} onClick={send} className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950 disabled:opacity-50">Ödemeyi yaptım</button>
+          <p className="text-xs text-slate-400">Ödemeyi yaptıktan sonra bu düğmeye bas. Yönetici ödemeyi kontrol edip paketi açar.</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function VipPage({ user, profile, onLogin, setToast }) {
+  const [pkgs, setPkgs] = useState(null);
+  const [status, setStatus] = useState([]);
+  const load = useCallback(async () => {
+    const [a, b] = await Promise.all([sb.rpc("vip_packages_list"), user ? sb.rpc("vip_status") : Promise.resolve({ data: [] })]);
+    setPkgs(Array.isArray(a.data) ? a.data : []);
+    setStatus(Array.isArray(b.data) ? b.data : []);
+  }, [user]);
+  useEffect(() => { load(); }, [load]);
+  return (
+    <section>
+      <SectionHead title="VIP paketler" desc="Sınavlara özel hazırlanmış çalışma paketleri." />
+      {!pkgs && <div className="py-10 text-center text-sm text-slate-400">Yükleniyor…</div>}
+      {pkgs && pkgs.length === 0 && <div className={STAFF_CARD + " text-center text-sm text-slate-300"}>Şu an açık paket yok.</div>}
+      <div className="space-y-4">
+        {(pkgs || []).map((p) => {
+          const st = status.find((x) => x.package_id === p.id);
+          return st?.has && user
+            ? <div key={p.id}><div className="mb-3 flex items-center justify-between"><div className="font-display text-xl font-bold text-white">{p.title}</div>{st.expires_at && <div className="text-xs text-slate-400">{new Date(st.expires_at).toLocaleDateString("tr-TR")} tarihine kadar</div>}</div><VipRunner pkg={p} user={user} profile={profile} setToast={setToast} /></div>
+            : <VipSales key={p.id} pkg={p} status={st} user={user} onLogin={onLogin} reload={load} setToast={setToast} />;
+        })}
+      </div>
+    </section>
+  );
+}
+
+function VipAdmin({ setToast }) {
+  const [pkgs, setPkgs] = useState([]);
+  const [reqs, setReqs] = useState([]);
+  const [mem, setMem] = useState([]);
+  const [email, setEmail] = useState("");
+  const [days, setDays] = useState("");
+  const [publish, setPublish] = useState(false);
+  const [edit, setEdit] = useState(null);
+  const pk = pkgs[0];
+  const load = useCallback(async () => {
+    const a = await sb.rpc("vip_packages_list");
+    const list = Array.isArray(a.data) ? a.data : [];
+    setPkgs(list);
+    const r = await sb.rpc("admin_vip_requests");
+    setReqs(Array.isArray(r.data) ? r.data : []);
+    if (list[0]) { const m = await sb.rpc("admin_vip_members", { p_pkg: list[0].id }); setMem(Array.isArray(m.data) ? m.data : []); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const decide = async (r, yes) => {
+    if (!(await ask(`${r.name} için talep ${yes ? "onaylansın" : "reddedilsin"} mı?`))) return;
+    const { error } = await sb.rpc("admin_vip_decide", { p_id: r.id, p_approve: yes });
+    setToast(error ? "İşlem yapılamadı." : yes ? "Paket açıldı." : "Talep reddedildi."); load();
+  };
+  const grant = async () => {
+    if (!email.trim() || !pk) return;
+    const { error } = await sb.rpc("admin_vip_grant", { p_email: email.trim(), p_pkg: pk.id, p_days: days ? Number(days) : null });
+    setToast(error ? (vipErr(error).includes("kullanici") ? "Bu e-postayla kullanıcı yok." : "Verilemedi.") : "Paket verildi."); if (!error) { setEmail(""); setDays(""); } load();
+  };
+  const revoke = async (m) => {
+    if (!(await ask(`${m.name} kullanıcısının erişimi kapatılsın mı?`))) return;
+    const { error } = await sb.rpc("admin_vip_revoke", { p_user: m.user_id, p_pkg: pk.id });
+    setToast(error ? "Kapatılamadı." : "Erişim kapatıldı."); load();
+  };
+  const upload = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = "";
+    if (!f || !pk) return;
+    let data;
+    try { data = JSON.parse(await f.text()); } catch (err) { return setToast("Dosya okunamadı (JSON değil)."); }
+    if (!Array.isArray(data.topics) || !Array.isArray(data.cards) || !Array.isArray(data.questions)) return setToast("Dosyada topics, cards, questions olmalı.");
+    if (!(await ask(`${data.questions.length} soru ve ${data.cards.length} kart yüklensin mi? ${publish ? "Öğrencilere hemen açılır." : "Taslak olarak kaydedilir."}`))) return;
+    const { error } = await sb.rpc("admin_vip_content_set", { p_pkg: pk.id, p_data: data, p_publish: publish });
+    setToast(error ? "Yüklenemedi." : publish ? "Yüklendi ve yayında." : "Taslak olarak yüklendi.");
+  };
+  const setPub = async (on) => {
+    const { error } = await sb.rpc("admin_vip_publish", { p_pkg: pk.id, p_on: on });
+    setToast(error ? "Değişmedi." : on ? "İçerik yayında." : "Yayın kapatıldı.");
+  };
+  const saveEdit = async () => {
+    const { error } = await sb.rpc("admin_vip_package_set", { p_id: pk.id, p_title: edit.title, p_desc: edit.description || "", p_price: edit.price_text || "", p_pay: edit.pay_info || "", p_days: edit.valid_days ? Number(edit.valid_days) : null, p_active: true });
+    setToast(error ? "Kaydedilemedi." : "Paket güncellendi."); setEdit(null); load();
+  };
+  if (!pk) return null;
+  return (
+    <div className={STAFF_CARD + " mb-4 space-y-4"}>
+      <div className="font-display text-base font-bold text-white">VIP paket: {pk.title}</div>
+      {reqs.length > 0 && (
+        <div>
+          <div className="text-xs font-semibold text-amber-200">Bekleyen ödeme talepleri ({reqs.length})</div>
+          {reqs.map((r) => (
+            <div key={r.id} className="mt-2 rounded-xl bg-white/5 p-3">
+              <div className="text-sm font-semibold text-white">{r.name} <span className="font-normal text-slate-400">{r.email}</span></div>
+              {r.note && <div className="text-xs text-slate-300">Not: {r.note}</div>}
+              <div className="mt-2 flex gap-2">
+                <button type="button" onClick={() => decide(r, true)} className="rounded-lg bg-teal-500 px-3 py-2 text-xs font-semibold text-slate-950">Ödeme geldi, aç</button>
+                <button type="button" onClick={() => decide(r, false)} className="rounded-lg bg-rose-600/80 px-3 py-2 text-xs font-semibold text-white">Reddet</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div>
+        <div className="text-xs font-semibold text-slate-300">İçerik (soru havuzu dosyası)</div>
+        <label className="mt-1 flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={publish} onChange={(e) => setPublish(e.target.checked)} /> Yüklerken öğrencilere hemen aç</label>
+        <input type="file" accept="application/json,.json" onChange={upload} className="mt-2 block w-full text-xs text-slate-300" />
+        <div className="mt-2 flex gap-2">
+          <button type="button" onClick={() => setPub(true)} className="rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white">Yayına al</button>
+          <button type="button" onClick={() => setPub(false)} className="rounded-lg border border-sky-300/20 px-3 py-2 text-xs font-semibold text-white">Yayını kapat</button>
+        </div>
+        <p className="mt-1 text-[11px] text-slate-500">Taslağı VIP sayfasında sen görürsün, öğrenciler yayına alana kadar görmez.</p>
+      </div>
+      <div>
+        <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Fiyat ve ödeme bilgisi</div><button type="button" onClick={() => setEdit(edit ? null : { ...pk })} className="text-xs text-teal-300">{edit ? "Kapat" : "Düzenle"}</button></div>
+        {edit && (
+          <div className="mt-2 space-y-2">
+            <input value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} placeholder="Paket adı" className={inp} />
+            <textarea value={edit.description || ""} onChange={(e) => setEdit({ ...edit, description: e.target.value })} rows={2} placeholder="Açıklama" className={inp} />
+            <input value={edit.price_text || ""} onChange={(e) => setEdit({ ...edit, price_text: e.target.value })} placeholder="Fiyat (örn. 200 TL)" className={inp} />
+            <textarea value={edit.pay_info || ""} onChange={(e) => setEdit({ ...edit, pay_info: e.target.value })} rows={3} placeholder="Ödeme bilgisi (ad soyad, IBAN, açıklama kodu)" className={inp} />
+            <input value={edit.valid_days || ""} onChange={(e) => setEdit({ ...edit, valid_days: e.target.value.replace(/\D/g, "") })} placeholder="Erişim süresi (gün, boşsa sınırsız)" className={inp} />
+            <button type="button" onClick={saveEdit} className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white">Kaydet</button>
+          </div>
+        )}
+      </div>
+      <div>
+        <div className="text-xs font-semibold text-slate-300">Elle paket ver</div>
+        <div className="mt-1 flex gap-2"><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Kullanıcının e-postası" className={inp} /><input value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, ""))} placeholder="Gün" className={inp + " !w-20"} /></div>
+        <button type="button" onClick={grant} className="mt-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white">Ver</button>
+      </div>
+      <div>
+        <div className="text-xs font-semibold text-slate-300">Paketi olanlar ({mem.length})</div>
+        {mem.map((m) => (
+          <div key={m.user_id} className="mt-1 flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-200">
+            <span className="min-w-0 truncate">{m.name} · {m.email}{m.expires_at ? ` · ${new Date(m.expires_at).toLocaleDateString("tr-TR")}` : ""}</span>
+            <button type="button" onClick={() => revoke(m)} className="shrink-0 text-rose-300"><X className="h-4 w-4" /></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Bakım modu ---------- */
 function MaintenancePage({ message, onAdminLogin }) {
   return (
@@ -2618,6 +3015,7 @@ function MaintenanceAdmin({ maint, reload, setToast }) {
 // Yönetici işlem kaydı (kim, ne zaman, ne yaptı)
 const LOG_LABEL = {
   duels_eklendi: "Düello oluşturuldu", duels_guncellendi: "Düello güncellendi", duels_silindi: "Düello silindi",
+  vip_verildi: "VIP paket verildi", vip_alindi: "VIP erişim kapatıldı", vip_onaylandi: "VIP talep onaylandı", vip_reddedildi: "VIP talep reddedildi", vip_icerik_guncellendi: "VIP içerik yüklendi", vip_yayinda: "VIP içerik yayında", vip_yayin_kapali: "VIP yayın kapatıldı", vip_paket_guncellendi: "VIP paket güncellendi",
   rol_atandi: "Rol atandı", not_onaylandi: "Not onaylandı", not_reddedildi: "Not reddedildi", duyuru_sablon: "Hazır duyuru yayınlandı",
   sinav_eklendi: "Sınav eklendi", sinav_silindi: "Sınav silindi", arsiv_eklendi: "Arşive dosya eklendi", arsiv_silindi: "Arşivden dosya silindi", arsiv_iptal: "Arşiv erişimi kapatıldı", arsiv_geri: "Arşiv erişimi geri verildi",
   anket_acildi: "Anket başlatıldı", anket_kapandi: "Anket kapatıldı",
@@ -2910,6 +3308,7 @@ function ProfilePage({ user, profile, onLogin, podiums, notes, quizHist, onClass
       {tab === "genel" && (
         <div className="mt-3 space-y-3">
           <InstallCard />
+          <button onClick={() => { window.location.hash = "/vip"; }} className="flex w-full items-center justify-between rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-left text-sm font-semibold text-amber-100"><span>VIP paketler</span><ArrowUpRight className="h-4 w-4" /></button>
           {(profile?.role === "moderator" || profile?.role === "elci") && <button onClick={() => { window.location.hash = "/ekip"; }} className="flex w-full items-center justify-between rounded-2xl border border-violet-400/40 bg-violet-500/10 px-4 py-3 text-left text-sm font-semibold text-violet-100"><span>Ekip paneli</span><ArrowUpRight className="h-4 w-4" /></button>}
           <div className="grid grid-cols-3 gap-2 text-center">
             {[[(podiums || []).length, "podyum"], [gold, "birincilik"], [(quizHist || []).length, "çözülen test"]].map(([n, l]) => (
@@ -2958,7 +3357,7 @@ const PAGES = [
 ];
 const pageFromHash = () => {
   const h = window.location.hash.replace("#/", "");
-  return PAGES.some((p) => p.id === h) || h === "yonetim" || h === "hakkimizda" || h === "duello" || h === "karne" || h === "profil" || h === "arsiv" || h === "ekip" ? h : "home";
+  return PAGES.some((p) => p.id === h) || h === "yonetim" || h === "hakkimizda" || h === "duello" || h === "karne" || h === "profil" || h === "arsiv" || h === "ekip" || h === "vip" ? h : "home";
 };
 
 // Tanıtım videosu: public/tanitim.mp4 için "/tanitim.mp4" ya da bir YouTube linki yaz.
@@ -3751,6 +4150,7 @@ export default function App() {
           {/* DOĞRU MU, YANLIŞ MI */}
           {page === "duello" && <DuelPage user={user} onLogin={() => setAuthOpen(true)} setToast={setToast} duels={duels} openPod={setPod} needClass={needClass} onPickClass={() => setClassOpen(true)} onKarne={() => go("karne")} />}
           {page === "profil" && <ProfilePage user={user} profile={profile} onLogin={() => setAuthOpen(true)} podiums={podiums} notes={dbNotes} quizHist={quizHist} onClass={() => setClassOpen(true)} setToast={setToast} />}
+          {page === "vip" && <VipPage user={user} profile={profile} onLogin={() => setAuthOpen(true)} setToast={setToast} />}
           {page === "ekip" && <StaffPage profile={profile} uid={uid} setToast={setToast} exams={exams} reloadExams={loadExams} anns={anns} reloadAnns={loadAnns} reloadNotes={loadNotes} />}
           {page === "arsiv" && <ArchivePage user={user} profile={profile} onLogin={() => setAuthOpen(true)} onQuiz={() => go("test")} setToast={setToast} />}
           {page === "karne" && <KarnePage user={user} onLogin={() => setAuthOpen(true)} quizHist={quizHist} />}
@@ -3868,6 +4268,7 @@ export default function App() {
                       <div key={l} className="rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-4"><div className="font-display text-2xl font-bold text-white">{n}</div><div className="text-xs text-slate-400">{l}</div></div>
                     ))}
                   </div>
+                  <VipAdmin setToast={setToast} />
                   <AdminInbox setToast={setToast} />
                   <TeamAdmin users={users} setToast={setToast} reloadUsers={loadUsers} />
                   <IdeaBoard setToast={setToast} isAdminUser />
