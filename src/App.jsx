@@ -165,7 +165,6 @@ const QUESTIONS = [
 ];
 
 
-const POLL = { q: "Bu dönem en çok hangi içeriğe ihtiyacın var?", opts: ["Nefroloji notları", "Staj defteri örnekleri", "Vaka sunumları", "KPSS Önlisans"] };
 
 const QA = [
   { q: "Paylaştığım not hemen yayınlanır mı?", a: "Hayır. Önce yöneticiler kontrol eder, onaylanınca not havuzunda herkese görünür. Bekleyen notunu \"Onay bekliyor\" rozetiyle sen görürsün." },
@@ -1706,6 +1705,55 @@ function DuelLive({ duel, setToast }) {
   );
 }
 
+/* ---------- Anket yönetimi ---------- */
+function PollAdmin({ setToast }) {
+  const [cur, setCur] = useState(null);
+  const [q, setQ] = useState("");
+  const [opts, setOpts] = useState("");
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    const { data } = await sb.rpc("poll_current");
+    setCur(data && typeof data === "object" ? data : null);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const create = async () => {
+    const list = opts.split("\n").map((x) => x.trim()).filter(Boolean);
+    if (q.trim().length < 5) return setToast("Soru en az 5 karakter olmalı.");
+    if (list.length < 2 || list.length > 6) return setToast("2 ile 6 arasında seçenek yaz (her satıra bir tane).");
+    if (cur && !(await ask("Şu an açık bir anket var. Yenisi başlarsa eskisi kapanır ve ekrandan kalkar. Devam edilsin mi?"))) return;
+    setBusy(true);
+    const { error } = await sb.rpc("admin_poll_create", { p_question: q.trim(), p_options: list });
+    setBusy(false);
+    if (error) return setToast("Anket açılamadı. anket_sistemi.sql çalıştırıldı mı?");
+    setQ(""); setOpts(""); setToast("Yeni anket yayında."); load();
+  };
+  const close = async () => {
+    if (!(await ask("Anket kapatılsın mı? Ana sayfadan kalkar."))) return;
+    const { error } = await sb.rpc("admin_poll_close");
+    if (error) return setToast("Anket kapatılamadı.");
+    setToast("Anket kapatıldı."); load();
+  };
+  const total = (cur?.counts || []).reduce((a, b) => a + b, 0);
+  return (
+    <div className="mb-4 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-4">
+      <div className="font-display text-base font-bold text-white">Anket</div>
+      {cur ? (
+        <div className="mt-2 rounded-xl border border-teal-300/20 bg-teal-500/5 p-3 text-sm">
+          <div className="font-semibold text-white">{cur.question}</div>
+          <div className="mt-2 space-y-1 text-xs text-slate-300">
+            {cur.options.map((o, i) => <div key={i} className="flex justify-between gap-2"><span>{o}</span><span>{cur.counts[i]} oy{total ? ` (%${Math.round((cur.counts[i] / total) * 100)})` : ""}</span></div>)}
+          </div>
+          <div className="mt-2 flex items-center justify-between text-xs text-slate-400"><span>Toplam {total} oy</span><button type="button" onClick={close} className="rounded-lg bg-rose-600/80 px-3 py-1.5 font-semibold text-white">Anketi kapat</button></div>
+        </div>
+      ) : <div className="mt-1 text-xs text-slate-400">Şu an açık anket yok.</div>}
+      <div className="mt-3 text-xs font-semibold text-slate-300">Yeni anket</div>
+      <input value={q} onChange={(e) => setQ(e.target.value.slice(0, 160))} placeholder="Soru (örn. Hangi konuda not istiyorsun?)" className={inp + " mt-1"} />
+      <textarea value={opts} onChange={(e) => setOpts(e.target.value)} rows={4} placeholder={"Seçenekler, her satıra bir tane (2-6 adet)\nNefroloji notları\nVaka sunumları"} className={inp + " mt-2"} />
+      <button type="button" disabled={busy} onClick={create} className="mt-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Anketi yayınla</button>
+    </div>
+  );
+}
+
 /* ---------- Bakım modu ---------- */
 function MaintenancePage({ message, onAdminLogin }) {
   return (
@@ -1778,6 +1826,7 @@ function MaintenanceAdmin({ maint, reload, setToast }) {
 // Yönetici işlem kaydı (kim, ne zaman, ne yaptı)
 const LOG_LABEL = {
   duels_eklendi: "Düello oluşturuldu", duels_guncellendi: "Düello güncellendi", duels_silindi: "Düello silindi",
+  anket_acildi: "Anket başlatıldı", anket_kapandi: "Anket kapatıldı",
   bakim_acildi: "Bakım modu açıldı", bakim_kapandi: "Bakım modu kapatıldı",
   duel_questions_eklendi: "Soru eklendi", duel_questions_guncellendi: "Soru güncellendi", duel_questions_silindi: "Soru silindi",
   kullanici_silindi: "Kullanıcı silindi", kullanici_rolu: "Rol değişti", kullanici_askiya_alindi: "Kullanıcı askıya alındı", kullanici_askisi_kalkti: "Askı kaldırıldı",
@@ -2439,8 +2488,20 @@ export default function App() {
   const [cat, setCat] = useState("all");
   const [grp, setGrp] = useState("all");
   const [query, setQuery] = useState("");
-  const [votes, setVotes] = useState(() => load("afsu_votes", POLL.opts.map(() => 0)));
-  const [myVote, setMyVote] = useState(() => load("afsu_myvote", null));
+  const [poll, setPoll] = useState(null);
+  const [voting, setVoting] = useState(false);
+  const loadPoll = useCallback(async () => {
+    if (!sb) return;
+    try {
+      const { data, error } = await sb.rpc("poll_current");
+      if (!error) setPoll(data && typeof data === "object" ? data : null);
+    } catch (e) { /* ağ hatasında mevcut anket kalır */ }
+  }, []);
+  useEffect(() => {
+    loadPoll();
+    const t = setInterval(loadPoll, 60000);
+    return () => clearInterval(t);
+  }, [loadPoll]);
   const [openQ, setOpenQ] = useState(0);
   const [toast, setToast] = useState("");
   const [anns, setAnns] = useState([]);
@@ -2477,6 +2538,7 @@ export default function App() {
     m.content = "notranslate";
   }, []);
   const uid = user?.id;
+  useEffect(() => { loadPoll(); }, [uid, loadPoll]);
   const isAdmin = profile?.role === "admin";
   const [maint, setMaint] = useState({ on: false });
   const loadMaint = useCallback(async () => {
@@ -2591,7 +2653,9 @@ export default function App() {
     return notes.filter((n) => (cat === "all" ? grp === "all" || catOf(n.cat).term === grp : n.cat === cat) && (!q || `${n.title} ${n.course}`.toLocaleLowerCase("tr").includes(q)));
   }, [notes, cat, grp, query]);
 
+  const votes = poll?.counts || [];
   const totalVotes = votes.reduce((a, b) => a + b, 0);
+  const myVote = poll && poll.my_vote !== null && poll.my_vote !== undefined ? poll.my_vote : null;
   const grpCourses = grp === "all" ? [] : TERMS.find((t) => t.id === grp)?.courses ?? [];
 
   const go = (id) => { if (pageFromHash() === id) window.scrollTo({ top: 0, behavior: "smooth" }); else window.location.hash = `/${id}`; };
@@ -2709,10 +2773,15 @@ export default function App() {
     const href = download && n.file_path ? `${n.url}?download=${encodeURIComponent(`${n.title}.pdf`)}` : n.url;
     window.open(href, "_blank", "noopener,noreferrer");
   };
-  const vote = (i) => {
-    if (myVote !== null) return;
-    const next = votes.map((v, j) => (j === i ? v + 1 : v));
-    setVotes(next); setMyVote(i); save("afsu_votes", next); save("afsu_myvote", i);
+  const vote = async (i) => {
+    if (!poll || myVote !== null || voting || poll.closed) return;
+    if (!uid) { setToast("Oy vermek için giriş yapmalısın."); setAuthOpen(true); return; }
+    setVoting(true);
+    const { data, error } = await sb.rpc("poll_vote", { p_poll: poll.id, p_idx: i });
+    setVoting(false);
+    if (error) { setToast("Oyun kaydedilemedi. Biraz sonra tekrar dene."); loadPoll(); return; }
+    if (data) setPoll(data);
+    setToast("Oyun kaydedildi, teşekkürler!");
   };
 
   const tiles = [
@@ -2907,21 +2976,32 @@ export default function App() {
                 </div>
               )}
               <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {poll ? (
                 <div className="rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 backdrop-blur-xl">
-                  <h3 className="font-display text-lg font-bold text-white">{POLL.q}</h3>
+                  <div className="text-[11px] font-semibold uppercase tracking-widest text-teal-300/80">Anket</div>
+                  <h3 className="mt-1 font-display text-lg font-bold text-white">{poll.question}</h3>
                   <div className="mt-3 space-y-2">
-                    {POLL.opts.map((o, i) => {
-                      const pct = totalVotes ? Math.round((votes[i] / totalVotes) * 100) : 0;
+                    {poll.options.map((o, i) => {
+                      const c = votes[i] || 0;
+                      const pct = totalVotes ? Math.round((c / totalVotes) * 100) : 0;
+                      const showRes = myVote !== null || poll.closed;
+                      const top = showRes && totalVotes > 0 && c === Math.max(...votes);
                       return (
-                        <button key={o} onClick={() => vote(i)} disabled={myVote !== null} className={`relative w-full overflow-hidden rounded-xl border px-4 py-3 text-left text-sm ${myVote === i ? "border-teal-300/60" : "border-sky-300/15"} ${myVote === null ? "hover:bg-white/10 active:scale-[0.99]" : ""}`}>
-                          {myVote !== null && <span className="absolute inset-y-0 left-0 bg-teal-500/25 transition-all duration-500" style={{ width: `${pct}%` }} />}
-                          <span className="relative flex items-center justify-between gap-3"><span>{o}</span>{myVote !== null && <span className="text-xs text-slate-300">%{pct}</span>}</span>
+                        <button key={o + i} onClick={() => vote(i)} disabled={myVote !== null || voting || poll.closed} className={`relative w-full overflow-hidden rounded-xl border px-4 py-3 text-left text-sm ${myVote === i ? "border-teal-300/60" : "border-sky-300/15"} ${myVote === null && !poll.closed ? "hover:border-teal-300/40" : ""}`}>
+                          {showRes && <span className={"absolute inset-y-0 left-0 transition-all duration-500 " + (top ? "bg-teal-500/30" : "bg-sky-500/15")} style={{ width: `${pct}%` }} />}
+                          <span className="relative flex items-center justify-between gap-3">
+                            <span>{o}{myVote === i ? <span className="ml-2 text-xs text-teal-300">(senin oyun)</span> : null}</span>
+                            {showRes && <span className="shrink-0 text-xs text-slate-300">%{pct} · {c}</span>}
+                          </span>
                         </button>
                       );
                     })}
                   </div>
-                  <p className="mt-3 text-xs text-slate-500">{myVote === null ? "Oyunu ver, sonuçlar açılsın." : "Oyun kaydedildi. Sonuçlar şimdilik bu cihazda tutuluyor."}</p>
+                  <p className="mt-3 text-xs text-slate-500">
+                    {poll.closed ? `Anket kapandı. Toplam ${totalVotes} oy.` : myVote !== null ? `Oyun kaydedildi. Şu ana kadar ${totalVotes} kişi oy verdi.` : uid ? "Bir seçenek seç, sonuçlar açılsın. Herkes 1 oy kullanır." : "Oy vermek için giriş yapman gerekir. Herkes 1 oy kullanır."}
+                  </p>
                 </div>
+                ) : null}
                 <div className="rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 backdrop-blur-xl">
                   <h3 className="font-display text-lg font-bold text-white">Sık sorulanlar</h3>
                   <div className="mt-2 divide-y divide-sky-300/15">
@@ -2981,6 +3061,7 @@ export default function App() {
                     ))}
                   </div>
                   <MaintenanceAdmin maint={maint} reload={loadMaint} setToast={setToast} />
+                  <PollAdmin setToast={setToast} />
                   <DuelAdmin setToast={setToast} />
                   <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Duyurular</h3>
                   <div className="space-y-2 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
