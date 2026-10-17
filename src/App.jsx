@@ -1963,21 +1963,22 @@ function ArchivePage({ user, profile, onLogin, onQuiz, setToast }) {
     setItems(Array.isArray(a.data) ? a.data : []);
     if (!uid) { setSt(null); return; }
     let { data } = await sb.rpc("archive_status");
-    if (data && !data.has_access && !data.revoked && data.answers >= data.rules.min_answers && (!data.rules.require_ig || data.ig_handle)) {
-      const r = await sb.rpc("archive_try_unlock");
-      if (r.data) data = r.data;
-    }
     setSt(data || null);
   }, [uid]);
   useEffect(() => { if (sb) load(); }, [load]);
 
-  const submitIg = async () => {
+  // Görev işaretle. Önce ilgili Instagram sayfası açılmış olmalı ve birkaç saniye geçmeli (kandırmayı zorlaştırır).
+  const [opened, setOpened] = useState({});
+  const [, tick] = useState(0);
+  const openIg = (k) => { setOpened((o) => (o[k] ? o : { ...o, [k]: Date.now() })); setTimeout(() => tick((x) => x + 1), 8200); };
+  const ready = (k) => opened[k] && Date.now() - opened[k] >= 8000;
+  const mark = async (k, h) => {
     setBusy(true);
-    const { data, error } = await sb.rpc("archive_try_unlock", { p_handle: handle });
+    const { data, error } = await sb.rpc("archive_try_unlock", { p_handle: h || null, p_done: [k] });
     setBusy(false);
     if (error) return setToast(error.message.includes("gecersiz") ? "Kullanıcı adı geçersiz. Sadece harf, rakam, nokta ve alt çizgi kullan." : "Kaydedilemedi, biraz sonra tekrar dene.");
     setSt(data);
-    setToast(data?.has_access ? "Arşivin kilidi açıldı!" : "Instagram adın kaydedildi.");
+    setToast(data?.has_access ? "Arşivin kilidi açıldı!" : "Görev kaydedildi.");
   };
   const recheck = async () => {
     setBusy(true);
@@ -1987,7 +1988,8 @@ function ArchivePage({ user, profile, onLogin, onQuiz, setToast }) {
     setToast(data?.has_access ? "Arşivin kilidi açıldı!" : "Görevler henüz tamamlanmadı.");
   };
 
-  const rules = st?.rules || { min_answers: 20, require_ig: true };
+  const rules = st?.rules || { min_answers: 0, follow: true, like: true, comment: true };
+  const tasks = st?.tasks || {};
   const has = !!st?.has_access;
   const total = items?.length || 0;
   const shown = (items || []).filter((x) => term === "all" || x.term === term);
@@ -2020,7 +2022,7 @@ function ArchivePage({ user, profile, onLogin, onQuiz, setToast }) {
         <div className={card + " text-center"}>
           <Lock className="mx-auto h-8 w-8 text-teal-300" />
           <div className="mt-2 font-display text-lg font-bold text-white">Arşiv kilitli</div>
-          <p className="mt-1 text-sm text-slate-400">Önce giriş yap, sonra iki kısa görevi tamamlayıp kilidi aç.</p>
+          <p className="mt-1 text-sm text-slate-400">Önce giriş yap, sonra kısa Instagram görevlerini tamamlayıp kilidi aç.</p>
           <button type="button" onClick={onLogin} className="mt-3 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white">Giriş yap</button>
         </div>
       ) : !st ? <div className="py-10 text-center text-sm text-slate-400">Yükleniyor…</div> : st.revoked ? (
@@ -2028,26 +2030,51 @@ function ArchivePage({ user, profile, onLogin, onQuiz, setToast }) {
       ) : !has ? (
         <div className={card}>
           <div className="flex items-center gap-2 font-display text-lg font-bold text-white"><Lock className="h-5 w-5 text-teal-300" /> Kilidi aç</div>
-          <p className="mt-1 text-sm text-slate-400">{total ? `${total} dosya seni bekliyor. ` : ""}Aşağıdaki görev{rules.require_ig ? "leri" : ""} tamamla, arşiv kendiliğinden açılır.</p>
-          {rules.require_ig && (
-            <div className={"mt-3 rounded-2xl border p-3 " + (st.ig_handle ? "border-teal-300/40 bg-teal-500/10" : "border-sky-300/15")}>
-              <div className="flex items-center justify-between text-sm font-semibold text-white"><span>1. Instagram'da bizi takip et</span>{st.ig_handle && <Check className="h-4 w-4 text-teal-300" />}</div>
-              {st.ig_handle ? <div className="mt-1 text-xs text-slate-300">Kayıtlı: @{st.ig_handle}</div> : (
+          <p className="mt-1 text-sm text-slate-400">{total ? `${total} dosya seni bekliyor. ` : ""}Aşağıdaki görevleri tamamla, arşiv kendiliğinden açılır.</p>
+          {rules.follow && (
+            <div className={"mt-3 rounded-2xl border p-3 " + (tasks.follow ? "border-teal-300/40 bg-teal-500/10" : "border-sky-300/15")}>
+              <div className="flex items-center justify-between text-sm font-semibold text-white"><span>Instagram'da bizi takip et</span>{tasks.follow && <Check className="h-4 w-4 text-teal-300" />}</div>
+              {tasks.follow ? <div className="mt-1 text-xs text-slate-300">Kayıtlı: @{st.ig_handle}</div> : (
                 <>
-                  <a href={IG_URL} target="_blank" rel="noreferrer" onClick={() => setIgOpened(true)} className="mt-2 inline-block rounded-full border border-rose-300/30 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-100">@afsudiyalizteam sayfasını aç</a>
-                  <input value={handle} onChange={(e) => setHandle(e.target.value.slice(0, 31))} placeholder="Instagram kullanıcı adın (@olmadan da olur)" className={inp + " mt-2"} />
-                  <button type="button" disabled={busy || !igOpened || handle.trim().length < 2} onClick={submitIg} className="mt-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">Takip ediyorum</button>
-                  <p className="mt-1.5 text-[11px] text-slate-500">Önce sayfayı aç ve takip et. Takip etmeden yazılan kullanıcı adları kontrol edilir ve erişim kapatılır.</p>
+                  <a href={IG_URL} target="_blank" rel="noreferrer" onClick={() => openIg("follow")} className="mt-2 inline-block rounded-full border border-rose-300/30 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-100">@afsudiyalizteam sayfasını aç</a>
+                  <input value={handle} onChange={(e) => setHandle(e.target.value.slice(0, 31))} placeholder="Instagram kullanıcı adın (@ olmadan da olur)" className={inp + " mt-2"} />
+                  <button type="button" disabled={busy || !ready("follow") || handle.trim().length < 2} onClick={() => mark("follow", handle)} className="mt-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">Takip ettim</button>
                 </>
               )}
             </div>
           )}
+          {rules.like && (
+            <div className={"mt-3 rounded-2xl border p-3 " + (tasks.like ? "border-teal-300/40 bg-teal-500/10" : "border-sky-300/15")}>
+              <div className="flex items-center justify-between text-sm font-semibold text-white"><span>Son 2 gönderiyi beğen</span>{tasks.like && <Check className="h-4 w-4 text-teal-300" />}</div>
+              {!tasks.like && (
+                <>
+                  <a href={IG_URL} target="_blank" rel="noreferrer" onClick={() => openIg("like")} className="mt-2 inline-block rounded-full border border-rose-300/30 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-100">Gönderileri aç</a>
+                  <button type="button" disabled={busy || !ready("like")} onClick={() => mark("like")} className="ml-2 mt-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">Beğendim</button>
+                </>
+              )}
+            </div>
+          )}
+          {rules.comment && (
+            <div className={"mt-3 rounded-2xl border p-3 " + (tasks.comment ? "border-teal-300/40 bg-teal-500/10" : "border-sky-300/15")}>
+              <div className="flex items-center justify-between text-sm font-semibold text-white"><span>Bir gönderiye emojiyle yorum yaz</span>{tasks.comment && <Check className="h-4 w-4 text-teal-300" />}</div>
+              {!tasks.comment && (
+                <>
+                  <p className="mt-1 text-xs text-slate-400">Örneğin 💙 ya da 🩺 gibi tek bir emoji yeter.</p>
+                  <a href={IG_URL} target="_blank" rel="noreferrer" onClick={() => openIg("comment")} className="mt-2 inline-block rounded-full border border-rose-300/30 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-100">Gönderileri aç</a>
+                  <button type="button" disabled={busy || !ready("comment")} onClick={() => mark("comment")} className="ml-2 mt-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">Yorum yazdım</button>
+                </>
+              )}
+            </div>
+          )}
+          {rules.min_answers > 0 && (
           <div className={"mt-3 rounded-2xl border p-3 " + (st.answers >= rules.min_answers ? "border-teal-300/40 bg-teal-500/10" : "border-sky-300/15")}>
-            <div className="flex items-center justify-between text-sm font-semibold text-white"><span>{rules.require_ig ? "2" : "1"}. {rules.min_answers} test sorusu çöz</span>{st.answers >= rules.min_answers && <Check className="h-4 w-4 text-teal-300" />}</div>
+            <div className="flex items-center justify-between text-sm font-semibold text-white"><span>{rules.min_answers} test sorusu çöz</span>{st.answers >= rules.min_answers && <Check className="h-4 w-4 text-teal-300" />}</div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-teal-400 transition-all" style={{ width: `${Math.min(100, (st.answers / Math.max(1, rules.min_answers)) * 100)}%` }} /></div>
             <div className="mt-1 text-xs text-slate-400">{Math.min(st.answers, rules.min_answers)} / {rules.min_answers}</div>
             {st.answers < rules.min_answers && <button type="button" onClick={onQuiz} className="mt-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white">Teste git</button>}
           </div>
+          )}
+          <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Her görevde önce Instagram sayfasını aç, birkaç saniye sonra düğme açılır. Yapmadan işaretleyenler yönetici tarafından kontrol edilir ve erişimleri kapatılır.</p>
           <button type="button" disabled={busy} onClick={recheck} className="mt-3 w-full rounded-xl border border-teal-300/30 px-4 py-2.5 text-sm font-semibold text-teal-100 disabled:opacity-40">Görevleri kontrol et</button>
         </div>
       ) : (
@@ -2066,7 +2093,7 @@ function ArchivePage({ user, profile, onLogin, onQuiz, setToast }) {
 function ArchiveAdmin({ setToast }) {
   const [items, setItems] = useState([]);
   const [users, setUsers] = useState([]);
-  const [rules, setRules] = useState({ min_answers: 20, require_ig: true });
+  const [rules, setRules] = useState({ min_answers: 0, follow: true, like: true, comment: true });
   const [f, setF] = useState({ term: TERMS[0].id, course: TERMS[0].courses[0]?.id || "", title: "", kind: "vize", year: String(new Date().getFullYear()), file: null });
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
@@ -2104,7 +2131,7 @@ function ArchiveAdmin({ setToast }) {
     load();
   };
   const saveRules = async () => {
-    const { data, error } = await sb.rpc("admin_archive_rules", { p_min: Number(rules.min_answers) || 0, p_ig: !!rules.require_ig });
+    const { data, error } = await sb.rpc("admin_archive_rules", { p_min: Number(rules.min_answers) || 0, p_follow: !!rules.follow, p_like: !!rules.like, p_comment: !!rules.comment });
     if (error) return setToast("Kaydedilemedi.");
     if (data) setRules(data); setToast("Kilit kuralları kaydedildi.");
   };
@@ -2113,8 +2140,10 @@ function ArchiveAdmin({ setToast }) {
       <div className="font-display text-base font-bold text-white">Çıkmış soru arşivi</div>
       <div className="mt-3 text-xs font-semibold text-slate-300">Kilit kuralları</div>
       <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-300">
-        <label className="flex items-center gap-2"><input type="checkbox" checked={!!rules.require_ig} onChange={(e) => setRules({ ...rules, require_ig: e.target.checked })} /> Instagram takibi şart</label>
-        <label className="flex items-center gap-2">En az <input type="number" min="0" max="500" value={rules.min_answers} onChange={(e) => setRules({ ...rules, min_answers: e.target.value })} className="w-16 rounded-lg border border-sky-300/15 bg-[#0a1a30] px-2 py-1 text-white" /> test sorusu</label>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={!!rules.follow} onChange={(e) => setRules({ ...rules, follow: e.target.checked })} /> Takip</label>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={!!rules.like} onChange={(e) => setRules({ ...rules, like: e.target.checked })} /> Son 2 gönderiyi beğen</label>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={!!rules.comment} onChange={(e) => setRules({ ...rules, comment: e.target.checked })} /> Emojiyle yorum</label>
+        <label className="flex items-center gap-2">Test sorusu <input type="number" min="0" max="500" value={rules.min_answers} onChange={(e) => setRules({ ...rules, min_answers: e.target.value })} className="w-16 rounded-lg border border-sky-300/15 bg-[#0a1a30] px-2 py-1 text-white" /> (0 = şart değil)</label>
         <button type="button" onClick={saveRules} className="rounded-lg bg-sky-600 px-3 py-1.5 font-semibold text-white">Kaydet</button>
       </div>
       <div className="mt-4 text-xs font-semibold text-slate-300">Dosya ekle (PDF)</div>
@@ -2136,11 +2165,11 @@ function ArchiveAdmin({ setToast }) {
           </div>
         ))}
       </div>
-      <div className="mt-4 text-xs font-semibold text-slate-300">Erişenler ve Instagram adları ({users.length})</div>
+      <div className="mt-4 text-xs font-semibold text-slate-300">Erişenler ve Instagram adları ({users.length}) <span className="font-normal text-slate-500">· T takip, B beğeni, Y yorum</span></div>
       <div className="mt-1 max-h-64 space-y-1.5 overflow-y-auto">
         {users.map((u) => (
           <div key={u.user_id} className="flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-200">
-            <span className="min-w-0 truncate">{u.name || u.email} · {u.ig ? <a className="text-sky-300 underline" href={`https://instagram.com/${u.ig}`} target="_blank" rel="noreferrer">@{u.ig}</a> : "ig yok"} · {u.unlocked_at ? "açık" : "kilitli"} · {u.views} açılış</span>
+            <span className="min-w-0 truncate">{u.name || u.email} · {u.ig ? <a className="text-sky-300 underline" href={`https://instagram.com/${u.ig}`} target="_blank" rel="noreferrer">@{u.ig}</a> : "ig yok"} · {["follow", "like", "comment"].map((k) => (u.tasks?.[k] ? { follow: "T", like: "B", comment: "Y" }[k] : "-")).join("")} · {u.unlocked_at ? "açık" : "kilitli"} · {u.views} açılış</span>
             <button type="button" onClick={() => revoke(u, !u.revoked)} className={"shrink-0 rounded-lg px-2 py-1 font-semibold " + (u.revoked ? "bg-emerald-600/80 text-white" : "bg-rose-600/80 text-white")}>{u.revoked ? "Geri ver" : "Kapat"}</button>
           </div>
         ))}
