@@ -2546,6 +2546,773 @@ function StaffPage({ profile, uid, setToast, exams, reloadExams, anns, reloadAnn
   );
 }
 
+/* ---------- VIP iskelet modülü ---------- */
+const SK_CSS = `
+.sk-svg{touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.skr{--f:#e8dec6;--s:#7d6f52;cursor:pointer;transition:filter .2s}
+.skr *{fill:var(--f);stroke:var(--s);stroke-width:.9;transition:fill .2s}
+.skr .hole{fill:#0a1424;stroke:#3d3424}
+.skr .hole2{fill:rgba(0,0,0,.12);stroke:none}
+.skr .lo{fill:none;stroke:var(--s);stroke-width:6.6;stroke-linecap:round}
+.skr .ln{fill:none;stroke:var(--f);stroke-width:4.6;stroke-linecap:round}
+.skr .ln.fl{opacity:.85}
+.skr .lo2{fill:none;stroke:var(--f);stroke-width:4;stroke-linecap:round}
+.skr .lo3{fill:none;stroke:var(--f);stroke-width:3;stroke-linecap:round}
+.skr.ta{--f:#f1d6a0}.skr.tb{--f:#cfe3c3}.skr.tc{--f:#c6dcec}.skr.td{--f:#e9cbd9}.skr.te{--f:#e4dcc0}.skr.tp{--f:#f1d6a0}.skr.tq{--f:#bcd8ea}
+.skr:hover{--f:#fff1b8}
+.skr.m1{--f:#a7f3d0}.skr.m2{--f:#fecdd3}
+.skr.sel{--f:#5eead4;--s:#0f766e;filter:drop-shadow(0 0 4px rgba(45,212,191,.8))}
+.skr.qok{--f:#34d399;--s:#047857}.skr.qno{--f:#fb7185;--s:#9f1239}
+.skr.qask{--f:#fde047;--s:#a16207;animation:skp 1s ease-in-out infinite}
+@keyframes skp{50%{filter:drop-shadow(0 0 6px rgba(253,224,71,.95))}}
+.hotmode .skr.hot{--s:#f59e0b;filter:drop-shadow(0 0 3px rgba(245,158,11,.85))}
+.hotmode .skr.hot *{stroke-width:1.5}
+.hotmode .skr.hot .lo{stroke-width:7.2}
+.sil{opacity:.07;pointer-events:none}
+.sk-lab{fill:rgba(148,163,184,.8);font-size:10px;font-family:inherit;pointer-events:none}
+.sk-suture{fill:none;stroke:#7d6f52;stroke-width:1.6;stroke-dasharray:4 2.5}
+`;
+const SK_CSS2 = `
+.skr .tooth{fill:#f6f1e4;stroke:#a59a7e;stroke-width:.6}
+.skr .hit{fill:none;stroke:transparent;stroke-width:12;pointer-events:stroke}
+.skr .sut{fill:none;stroke:#6f6244;stroke-width:1.7;stroke-dasharray:4 2.5}
+.skr.sel .sut{stroke:#5eead4;stroke-width:3.2;stroke-dasharray:none}
+.skr.hot .sut{stroke:#f59e0b}
+.skr.qask .sut{stroke:#fde047;stroke-width:3.2;stroke-dasharray:none}
+.skr.qok .sut{stroke:#34d399;stroke-width:3.2;stroke-dasharray:none}
+.skr.qno .sut{stroke:#fb7185;stroke-width:3.2;stroke-dasharray:none}
+`;
+
+/* ---------- İskelet çizimleri (kendi çizimim) ---------- */
+const mir = (x) => `matrix(-1 0 0 1 ${x} 0)`;
+
+/* uzun kemik: iki uç topuzu + gövde */
+function LB({ x1, y1, x2, y2, w = 9, k = 1.5, kr }) {
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
+  const nx = (-dy / L) * (w / 2), ny = (dx / L) * (w / 2);
+  const sw = w * 0.62;
+  const sx = (-dy / L) * (sw / 2), sy = (dx / L) * (sw / 2);
+  const r = kr || (w * 0.62 * k) / 1.5;
+  return (
+    <g>
+      <path d={`M${x1 + sx},${y1 + sy} L${x2 + sx},${y2 + sy} L${x2 - sx},${y2 - sy} L${x1 - sx},${y1 - sy}Z`} />
+      <ellipse cx={x1} cy={y1} rx={r} ry={r * 0.9} />
+      <ellipse cx={x2} cy={y2} rx={r * 1.05} ry={r * 0.95} />
+    </g>
+  );
+}
+
+/* sütun: omurga (yan görünüm) için eğri */
+const bump = (y, a, b) => (y > a && y < b ? Math.sin((Math.PI * (y - a)) / (b - a)) : 0);
+const spX = (y) => 168 - 15 * bump(y, 36, 140) + 17 * bump(y, 140, 346) - 20 * bump(y, 346, 478) + 14 * bump(y, 478, 580);
+
+function buildSpine() {
+  const v = [];
+  let y = 44;
+  for (let i = 0; i < 7; i++) { v.push({ g: i === 0 ? "atlas" : i === 1 ? "axis" : i === 6 ? "prominens" : "cerv", n: "C" + (i + 1), y, h: 13, w: 20 + i * 1.2, sp: 12 + (i === 6 ? 12 : i > 1 ? 4 : 2) }); y += 15; }
+  y += 3;
+  for (let i = 0; i < 12; i++) { v.push({ g: "thor", n: "T" + (i + 1), y, h: 16, w: 25 + i * 1.1, sp: 22, dip: 10 }); y += 18; }
+  y += 3;
+  for (let i = 0; i < 5; i++) { v.push({ g: "lumb", n: "L" + (i + 1), y, h: 22, w: 40 + i * 1.5, sp: 20 }); y += 25; }
+  return { v, end: y };
+}
+const SPINE = buildSpine();
+
+function SpineArt({ cls, onPick }) {
+  const items = SPINE.v;
+  const sy = SPINE.end + 4;
+  const col = (g) => (g === "cerv" ? "cervicales" : g === "thor" ? "thoracicae" : g === "lumb" ? "lumbales" : g);
+  return (
+    <>
+      {/* discus vurgusu: arka plan eğrisi */}
+      <path d={Array.from({ length: 60 }, (_, i) => { const yy = 40 + i * 9.4; return `${i ? "L" : "M"}${spX(yy).toFixed(1)},${yy.toFixed(1)}`; }).join(" ")} fill="none" stroke="rgba(125,211,252,.14)" strokeWidth="2" strokeDasharray="3 5" />
+      {items.map((o, i) => {
+        const cx = spX(o.y + o.h / 2);
+        const g = col(o.g);
+        return (
+          <g key={i} {...onPick(g)} className={cls(g)}>
+            <path d={`M${cx + o.w / 2 - 3},${o.y + 3} L${cx + o.w / 2 + o.sp},${o.y + o.h * 0.5 + (o.dip || 0)} L${cx + o.w / 2 - 3},${o.y + o.h - 2}Z`} />
+            <rect x={cx - o.w / 2} y={o.y} width={o.w} height={o.h} rx={o.h * 0.28} />
+            {o.g === "axis" && <path d={`M${cx - 4},${o.y} L${cx},${o.y - 9} L${cx + 4},${o.y}Z`} />}
+          </g>
+        );
+      })}
+      <g {...onPick("sacrum")} className={cls("sacrum")}>
+        <path d={`M${spX(sy) - 26},${sy} L${spX(sy) + 24},${sy} L${spX(sy + 64) + 20},${sy + 64} L${spX(sy + 70) + 2},${sy + 70} Q${spX(sy + 40)},${sy + 40} ${spX(sy) - 26},${sy}Z`} />
+      </g>
+      <g {...onPick("coccygis")} className={cls("coccygis")}>
+        <path d={`M${spX(sy + 70) - 2},${sy + 72} L${spX(sy + 70) + 18},${sy + 68} L${spX(sy + 94) + 8},${sy + 94} L${spX(sy + 94) - 4},${sy + 90}Z`} />
+      </g>
+      <text x="22" y="86" className="sk-lab">servikal lordoz</text>
+      <text x="228" y="300" className="sk-lab" textAnchor="start">torakal kifoz</text>
+      <text x="18" y="428" className="sk-lab">lumbal lordoz</text>
+      <text x="228" y="536" className="sk-lab">sakral kifoz</text>
+      <text x="270" y="60" className="sk-lab" textAnchor="end">arka ▶</text>
+      <text x="22" y="40" className="sk-lab">◀ ön</text>
+    </>
+  );
+}
+
+function Pair({ id, cls, pick, children }) {
+  return (
+    <g {...pick(id)} className={cls(id)}>
+      {children}
+      <g transform={mir(300)}>{children}</g>
+    </g>
+  );
+}
+
+function BodyArt({ cls, pick }) {
+  const ribs = [];
+  const RW = [24, 36, 45, 51, 55, 57, 57, 55, 51, 45, 33, 24];
+  const SY = [136, 143, 150, 157, 164, 171, 178, 185, 191, 197, 203, 208];
+  for (let i = 0; i < 12; i++) {
+    const w = RW[i], y = SY[i];
+    const ex = i < 7 ? 143 : i < 10 ? 146 - (i - 6) * 4 : 0;
+    const ey = i < 7 ? 146 + i * 8.6 : i < 10 ? 202 + (i - 7) * 4 : 0;
+    const d = i < 10
+      ? `M147,${y} Q${150 - w * 0.95},${y - 10} ${150 - w},${y + 18} Q${150 - w + 4},${y + 30} ${ex - 4},${ey}`
+      : `M147,${y} Q${150 - w * 0.9},${y - 4} ${150 - w},${y + 16}`;
+    ribs.push(<g key={i}><path d={d} className="lo" /><path d={d} className={"ln" + (i >= 10 ? " fl" : "")} /></g>);
+  }
+  const cerv = Array.from({ length: 7 }, (_, i) => <rect key={i} x={144} y={98 + i * 5.3} width={12} height={4.2} rx={1.4} />);
+  const thor = Array.from({ length: 12 }, (_, i) => <rect key={i} x={142} y={136 + i * 6.4} width={16} height={5.2} rx={1.6} />);
+  const lumb = Array.from({ length: 5 }, (_, i) => <rect key={i} x={141 - i * 0.4} y={216 + i * 9.6} width={18 + i * 0.8} height={8} rx={2.2} />);
+  return (
+    <>
+      <g className="sil" fill="none" stroke="#38bdf8" strokeLinecap="round" strokeLinejoin="round">
+        <ellipse cx="150" cy="50" rx="38" ry="46" fill="#38bdf8" stroke="none" />
+        <path d="M150,96 L150,132" strokeWidth="26" />
+        <path d="M150,150 L150,300" strokeWidth="104" />
+        <path d="M150,300 L150,330" strokeWidth="96" />
+        <path d="M92,140 L70,238 L58,336 L56,396" strokeWidth="25" />
+        <path d="M208,140 L230,238 L242,336 L244,396" strokeWidth="25" />
+        <path d="M124,340 L127,452 L127,560 L122,616" strokeWidth="40" />
+        <path d="M176,340 L173,452 L173,560 L178,616" strokeWidth="40" />
+      </g>
+      <Pair id="scapula" cls={cls} pick={pick}>
+        <path d="M89,133 L119,135 L113,176 L103,193 L96,168 L93,148Z" />
+        <path d="M91,140 L110,142" className="lo3" style={{stroke:"rgba(0,0,0,.18)"}} />
+      </Pair>
+      {/* omurga arkada */}
+      <g {...pick("thoracicae")} className={cls("thoracicae")}>{thor}</g>
+      <g {...pick("costae")} className={cls("costae")}>{ribs}<g transform={mir(300)}>{ribs}</g></g>
+      <g {...pick("cervicales")} className={cls("cervicales")}>{cerv}</g>
+      <g {...pick("lumbales")} className={cls("lumbales")}>{lumb}</g>
+      <g {...pick("sacrum")} className={cls("sacrum")}><path d="M136,263 L164,263 L157,308 L150,314 L143,308Z" /></g>
+      <g {...pick("coccygis")} className={cls("coccygis")}><path d="M145,312 L155,312 L152,326 L148,326Z" /></g>
+      <Pair id="oscoxae" cls={cls} pick={pick}>
+        <path d="M137,262 C120,246 92,250 86,272 C82,292 96,308 112,313 L114,330 C112,342 118,350 128,350 L142,346 L149,338 L149,326 L142,312 L137,296Z" />
+        <ellipse cx="124" cy="330" rx="6" ry="8" className="hole" />
+        <circle cx="111" cy="318" r="6" className="hole" />
+      </Pair>
+      <g {...pick("sternum")} className={cls("sternum")}>
+        <path d="M143,135 L157,135 L158,152 L142,152Z" />
+        <path d="M144.5,154 L155.5,154 L154.5,198 L145.5,198Z" />
+        <path d="M148,199 L152,199 L150,210Z" />
+      </g>
+      <g {...pick("kafatasi")} className={cls("kafatasi")}>
+        <ellipse cx="150" cy="44" rx="31" ry="35" />
+        <path d="M124,64 C122,86 136,98 150,99 C164,98 178,86 176,64 L168,74 C160,84 140,84 132,74Z" />
+        <ellipse cx="139" cy="58" rx="6.5" ry="5.4" className="hole" />
+        <ellipse cx="161" cy="58" rx="6.5" ry="5.4" className="hole" />
+        <path d="M147,66 L153,66 L150,74Z" className="hole" />
+      </g>
+      <Pair id="clavicula" cls={cls} pick={pick}>
+        <path d="M146,139 C134,129 112,142 90,133" className="lo" />
+        <path d="M146,139 C134,129 112,142 90,133" className="ln" />
+      </Pair>
+      <Pair id="humerus" cls={cls} pick={pick}>
+        <circle cx="87" cy="147" r="7" />
+        <LB x1={87} y1={148} x2={69} y2={236} w={9} />
+      </Pair>
+      <Pair id="radius" cls={cls} pick={pick}><LB x1={64} y1={240} x2={51} y2={330} w={6.5} k={1.7} /></Pair>
+      <Pair id="ulna" cls={cls} pick={pick}><LB x1={73} y1={238} x2={67} y2={330} w={6.5} k={1.7} /></Pair>
+      <Pair id="el" cls={cls} pick={pick}>
+        {[[53, 337], [59, 336], [65, 337], [70, 339], [52, 345], [58, 344], [64, 344], [69, 346]].map(([x, y], i) => <ellipse key={i} cx={x} cy={y} rx="3.4" ry="3" />)}
+        {[[46, 358, 38, 378], [54, 358, 52, 388], [60, 358, 62, 392], [66, 358, 71, 388], [71, 357, 79, 380]].map(([a, b, c, d], i) => <path key={i} d={`M${a},${b} L${c},${d}`} className="lo2" />)}
+        {[[38, 380, 33, 394], [52, 390, 51, 410], [62, 394, 63, 416], [71, 390, 74, 410], [79, 382, 84, 396]].map(([a, b, c, d], i) => <path key={i} d={`M${a},${b} L${c},${d}`} className="lo3" />)}
+      </Pair>
+      <Pair id="femur" cls={cls} pick={pick}>
+        <circle cx="116" cy="322" r="8" />
+        <LB x1={118} y1={326} x2={127} y2={448} w={13} />
+      </Pair>
+      <Pair id="patella" cls={cls} pick={pick}><path d="M120,452 Q128,448 135,452 L131,466 Q127,470 123,466Z" /></Pair>
+      <Pair id="tibia" cls={cls} pick={pick}><LB x1={130} y1={470} x2={128} y2={560} w={9.5} k={1.7} /></Pair>
+      <Pair id="fibula" cls={cls} pick={pick}><LB x1={118} y1={474} x2={118} y2={560} w={5.2} k={1.7} /></Pair>
+      <Pair id="ayak" cls={cls} pick={pick}>
+        <path d="M118,566 C114,576 116,590 126,592 L136,590 C138,578 136,568 130,564Z" />
+        {[[112, 598, 108, 622], [119, 600, 117, 626], [126, 600, 126, 626], [133, 598, 135, 624], [139, 594, 143, 618]].map(([a, b, c, d], i) => <path key={i} d={`M${a},${b} L${c},${d}`} className="lo3" />)}
+      </Pair>
+    </>
+  );
+}
+
+function SkullArt({ cls, pick }) {
+  const S = (id, d) => <path {...{}} d={d} className="sut" />;
+  return (
+    <>
+      <g {...pick("frontale")} className={cls("frontale")}>
+        <path d="M94,112 C86,72 108,38 150,28 C148,56 143,82 135,104 L120,107 C112,101 104,106 94,112Z" />
+      </g>
+      <g {...pick("parietale")} className={cls("parietale")}>
+        <path d="M150,28 C172,22 204,22 222,31 C228,62 232,92 240,120 C214,96 186,88 160,97 C148,100 140,102 135,104 C143,82 148,56 150,28Z" />
+      </g>
+      <g {...pick("occipitale")} className={cls("occipitale")}>
+        <path d="M222,31 C246,44 258,84 254,112 C252,134 242,150 226,160 L214,164 C226,152 236,144 238,134 L240,120 C232,92 228,62 222,31Z" />
+      </g>
+      <g {...pick("sphenoidale")} className={cls("sphenoidale")}>
+        <path d="M120,108 L135,104 L140,118 L136,136 L126,134 C121,128 120,118 120,108Z" />
+      </g>
+      <g {...pick("temporale")} className={cls("temporale")}>
+        <path d="M135,104 C148,100 160,97 160,97 C186,88 214,96 240,120 L238,136 C232,150 224,158 214,164 L200,166 L192,152 C182,148 172,146 164,144 L146,140 L140,132 L140,118Z" />
+        <circle cx="188" cy="132" r="5" className="hole" />
+      </g>
+      <g {...pick("mastoideus")} className={cls("mastoideus")}>
+        <path d="M204,160 C210,152 224,152 230,160 C230,172 222,180 212,178 C206,174 202,168 204,160Z" />
+      </g>
+      <g {...pick("styloideus")} className={cls("styloideus")}>
+        <path d="M190,150 L184,186 L189,186 L196,152Z" />
+      </g>
+      <g {...pick("zygomaticum")} className={cls("zygomaticum")}>
+        <path d="M108,136 C104,150 112,162 126,162 L142,154 L172,152 L172,142 L146,142 L134,134 C126,138 116,140 108,136Z" />
+      </g>
+      <g {...pick("nasale")} className={cls("nasale")}>
+        <path d="M96,102 L74,132 L98,128Z" />
+      </g>
+      <g {...pick("maxilla")} className={cls("maxilla")}>
+        <path d="M98,128 L74,134 C70,144 74,156 84,160 L92,164 L136,164 L128,160 L108,138 C102,136 100,132 98,128Z" />
+        {[0, 1, 2, 3, 4, 5].map((i) => <rect key={i} x={84 + i * 9} y={160} width={7} height={9} rx="2" className="tooth" />)}
+      </g>
+      <g {...pick("mandibula")} className={cls("mandibula")}>
+        <path d="M82,176 L150,176 L156,148 L164,142 L172,154 L178,142 L190,136 L196,152 L194,192 L186,208 L170,212 L120,204 L92,192Z" strokeLinejoin="round" />
+        {[0, 1, 2, 3, 4, 5].map((i) => <rect key={i} x={86 + i * 10} y={170} width={8} height={9} rx="2" className="tooth" />)}
+      </g>
+      <ellipse cx="112" cy="123" rx="13" ry="14" style={{ pointerEvents: "none", fill: "#0a1424", stroke: "#3d3424", strokeWidth: 0.9 }} />
+      <g {...pick("sutura_coronalis")} className={cls("sutura_coronalis")}>
+        <path d="M150,28 C148,56 143,82 135,104" className="hit" /><path d="M150,28 C148,56 143,82 135,104" className="sut" />
+      </g>
+      <g {...pick("sutura_squamosa")} className={cls("sutura_squamosa")}>
+        <path d="M135,104 C148,100 160,97 160,97 C186,88 214,96 240,120" className="hit" /><path d="M135,104 C148,100 160,97 160,97 C186,88 214,96 240,120" className="sut" />
+      </g>
+      <g {...pick("sutura_lambdoidea")} className={cls("sutura_lambdoidea")}>
+        <path d="M222,31 C228,62 232,92 240,120" className="hit" /><path d="M222,31 C228,62 232,92 240,120" className="sut" />
+      </g>
+      <text x="20" y="40" className="sk-lab">◀ ön (yüz)</text>
+      <text x="280" y="40" className="sk-lab" textAnchor="end">arka ▶</text>
+    </>
+  );
+}
+
+function HandArt({ cls, pick }) {
+  const C = (id, cx, cy, rx, ry, rot = 0) => (
+    <g {...pick(id)} className={cls(id)}><ellipse cx={cx} cy={cy} rx={rx} ry={ry} transform={`rotate(${rot} ${cx} ${cy})`} /></g>
+  );
+  const mc = [[96, 136, 72, 196], [128, 140, 121, 226], [155, 142, 155, 232], [182, 140, 188, 226], [206, 136, 224, 210]];
+  const pp = [[69, 202, 57, 234], [120, 231, 118, 262], [155, 237, 155, 272], [189, 231, 192, 262], [225, 215, 230, 240]];
+  const pm = [[118, 266, 117, 288], [155, 276, 155, 300], [193, 266, 194, 286], [231, 244, 233, 260]];
+  const pd = [[54, 240, 46, 268], [117, 292, 116, 310], [155, 304, 155, 322], [194, 290, 195, 308], [233, 264, 235, 280]];
+  return (
+    <>
+      <g className="skr" style={{ pointerEvents: "none", opacity: 0.55 }}>
+        <LB x1={128} y1={-6} x2={132} y2={52} w={16} k={1.2} />
+        <LB x1={190} y1={-6} x2={190} y2={56} w={13} k={1.2} />
+      </g>
+      <text x="136" y="12" className="sk-lab" textAnchor="middle" style={{ opacity: 0.8 }}>radius</text>
+      <text x="196" y="12" className="sk-lab" textAnchor="middle">ulna</text>
+      {C("scaphoideum", 112, 80, 20, 14, -30)}
+      {C("lunatum", 146, 74, 16, 13)}
+      {C("triquetrum", 180, 78, 15, 13, 15)}
+      {C("pisiforme", 194, 102, 8, 8)}
+      {C("trapezium", 104, 118, 15, 12, -20)}
+      {C("trapezoideum", 133, 124, 12, 11)}
+      {C("capitatum", 160, 124, 15, 15)}
+      {C("hamatum", 190, 126, 16, 14, 10)}
+      <g {...pick("metacarpi")} className={cls("metacarpi")}>{mc.map(([a, b, c, d], i) => <LB key={i} x1={a} y1={b} x2={c} y2={d} w={9} k={1.4} />)}</g>
+      <g {...pick("phalanx_proximalis")} className={cls("phalanx_proximalis")}>{pp.map(([a, b, c, d], i) => <LB key={i} x1={a} y1={b} x2={c} y2={d} w={7.5} k={1.4} />)}</g>
+      <g {...pick("phalanx_media")} className={cls("phalanx_media")}>{pm.map(([a, b, c, d], i) => <LB key={i} x1={a} y1={b} x2={c} y2={d} w={6.5} k={1.4} />)}</g>
+      <g {...pick("phalanx_distalis")} className={cls("phalanx_distalis")}>{pd.map(([a, b, c, d], i) => <LB key={i} x1={a} y1={b} x2={c} y2={d} w={6} k={1.3} />)}</g>
+      {["I", "II", "III", "IV", "V"].map((t, i) => <text key={t} x={[78, 128, 163, 194, 224][i]} y={[168, 190, 196, 190, 180][i]} className="sk-lab" style={{ fill: "rgba(15,23,42,.55)", fontWeight: 700, fontSize: 9 }} textAnchor="middle">{t}</text>)}
+      <text x="8" y="86" className="sk-lab">proksimal sıra</text>
+      <text x="8" y="128" className="sk-lab">distal sıra</text>
+      <text x="292" y="300" className="sk-lab" textAnchor="end">sağ el, avuç içi</text>
+    </>
+  );
+}
+
+/* ---------- İskelet bölge verisi (slaytlardan özetlenmiştir) ---------- */
+const SK_VIEWS = {
+  iskelet: { t: "Tüm iskelet", vb: "0 0 300 645", intro: "Bir kemiğe dokun, slayttaki bilgiler altta açılsın. Kafatası, omurga ve el için yakından görünüm var." },
+  omurga: { t: "Omurga", vb: "0 20 300 600", intro: "33 omur: 7 boyun, 12 göğüs, 5 bel, 5 kaynaşık sakrum, 4 kaynaşık koksiks. 24'ü hareketli, 9'u sabit. Omurlar arasında 23 disk vardır (axis ile sacrum arası). Eğrilikler: servikal lordoz, torakal kifoz, lumbal lordoz, sakral kifoz. Torakal ve sakral kifoz esas eğriliktir; skolyoz patolojiktir." },
+  kafa: { t: "Kafatası", vb: "40 10 240 215", intro: "Kafatası yandan görünüm. Renkler komşu kemikleri ayırt etmen için. Kesik çizgiler dikişlerdir (sutura)." },
+  el: { t: "El bileği ve el", vb: "0 -14 300 345", intro: "Sağ el, avuç içi. Karpal kemikler iki sıradadır: üst renk proksimal, mavi distal sıra. Dıştan (başparmak tarafı) içe doğru sayılır." },
+};
+const SK_TINT = { frontale: "ta", parietale: "tb", occipitale: "ta", sphenoidale: "td", temporale: "tc", mastoideus: "te", styloideus: "te", zygomaticum: "te", maxilla: "tc", nasale: "tb", mandibula: "td",
+  scaphoideum: "tp", lunatum: "tp", triquetrum: "tp", pisiforme: "tp", trapezium: "tq", trapezoideum: "tq", capitatum: "tq", hamatum: "tq" };
+/* v: bölgenin asıl bölümü; sv: göründüğü bölümler; hot: vize için öncelikli */
+const SK_R = {
+  kafatasi: { v: "iskelet", n: "Cranium", tr: "Kafatası (kafa iskeleti)", hot: 1, det: "kafa", i: [
+    "Kulak kemikçikleri ve os hyoideum hariç 22 kemikten oluşur.",
+    "Neurocranium 8 kemik: tek olanlar frontale, occipitale, sphenoidale, ethmoidale; çift olanlar parietale ve temporale.",
+    "Viscerocranium 14 kemik: tek olanlar vomer ve mandibula; çift olanlar maxilla, zygomaticum, nasale, lacrimale, palatinum ve concha nasalis inferior.",
+    "Mandibula hariç hepsi sutura denen oynamaz eklemlerle bağlanır. Mandibula kafadaki tek hareketli kemiktir.",
+    "İçten üç çukur: fossa cranii anterior (en sığ, frontal lob), media (temporal lob, sella turcica), posterior (en derin, beyincik, foramen magnum).",
+    "Bıngıldaklar 6 tanedir (2 tek, 2 çift). Anterior en büyüğüdür ve 18 ayda, posterior 3 ayda kapanır."],
+    trap: "8 + 14 = 22. Tek ve çift kemikleri karıştırma: mandibula ve vomer viscerocranium'da tektir." },
+  cervicales: { v: "iskelet", sv: ["omurga"], n: "Vertebrae cervicales", tr: "Boyun omurları (7)", hot: 1, i: [
+    "7 omur. Gövdeleri diğer omurlara göre daha incedir.",
+    "1., 2. ve 7. omurlar atipiktir (atlas, axis, vertebra prominens).",
+    "Processus transversus'larda foramen transversarium vardır; beyni besleyen a. vertebralis buradan geçer.",
+    "2.–5. omurların processus spinosus ucu çatallıdır.",
+    "Boyundaki lordoz sonradan, basınç ve kasların çekmesiyle oluşur."],
+    trap: "Foramen transversarium sadece boyun omurlarında bulunur." },
+  thoracicae: { v: "iskelet", sv: ["omurga"], n: "Vertebrae thoracicae", tr: "Göğüs omurları (12)", i: [
+    "12 omur. Aşağı indikçe yük arttığı için gövdeleri büyür.",
+    "Ayırt edici özellik: gövde yanlarında ve processus transversus üzerinde kaburgalarla (costa) eklem yapan yüzler vardır.",
+    "Torakal kifoz (arkaya konveks) esas eğriliktir."] },
+  lumbales: { v: "iskelet", sv: ["omurga"], n: "Vertebrae lumbales", tr: "Bel omurları (5)", i: [
+    "5 omur. Hareketli omurların gövdesi en büyük olanlarıdır; üstten bakınca böbrek şeklindedir.",
+    "Diğer omurlardan farkı iki ilave çıkıntıdır: processus mamillaris ve processus accessorius.",
+    "Lumbal lordoz (öne konveks) hamilelikte artar."] },
+  sacrum: { v: "iskelet", sv: ["omurga"], n: "Os sacrum", tr: "Sakrum", i: [
+    "5 omurun kaynaşmasıyla oluşur. Tabanı yukarıda, tepesi aşağıda üçgen şeklindedir.",
+    "Tabanın öne çıkıntısı promontorium'dur (klinik olarak önemli).",
+    "İçinden canalis sacralis geçer.",
+    "Yukarıda L5, aşağıda koksiks, yanlarda os coxae ile eklem yapar.",
+    "Ön yüzü düzgün ve içbükeydir, arka yüzü kaslar ve bağlar tuttuğu için pürtüklüdür."] },
+  coccygis: { v: "iskelet", sv: ["omurga"], n: "Os coccygis", tr: "Koksiks (kuyruk kemiği)", i: [
+    "İyi gelişmemiş son 4 (3–5) omurun birleşmesiyle oluşur.",
+    "Tabanı yukarıda sakrum ile eklem yapar, tepesi aşağıda serbest sonlanır."] },
+  atlas: { v: "omurga", n: "Atlas (C1)", tr: "1. boyun omuru", hot: 1, i: [
+    "Gövdesi ve processus spinosus'u yoktur.",
+    "Yan çıkıntıları (massa lateralis) iyi gelişmiştir; burada occipital kemikle eklem yapan yüzler bulunur.",
+    "Ön kavsinin arka yüzü dens axis ile eklem yapar."],
+    trap: "Atlas = gövdesiz omur. Occipital kemikle eklem yapan omur atlastır." },
+  axis: { v: "omurga", n: "Axis (C2)", tr: "2. boyun omuru", hot: 1, i: [
+    "En önemli özelliği gövdesinden yukarı uzanan dens axis çıkıntısıdır.",
+    "Dens axis, atlasın ön kavsi ile eklem yapar."],
+    ek: ["Baş atlasla birlikte dens etrafında döner (slayt dışı bilgi)."] },
+  prominens: { v: "omurga", n: "Vertebra prominens (C7)", tr: "7. boyun omuru", hot: 1, i: [
+    "Processus spinosus'u çatalsız ve uzundur.",
+    "Bu yüzden canlıda deri altından kolayca hissedilir."] },
+  sternum: { v: "iskelet", n: "Sternum", tr: "Göğüs kemiği", hot: 1, i: [
+    "Göğüs kafesinin önünde, orta hatta, yassı ve kama şeklinde kemiktir. Erişkinde yaklaşık 17 cm.",
+    "Üç kısım: manubrium sterni (üst, dörtgen), corpus sterni (en uzun parça), processus xiphoideus (alt uç).",
+    "Manubrium ile corpus birleşimine 2. costa tutunur. Bu birleşimde arkaya açık açıya angulus sterni (Louis açısı) denir; klinik oryantasyonda önemlidir.",
+    "Kemik iliği incelemelerinde en çok kullanılan kemiktir."],
+    trap: "1. costa klavikula altında hissedilmez, 2. costa kolay hissedilir. Louis açısı 2. costa hizasıdır." },
+  costae: { v: "iskelet", n: "Costae", tr: "Kaburgalar (12 çift)", hot: 1, i: [
+    "Yassı kemiklerdir; arka kısmı kemik (os costale), ön kısmı kıkırdaktır (cartilago costalis).",
+    "İlk 7 çift sternuma doğrudan bağlanır (gerçek kaburga).",
+    "Son 5 çift doğrudan bağlanmaz. Bunların ilk 3'ü VII. kaburgaya tutunarak bağlanır (yalancı kaburga).",
+    "XI. ve XII. kaburgalar serbest sonlanır (yüzen kaburga).",
+    "En uzun kaburga VII.'dir. Uzunluk I'den VII'ye artar, sonra azalır.",
+    "Göğüs kafesi: arkada 12 göğüs omuru, önde sternum, yanlarda 12 çift kaburga. Nefes alırken kaburgalar yükselir.",
+    "Kaburgalar kalp ve akciğeri korur ve solunuma katkıda bulunur."],
+    trap: "7 gerçek + 3 yalancı + 2 yüzen = 12. Yalancı olan ilk 3'ün bağlantısı VII. kaburga üzerindendir." },
+  clavicula: { v: "iskelet", n: "Clavicula", tr: "Köprücük kemiği", hot: 1, i: [
+    "Yatık S şeklindedir. İç ucu sternum, dış ucu skapulanın acromion'u ile eklem yapar.",
+    "15–17 cm uzunluğundadır, deri altında rahatça hissedilir.",
+    "Vücutta en erken kemikleşmeye başlar, kemikleşmesi en geç tamamlanır."],
+    trap: "Clavicula = en erken başlar, en geç tamamlanır." },
+  scapula: { v: "iskelet", n: "Scapula", tr: "Kürek kemiği", i: [
+    "Sırtta, üçgen şeklinde, 2 yüzlü, 3 kenarlı, 3 köşeli yassı kemiktir.",
+    "Facies costalis kaburgalara bakar; arkadaki facies dorsalis'te spina scapulae bulunur.",
+    "Spina scapulae'nın dışa uzantısı acromion'dur, klavikula ile eklem yapar.",
+    "Spina üstteki küçük fossa supraspinata ile alttaki büyük fossa infraspinata'yı ayırır.",
+    "Dış köşe en kalın köşedir. Burada humerus ile eklem yapan sığ cavitas glenoidalis bulunur."] },
+  humerus: { v: "iskelet", n: "Humerus", tr: "Kol kemiği", i: [
+    "Üst ekstremitenin en uzun ve en kalın kemiğidir.",
+    "Üst uçta caput humeri cavitas glenoidalis ile eklem yapar. İki kabartı vardır: tuberculum majus (büyük, arkada) ve tuberculum minus (küçük, önde).",
+    "Gövdede tuberositas deltoidea (m. deltoideus tutunur) ve arka yüzde sulcus nervi radialis (n. radialis) bulunur.",
+    "Alt uçta capitulum humeri radius ile, trochlea humeri ulna ile eklem yapar.",
+    "Arkada fossa olecrani vardır; ön kol ekstansiyonunda olecranon buraya girer.",
+    "Alt ucun yanlarında epicondylus medialis (iç) ve lateralis (dış) bulunur."] },
+  radius: { v: "iskelet", n: "Radius", tr: "Döner kemik", i: [
+    "Ön kolun dış (başparmak) tarafındadır.",
+    "Üst uçta caput radii ve altında dar collum radii vardır.",
+    "Alt ucu üst ucundan kalındır; el bileği kemikleriyle eklem yapar ve processus styloideus taşır.",
+    "Radius ile ulna arasını membrana interossea antebrachii kapatır."],
+    trap: "Radius: alt uç kalın. Ulna: üst uç kalın." },
+  ulna: { v: "iskelet", n: "Ulna", tr: "Dirsek kemiği", i: [
+    "Ön kolun iç (küçük parmak) tarafındadır. Üst ucu alt ucundan kalındır.",
+    "Üst uçta olecranon (arkada, en büyük çıkıntı) ve önde processus coronoideus vardır. Aralarındaki çentik incisura trochlearis'tir ve trochlea humeri ile eklem yapar.",
+    "Alt uçta caput ulnae ve processus styloideus bulunur."] },
+  el: { v: "iskelet", n: "Ossa manus", tr: "El kemikleri (27)", hot: 1, det: "el", i: [
+    "Toplam 27 kemik: ossa carpi 8, ossa metacarpi 5, phalanges 14.",
+    "Karpal kemikler iki sıradadır. Proksimal (dıştan içe): scaphoideum, lunatum, triquetrum, pisiforme. Distal (dıştan içe): trapezium, trapezoideum, capitatum, hamatum.",
+    "Başparmakta 2, diğer parmaklarda 3'er falanks vardır."] },
+  oscoxae: { v: "iskelet", n: "Os coxae", tr: "Kalça kemiği", i: [
+    "Os ilii, os ischii ve os pubis'in birleşmesiyle oluşur; buluğdan sonra kaynaşıp tek kemik olur.",
+    "Dış yüzdeki acetabulum femur başı ile eklem yapar. Üç kemik de acetabulum'un yapısına katılır; kaynaşma yeri Y şeklinde bir kıkırdaktır.",
+    "Os ilii: crista iliaca, facies auricularis. Os ischii: spina ischiadica, tuber ischiadicum. Os pubis: facies symphysialis.",
+    "Foramen obturatum canlıda membrana obturatoria ile kapalıdır."] },
+  femur: { v: "iskelet", n: "Femur", tr: "Uyluk kemiği", hot: 1, i: [
+    "Vücudun en uzun ve en kalın kemiğidir.",
+    "Caput femoris, os coxae'daki acetabulum ile eklem yapar. Altında collum femoris bulunur.",
+    "Trochanter major ve trochanter minor kasların tutunma yerleridir.",
+    "Alt uçta condylus medialis ve lateralis, bunların üstünde epicondylus medialis ve lateralis vardır."],
+    trap: "En uzun kemik femur. En büyük sesamoid kemik patella." },
+  patella: { v: "iskelet", n: "Patella", tr: "Diz kapağı kemiği", hot: 1, i: [
+    "Tabanı yukarıda, tepesi aşağıda üçgen şeklindedir.",
+    "m. quadriceps femoris tendonu içinde bulunan, vücudun en büyük sesamoid (susamsı) kemiğidir.",
+    "Tendonu diz ekleminden uzaklaştırarak insersiyon açısını büyütür ve kasın gücünü artırır."] },
+  tibia: { v: "iskelet", n: "Tibia", tr: "Kaval kemik", i: [
+    "Bacağın iç (medial) kemiğidir, vücut ağırlığını taşır.",
+    "Condylus medialis ve lateralis, tuberositas tibiae ve malleolus medialis taşır.",
+    "Fibula ile arasında membrana interossea bulunur."] },
+  fibula: { v: "iskelet", n: "Fibula", tr: "Kamış kemik", i: [
+    "Bacağın dış (lateral) kemiğidir.",
+    "Caput fibulae, collum fibulae ve malleolus lateralis taşır.",
+    "Tibia ile arasında membrana interossea bulunur."] },
+  ayak: { v: "iskelet", n: "Ossa pedis", tr: "Ayak kemikleri (26)", i: [
+    "Toplam 26 kemik: ossa tarsi 7, ossa metatarsi 5, phalanges 14.",
+    "Tarak kemikleri (metatars) içten dışa I–V diye adlandırılır.",
+    "Başparmakta 2, diğer parmaklarda 3'er falanks vardır; başparmakta phalanx media yoktur."],
+    trap: "El 27, ayak 26 kemik. Her ikisinde de 14 falanks vardır." },
+
+  frontale: { v: "kafa", n: "Os frontale", tr: "Alın kemiği", hot: 1, i: [
+    "Tek kemiktir. Alnı ve orbitanın üst bölümünü oluşturur.",
+    "Üç kısım: squama frontalis, pars orbitalis, pars nasalis.",
+    "Squama'da tuber frontale ve altında kaş çıkıntıları (arcus superciliaris) vardır.",
+    "Sinus frontalis bu kemiktedir ve meatus nasi medius'a açılır.",
+    "Doğumdan önce iki parçadır; bazı kişilerde sutura frontalis kalır."] },
+  parietale: { v: "kafa", n: "Os parietale", tr: "Duvar kemiği", i: [
+    "Çift kemiktir; kafa tavanı ve yan duvarlarını yapar.",
+    "Dış yüzün en çıkıntılı yeri tuber parietale, iç yüzdeki çukur fossa parietalis'tir.",
+    "Önde frontale ile sutura coronalis, arkada occipitale ile sutura lambdoidea, altta temporale ile sutura squamosa, iki parietal arasında sutura sagittalis oluşur."] },
+  occipitale: { v: "kafa", n: "Os occipitale", tr: "Art kafa kemiği", hot: 1, i: [
+    "Kafatasının arka alt kısmını yapar. Üç kısım: pars basilaris, pars lateralis, squama occipitalis.",
+    "Parçalar arasındaki büyük delik foramen magnum'dur; kafatası boşluğu ile vertebral kanalı birleştirir, içinden medulla spinalis geçer.",
+    "Pars lateralis'teki condylus occipitalis atlas ile eklem yapar.",
+    "Dış yüzün en çıkıntılı noktası protuberantia occipitalis externa'dır (inion).",
+    "İç yüzde haç şeklinde çıkıntı vardır: üst çukurlar fossa cerebralis (oksipital lob), alt çukurlar fossa cerebellaris (beyincik)."],
+    trap: "Foramen magnum occipital kemiktedir. Atlas ile eklem yapan yer condylus occipitalis'tir." },
+  sphenoidale: { v: "kafa", n: "Os sphenoidale", tr: "Temel kemik", hot: 1, i: [
+    "Tek kemiktir; kafatası tabanının ortasında, kanatlarını açmış kuşa benzer. Kafatasının 12 kemiği ile eklem yapar.",
+    "Corpus sphenoidale, ala major, ala minor ve processus pterygoideus'tan oluşur.",
+    "Corpus içindeki boşluk sinus sphenoidalis'tir. Üst yüzde fossa hypophysialis (hipofiz) ve önü arkasındaki çıkıntılarla birlikte sella turcica (Türk eyeri) bulunur.",
+    "Ala minor'un iki kökü arasında canalis opticus vardır (n. opticus).",
+    "Ala major ile minor arasındaki yarık fissura orbitalis superior, ala major'un altındaki yarık fissura orbitalis inferior'dur.",
+    "Not: Bu çizimde sadece yandan görünen küçük bölgesi (ala major) gösterilir."],
+    trap: "Hipofiz sella turcica'da oturur. N. opticus canalis opticus'tan geçer." },
+  temporale: { v: "kafa", n: "Os temporale", tr: "Şakak kemiği", hot: 1, i: [
+    "Çift kemiktir; içinde işitme ve denge organı bulunur.",
+    "Üç parça: pars squamosa, pars petrosa (pyramis), pars tympanica.",
+    "Pars squamosa: processus zygomaticus ve altında fossa mandibularis (çene eklemi, caput mandibulae ile).",
+    "Pars petrosa: porus acusticus internus, fossa jugularis, processus styloideus; içinde orta ve iç kulak vardır.",
+    "Pars tympanica: porus acusticus externus (dış kulak yolu) etrafında.",
+    "Processus mastoideus doğumda yoktur, ilerleyen yaşta gelişir."] },
+  mastoideus: { v: "kafa", n: "Processus mastoideus", tr: "Temporal kemiğin arka çıkıntısı", i: [
+    "Temporal kemiğin arkasındaki çıkıntıdır.",
+    "Yeni doğanlarda bulunmaz, daha ileri yaşlarda gelişir ve pubertede normal şeklini alır.",
+    "İçinde hava dolu birçok boşluk vardır ve orta kulak boşluğu ile bağlantılıdır."] },
+  styloideus: { v: "kafa", n: "Processus styloideus", tr: "Temporal kemiğin ince çıkıntısı", i: [
+    "Pars petrosa'nın alt yüzünde, fossa jugularis'in arka dış tarafındadır."] },
+  zygomaticum: { v: "kafa", n: "Os zygomaticum", tr: "Elmacık kemiği", i: [
+    "Yanak çıkıntısını oluşturur; fossa temporalis, orbita ve arcus zygomaticus'un yapısına katılır.",
+    "3 yüzü (dışa, orbitaya, fossa temporalis'e bakar) ve 3 çıkıntısı vardır; çıkıntıları maxilla, temporal ve frontal kemikle eklem yapar.",
+    "Arcus zygomaticus'un arka kısmını temporal kemiğin processus zygomaticus'u yapar."] },
+  maxilla: { v: "kafa", n: "Maxilla", tr: "Üst çene kemiği", i: [
+    "Çift kemiktir; mandibuladan sonraki en büyük yüz kemiğidir. Ağız, burun boşluğu ve orbitanın yapısına katılır.",
+    "İçinde paranasal sinusların en büyüğü olan sinus maxillaris bulunur.",
+    "4 çıkıntısı: processus zygomaticus, frontalis, palatinus, alveolaris (diş yuvaları).",
+    "Sert damağın ön 3/4'ünü maxilla'nın processus palatinus'u, arka 1/4'ünü palatin kemiğin lamina horizontalis'i yapar."],
+    trap: "Sinus maxillaris = en büyük paranasal sinüs." },
+  nasale: { v: "kafa", n: "Os nasale", tr: "Burun kemiği", i: [
+    "Burun sırtındaki yassı, dikdörtgen çift kemiktir.",
+    "İki maxilla'nın processus frontalis'leri arasında yer alır, orta hatta birbiriyle eklem yapar."] },
+  mandibula: { v: "kafa", n: "Mandibula", tr: "Alt çene kemiği", hot: 1, i: [
+    "Kafa iskeletindeki (işitme kemikçikleri hariç) tek hareketli kemiktir.",
+    "Ortada corpus mandibulae, arka yanlarda dik uzanan iki ramus mandibulae vardır. Birleşme yeri angulus mandibulae'dir.",
+    "Ramusun üst ucunda caput mandibulae (temporal kemikteki fossa mandibularis ile çene eklemi) ve önde processus coronoideus (çiğneme kası) bulunur.",
+    "Foramen mentale 2. premolar hizasındadır; foramen mandibulae ramusun iç yüzündedir. Aralarında canalis mandibulae uzanır.",
+    "Doğumda iki ayrı kemiktir, 1 yaşında symphysis mandibulae'de kaynaşır."],
+    trap: "Hareketli tek kafatası kemiği = mandibula." },
+  sutura_coronalis: { v: "kafa", n: "Sutura coronalis", tr: "Koronal dikiş", hot: 1, i: ["Os frontale ile iki os parietale arasındaki dikiştir."],
+    trap: "Dört dikiş: coronalis (frontal-parietal), sagittalis (iki parietal), lambdoidea (parietal-occipital), squamosa (parietal-temporal)." },
+  sutura_squamosa: { v: "kafa", n: "Sutura squamosa", tr: "Skuamöz dikiş", i: ["Os parietale ile os temporale arasındaki dikiştir."] },
+  sutura_lambdoidea: { v: "kafa", n: "Sutura lambdoidea", tr: "Lambdoid dikiş", i: ["Os occipitale ile os parietale arasındaki dikiştir.", "Yukarıdan bakınca arkadaki dikiş budur; ön dikiş sutura coronalis'tir, ortadaki sutura sagittalis'tir."] },
+
+  scaphoideum: { v: "el", n: "Os scaphoideum", tr: "Kayık kemik", hot: 1, i: ["Proksimal sıranın en dış (başparmak tarafı) kemiğidir."], ek: ["El bileğinde en sık kırılan kemiktir (slayt dışı bilgi)."] },
+  lunatum: { v: "el", n: "Os lunatum", tr: "Ay kemiği", i: ["Proksimal sırada scaphoideum'un hemen yanındaki 2. kemiktir."] },
+  triquetrum: { v: "el", n: "Os triquetrum", tr: "Üçgen kemik", i: ["Proksimal sırada 3. kemiktir."] },
+  pisiforme: { v: "el", n: "Os pisiforme", tr: "Bezelye kemik", hot: 1, i: ["Proksimal sıranın en iç (küçük parmak tarafı) kemiğidir."], ek: ["Triquetrum'un avuç içi tarafında küçük, bezelye şeklinde kemiktir (slayt dışı bilgi)."],
+    trap: "Pisiforme proksimal sıradadır, distal sıra değil." },
+  trapezium: { v: "el", n: "Os trapezium", tr: "Trapez kemik", i: ["Distal sıranın en dış (başparmak tarafı) kemiğidir."] },
+  trapezoideum: { v: "el", n: "Os trapezoideum", tr: "Trapezoid kemik", i: ["Distal sırada 2. kemiktir."] },
+  capitatum: { v: "el", n: "Os capitatum", tr: "Baş kemiği", hot: 1, i: ["Distal sırada 3. kemiktir."], ek: ["En büyük karpal kemiktir (slayt dışı bilgi)."] },
+  hamatum: { v: "el", n: "Os hamatum", tr: "Çengelli kemik", i: ["Distal sıranın en iç (küçük parmak tarafı) kemiğidir."] },
+  metacarpi: { v: "el", n: "Ossa metacarpi", tr: "El tarağı kemikleri (5)", i: [
+    "Bilek kemikleri ile parmak kemikleri arasında 5 ince uzun kemiktir.",
+    "Dıştan içe I., II., III., IV., V. metakarp diye adlandırılır.",
+    "Proksimal uçları distal karpal sırayla, distal uçları proksimal falanksla eklem yapar."] },
+  phalanx_proximalis: { v: "el", n: "Phalanx proximalis", tr: "Proksimal falanks (birinci sıra)", i: ["Parmakların metakarpa yakın ilk kemiğidir. Her parmakta bulunur (5 adet)."] },
+  phalanx_media: { v: "el", n: "Phalanx media", tr: "Orta falanks (ikinci sıra)", i: ["Sadece 4 parmakta bulunur (4 adet). Başparmakta phalanx media yoktur."], trap: "Başparmakta 2 falanks var: proksimal ve distal." },
+  phalanx_distalis: { v: "el", n: "Phalanx distalis", tr: "Distal falanks (üçüncü sıra)", i: ["Parmakların uç kemiğidir. Her parmakta bulunur (5 adet)."] },
+};
+Object.keys(SK_R).forEach((k) => { SK_R[k].id = k; });
+const SK_ORDER = {
+  iskelet: ["kafatasi", "cervicales", "thoracicae", "lumbales", "sacrum", "coccygis", "sternum", "costae", "clavicula", "scapula", "humerus", "radius", "ulna", "el", "oscoxae", "femur", "patella", "tibia", "fibula", "ayak"],
+  omurga: ["atlas", "axis", "cervicales", "prominens", "thoracicae", "lumbales", "sacrum", "coccygis"],
+  kafa: ["frontale", "parietale", "occipitale", "sphenoidale", "temporale", "mastoideus", "styloideus", "zygomaticum", "maxilla", "nasale", "mandibula", "sutura_coronalis", "sutura_squamosa", "sutura_lambdoidea"],
+  el: ["scaphoideum", "lunatum", "triquetrum", "pisiforme", "trapezium", "trapezoideum", "capitatum", "hamatum", "metacarpi", "phalanx_proximalis", "phalanx_media", "phalanx_distalis"],
+};
+
+/* ---------- İskelet modülü ---------- */
+const skShuffle = (a) => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+const skParse = (s) => s.split(" ").map(Number);
+
+function VipSkeleton({ uid }) {
+  const key = `vip_sk_${uid}`;
+  const [prog, setProg] = useState(() => { try { return JSON.parse(localStorage.getItem(key) || "null") || {}; } catch (e) { return {}; } });
+  const [view, setView] = useState("iskelet");
+  const [sel, setSel] = useState(null);
+  const [mode, setMode] = useState("ogren");
+  const [hot, setHot] = useState(true);
+  const [heat, setHeat] = useState(false);
+  const [quiz, setQuiz] = useState(null);
+  const svgRef = useRef(null);
+  const [vb, setVb] = useState(() => skParse(SK_VIEWS.iskelet.vb));
+  const vbRef = useRef(vb);
+  const V = SK_VIEWS[view];
+  const base = useMemo(() => skParse(V.vb), [view]);
+
+  const save = (p) => { setProg(p); try { localStorage.setItem(key, JSON.stringify(p)); } catch (e) { /* kayıt yoksa sorun değil */ } };
+  const record = (id, ok) => { const o = prog[id] || { ok: 0, no: 0 }; save({ ...prog, [id]: { ok: o.ok + (ok ? 1 : 0), no: o.no + (ok ? 0 : 1), last: ok } }); };
+
+  /* yakınlaştırma */
+  useEffect(() => {
+    let target = base;
+    const svg = svgRef.current;
+    if (svg && sel && mode === "ogren") {
+      const g = svg.querySelector(`[data-rid="${sel}"]`);
+      if (g) {
+        let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+        Array.from(g.children).forEach((c) => {
+          if ((c.getAttribute("transform") || "").startsWith("matrix(-1")) return;
+          try { const b = c.getBBox(); if (b.width || b.height) { x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.width); y1 = Math.max(y1, b.y + b.height); } } catch (e) { /* ölçülemedi */ }
+        });
+        if (x1 > x0) {
+          const ar = base[2] / base[3];
+          let w = Math.max((x1 - x0) * 2.1, (y1 - y0) * 2.1 * ar, base[2] * (view === "kafa" ? 0.62 : view === "el" ? 0.72 : 0.42));
+          if (w >= base[2]) target = base;
+          else {
+            const h = w / ar;
+            const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+            target = [Math.min(Math.max(cx - w / 2, base[0]), base[0] + base[2] - w), Math.min(Math.max(cy - h / 2, base[1]), base[1] + base[3] - h), w, h];
+          }
+        }
+      }
+    }
+    const from = vbRef.current.slice(); const t0 = performance.now(); let raf;
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / 380); const e = 1 - Math.pow(1 - k, 3);
+      const cur = from.map((f, i) => f + (target[i] - f) * e);
+      vbRef.current = cur; setVb(cur);
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [sel, view, mode, base]);
+
+  const goView = (v) => { setView(v); setSel(null); };
+  const q = quiz && quiz.i < quiz.list.length ? quiz.list[quiz.i] : null;
+  const onTap = (id) => {
+    if (quiz && mode === "nerede") { if (q && quiz.picked === null) answer(id); return; }
+    if (quiz) return;
+    setSel(id === sel ? null : id);
+  };
+  const answer = (id) => {
+    const ok = id === q;
+    record(q, ok);
+    setQuiz({ ...quiz, picked: id, right: quiz.right + (ok ? 1 : 0), missed: ok ? quiz.missed : [...quiz.missed, q] });
+  };
+  const startQuiz = (kind, scope, ids) => {
+    let list;
+    if (ids) list = skShuffle(ids);
+    else if (scope === "weak") {
+      const all = Array.from(new Set([].concat(...Object.values(SK_ORDER))));
+      list = all.map((id) => { const p = prog[id]; return { id, w: (p ? (p.last ? 0.5 : 3) : 1.5) * (SK_R[id].hot ? 1.4 : 1) * (0.5 + Math.random()) }; }).sort((a, b) => b.w - a.w).slice(0, 10).map((x) => x.id);
+    } else list = skShuffle(SK_ORDER[view]).slice(0, 10);
+    const first = list[0];
+    if (scope === "weak" || ids) setView(SK_R[first].v);
+    setSel(null); setMode(kind);
+    const opts = (id) => { const vw = SK_R[id].v; const pool = (SK_ORDER[vw] || []).filter((x) => x !== id); return skShuffle([id, ...skShuffle(pool).slice(0, 3)]); };
+    setQuiz({ kind, scope, list, i: 0, picked: null, right: 0, missed: [], opts: kind === "hangisi" ? opts(first) : null, optsFn: opts });
+  };
+  const next = () => {
+    const i = quiz.i + 1;
+    if (i < quiz.list.length) {
+      const id = quiz.list[i];
+      if (quiz.scope === "weak" || quiz.ids) setView(SK_R[id].v);
+      setQuiz({ ...quiz, i, picked: null, opts: quiz.kind === "hangisi" ? quiz.optsFn(id) : null });
+    } else setQuiz({ ...quiz, i });
+  };
+  const exitQuiz = () => { setQuiz(null); setMode("ogren"); };
+
+  const clsOf = (id) => {
+    let c = "skr " + (SK_TINT[id] || "");
+    if (SK_R[id].hot && hot && mode === "ogren") c += " hot";
+    if (quiz && q) {
+      if (quiz.picked === null) { if (quiz.kind === "hangisi" && id === q) c += " qask"; }
+      else if (id === q) c += " qok";
+      else if (id === quiz.picked) c += " qno";
+    } else if (mode === "ogren") {
+      if (id === sel) c += " sel";
+      else if (heat) { const p = prog[id]; if (p) c += p.last ? " m1" : " m2"; }
+    }
+    return c;
+  };
+  const pick = (id) => ({ "data-rid": id, onClick: (e) => { e.stopPropagation(); onTap(id); } });
+  const r = sel ? SK_R[sel] : null;
+  const total = Array.from(new Set([].concat(...Object.values(SK_ORDER)))).length;
+  const seen = Object.keys(prog).length;
+  const mastered = Object.values(prog).filter((p) => p.last).length;
+  const weakIds = Object.keys(prog).filter((id) => SK_R[id] && !prog[id].last);
+
+  const feedback = quiz && q && quiz.picked !== null ? SK_R[q] : null;
+  const done = quiz && !q;
+
+  return (
+    <div className="hotmode-wrap">
+      <style>{SK_CSS + SK_CSS2}</style>
+      {/* bölüm seçici */}
+      <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
+        {Object.entries(SK_VIEWS).map(([k, v]) => (
+          <button key={k} type="button" disabled={!!quiz} onClick={() => goView(k)} className={"shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold " + (view === k ? "bg-teal-500 text-slate-950" : "border border-sky-300/20 text-slate-200") + (quiz ? " opacity-50" : "")}>{v.t}</button>
+        ))}
+      </div>
+      {/* mod seçici */}
+      <div className="mb-3 grid grid-cols-3 gap-1.5 rounded-xl bg-white/5 p-1 text-sm font-semibold">
+        {[["ogren", "Öğren"], ["nerede", "Nerede?"], ["hangisi", "Bu hangisi?"]].map(([k, t]) => (
+          <button key={k} type="button" onClick={() => { if (k === "ogren") exitQuiz(); else { setSel(null); setMode(k); setQuiz(null); } }} className={"rounded-lg py-2 " + (mode === k ? "bg-sky-500/25 text-white" : "text-slate-400")}>{t}</button>
+        ))}
+      </div>
+
+      {/* çizim */}
+      <div className={"hotmode relative overflow-hidden rounded-2xl border border-sky-300/15 " + (hot ? "" : "nohot")} style={{ background: "radial-gradient(120% 90% at 50% 0%, #0f2744 0%, #07111f 70%)" }}>
+        {quiz && q && (
+          <div className="m-2 rounded-xl border border-amber-300/30 bg-[#0a1a30]/95 px-3 py-2 text-center">
+            <div className="text-[11px] text-slate-400">{quiz.i + 1}/{quiz.list.length}</div>
+            {quiz.kind === "nerede" ? (<div className="text-base font-bold text-white">Göster: <span className="text-amber-200">{SK_R[q].n}</span></div>) : (<div className="text-base font-bold text-white">Parlayan kemik hangisi?</div>)}
+          </div>
+        )}
+        <svg ref={svgRef} className="sk-svg block w-full" viewBox={vb.join(" ")} style={{ maxHeight: "68vh", minHeight: 280 }} onClick={() => { if (!quiz) setSel(null); }}>
+          {view === "iskelet" && <BodyArt cls={clsOf} pick={pick} />}
+          {view === "omurga" && <SpineArt cls={clsOf} onPick={pick} />}
+          {view === "kafa" && <SkullArt cls={clsOf} pick={pick} />}
+          {view === "el" && <HandArt cls={clsOf} pick={pick} />}
+        </svg>
+        {mode === "ogren" && sel && (
+          <button type="button" onClick={() => setSel(null)} className="absolute right-2 top-2 rounded-full bg-black/50 px-3 py-1.5 text-xs font-semibold text-white">Tümünü göster</button>
+        )}
+      </div>
+
+      {/* öğren: araçlar + bölge listesi */}
+      {mode === "ogren" && (
+        <div className="mt-3 space-y-3">
+          <div className="flex flex-wrap gap-2 text-xs">
+            <button type="button" onClick={() => setHot(!hot)} className={"rounded-full border px-3 py-1.5 font-semibold " + (hot ? "border-amber-300/60 bg-amber-500/15 text-amber-100" : "border-sky-300/20 text-slate-300")}>Öncelikli bölgeler {hot ? "açık" : "kapalı"}</button>
+            <button type="button" onClick={() => setHeat(!heat)} className={"rounded-full border px-3 py-1.5 font-semibold " + (heat ? "border-emerald-300/60 bg-emerald-500/15 text-emerald-100" : "border-sky-300/20 text-slate-300")}>Hakimiyetim {heat ? "açık" : "kapalı"}</button>
+          </div>
+          <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+            {SK_ORDER[view].map((id) => (
+              <button key={id} type="button" onClick={() => setSel(id === sel ? null : id)} className={"shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold " + (id === sel ? "border-teal-300 bg-teal-500/25 text-white" : SK_R[id].hot && hot ? "border-amber-300/40 text-amber-100" : "border-sky-300/20 text-slate-300")}>{SK_R[id].tr.replace(/ \(.*\)/, "")}</button>
+            ))}
+          </div>
+          {!r && (
+            <div className={STAFF_CARD}>
+              <div className="font-display text-base font-bold text-white">{V.t}</div>
+              <p className="mt-1 text-sm leading-relaxed text-slate-300">{V.intro}</p>
+              <p className="mt-2 text-xs text-slate-400"><span className="text-amber-300">Amber ışıklı</span> bölgeler vize için öncelikli konulardır (slayt vurgusu ve çıkmış soru tarzı). Diğerleri düşük ihtimalli ama yine de çalışılmalı.</p>
+            </div>
+          )}
+          {r && (
+            <div className={STAFF_CARD + " space-y-3"}>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="font-display text-xl font-bold text-white">{r.n}</div>
+                  {r.hot ? <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-200">Vize için öncelikli</span> : <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-300">Düşük ihtimal</span>}
+                </div>
+                <div className="text-sm text-slate-400">{r.tr}</div>
+              </div>
+              <ul className="space-y-2">
+                {r.i.map((t, k) => (<li key={k} className="flex gap-2 text-[15px] leading-snug text-slate-100"><span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-teal-300" /><span>{t}</span></li>))}
+              </ul>
+              {r.trap && <div className="rounded-xl bg-amber-500/15 p-3 text-sm text-amber-100"><b>Dikkat: </b>{r.trap}</div>}
+              {r.ek && <div className="rounded-xl bg-white/5 p-3 text-xs text-slate-300"><b>Ek bilgi: </b>{r.ek.join(" ")}</div>}
+              {r.det && <button type="button" onClick={() => goView(r.det)} className="w-full rounded-xl bg-sky-500/20 py-3 text-sm font-semibold text-sky-100">Yakından aç: {SK_VIEWS[r.det].t}</button>}
+              {prog[r.id] && <div className="text-xs text-slate-400">Sınavda: {prog[r.id].ok} doğru, {prog[r.id].no} yanlış</div>}
+            </div>
+          )}
+          <div className={STAFF_CARD + " space-y-2"}>
+            <div className="flex items-center justify-between text-sm"><span className="font-semibold text-white">İlerlemen</span><span className="text-slate-400">{seen}/{total} bölge görüldü · {mastered} bilinen</span></div>
+            <div className="h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-emerald-400" style={{ width: `${(mastered * 100) / total}%` }} /></div>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button type="button" onClick={() => startQuiz("nerede", "weak")} className="rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950">Zayıf noktalarım</button>
+              <button type="button" disabled={!weakIds.length} onClick={() => startQuiz("nerede", "weak", weakIds)} className="rounded-xl border border-sky-300/20 py-3 text-sm font-semibold text-white disabled:opacity-40">Yanlışlarım ({weakIds.length})</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* sınav: başlatma */}
+      {!quiz && mode !== "ogren" && (
+        <div className={STAFF_CARD + " mt-3 space-y-3"}>
+          <div className="font-display text-lg font-bold text-white">{mode === "nerede" ? "Nerede?" : "Bu hangisi?"}</div>
+          <p className="text-sm text-slate-300">{mode === "nerede" ? "Sana bir kemik adı söylenir, çizimde ona dokunursun." : "Çizimde bir kemik parlar, doğru adını seçersin."} 10 soru.</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => startQuiz(mode, "view")} className="rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950">{V.t} bölümü</button>
+            <button type="button" onClick={() => startQuiz(mode, "weak")} className="rounded-xl border border-sky-300/20 py-3 text-sm font-semibold text-white">Tüm bölümler</button>
+          </div>
+        </div>
+      )}
+
+      {/* sınav: soru */}
+      {quiz && q && (
+        <div className="mt-3 space-y-3">
+          {quiz.kind === "hangisi" && (
+            <div className="grid grid-cols-1 gap-2">
+              {quiz.opts.map((id) => {
+                const st = quiz.picked === null ? "" : id === q ? "ok" : id === quiz.picked ? "no" : "";
+                return <button key={id} type="button" disabled={quiz.picked !== null} onClick={() => answer(id)} className={"rounded-xl border px-4 py-3 text-left text-[15px] font-semibold " + (st === "ok" ? "border-emerald-400 bg-emerald-500/15 text-white" : st === "no" ? "border-rose-400 bg-rose-500/15 text-white" : "border-sky-300/15 bg-white/5 text-slate-100")}>{SK_R[id].n}</button>;
+              })}
+            </div>
+          )}
+          {feedback && (
+            <div className={STAFF_CARD + " space-y-2"}>
+              <div className={"text-sm font-bold " + (quiz.picked === q ? "text-emerald-300" : "text-rose-300")}>{quiz.picked === q ? "Doğru" : `Yanlış. Dokunduğun: ${SK_R[quiz.picked].n}`}</div>
+              <div className="font-display text-lg font-bold text-white">{feedback.n} <span className="text-sm font-normal text-slate-400">{feedback.tr}</span></div>
+              <div className="text-sm text-slate-200">{feedback.i[0]}</div>
+              {feedback.trap && <div className="rounded-xl bg-amber-500/15 p-3 text-sm text-amber-100"><b>Dikkat: </b>{feedback.trap}</div>}
+              <button type="button" onClick={next} className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950">{quiz.i + 1 < quiz.list.length ? "Sonraki" : "Sonucu gör"}</button>
+            </div>
+          )}
+          {quiz.picked === null && <button type="button" onClick={exitQuiz} className="text-sm font-semibold text-slate-400">← Çık</button>}
+        </div>
+      )}
+
+      {/* sınav: sonuç */}
+      {done && (
+        <div className={STAFF_CARD + " mt-3 space-y-3 text-center"}>
+          <div className="font-display text-5xl font-bold text-white">{quiz.right}/{quiz.list.length}</div>
+          <div className="text-sm text-slate-300">{quiz.right === quiz.list.length ? "Hepsi doğru." : "Yanlışlarını öğren sekmesinde incele, sonra tekrar dene."}</div>
+          {quiz.missed.length > 0 && (
+            <div className="space-y-1.5 text-left">
+              {quiz.missed.map((id) => (<button key={id} type="button" onClick={() => { setView(SK_R[id].v); setQuiz(null); setMode("ogren"); setSel(id); }} className="flex w-full items-center justify-between rounded-xl bg-rose-500/10 px-3 py-2.5 text-sm text-white"><span>{SK_R[id].n}</span><span className="text-xs text-rose-200">Çalış</span></button>))}
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={exitQuiz} className="rounded-xl border border-sky-300/20 py-3 text-sm font-semibold text-white">Bitir</button>
+            <button type="button" onClick={() => (quiz.missed.length ? startQuiz(quiz.kind, "weak", quiz.missed) : startQuiz(quiz.kind, quiz.scope))} className="rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950">{quiz.missed.length ? "Yanlışlarımı tekrar" : "Yeni sınav"}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- VIP paketler ---------- */
 const VIP_LETTERS = "ABCDE";
 const vipShuffle = (a) => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
@@ -2687,7 +3454,7 @@ function VipCards({ list, topics, prog, onKnow, onExit }) {
   );
 }
 
-function VipRunner({ pkg, user, profile, setToast }) {
+function VipStudy({ pkg, user, profile, setToast }) {
   const isAdminUser = profile?.role === "admin";
   const [content, setContent] = useState(undefined);
   const key = `vip_${pkg.id}_${user.id}`;
@@ -2765,6 +3532,28 @@ function VipRunner({ pkg, user, profile, setToast }) {
   );
 }
 
+function VipRunner({ pkg, user, profile, setToast }) {
+  const [tab, setTab] = useState("iskelet");
+  const wm = `${profile?.full_name || ""} ${user.email || ""}`.trim();
+  return (
+    <div>
+      <div className="mb-4 grid grid-cols-2 gap-1.5 rounded-xl bg-white/5 p-1 text-sm font-semibold">
+        {[["iskelet", "Etkileşimli iskelet"], ["calis", "Soru ve kartlar"]].map(([k, t]) => (
+          <button key={k} type="button" onClick={() => setTab(k)} className={"rounded-lg py-2.5 " + (tab === k ? "bg-teal-500 text-slate-950" : "text-slate-300")}>{t}</button>
+        ))}
+      </div>
+      {tab === "iskelet" ? (
+        <div className="relative select-none" onContextMenu={(e) => e.preventDefault()}>
+          <VipWatermark text={wm} />
+          <VipSkeleton uid={user.id} />
+        </div>
+      ) : (
+        <VipStudy pkg={pkg} user={user} profile={profile} setToast={setToast} />
+      )}
+    </div>
+  );
+}
+
 function VipSales({ pkg, status, user, onLogin, reload, setToast }) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -2823,7 +3612,7 @@ function VipPage({ user, profile, onLogin, setToast }) {
       <div className="space-y-4">
         {(pkgs || []).map((p) => {
           const st = status.find((x) => x.package_id === p.id);
-          return st?.has && user
+          return (st?.has || profile?.role === "admin") && user
             ? <div key={p.id}><div className="mb-3 flex items-center justify-between"><div className="font-display text-xl font-bold text-white">{p.title}</div>{st.expires_at && <div className="text-xs text-slate-400">{new Date(st.expires_at).toLocaleDateString("tr-TR")} tarihine kadar</div>}</div><VipRunner pkg={p} user={user} profile={profile} setToast={setToast} /></div>
             : <VipSales key={p.id} pkg={p} status={st} user={user} onLogin={onLogin} reload={load} setToast={setToast} />;
         })}
