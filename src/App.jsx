@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Trophy, Activity, ArrowUpRight, Check, ChevronDown, ClipboardList, Download, Droplets, Eye,
   GraduationCap, HeartPulse, Link2, Mail, MessageCircle, Plus, Presentation, RotateCw,
-  Search, Send, Upload, X, FileText, Lightbulb, Play, Users, LogOut, Shield, Trash2, Bell, Megaphone,
+  Search, Send, Upload, X, FileText, Lightbulb, Play, Users, LogOut, Shield, Trash2, Bell, Megaphone, Lock, Archive, CalendarDays,
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -1754,6 +1754,401 @@ function PollAdmin({ setToast }) {
   );
 }
 
+/* ---------- Sınav takvimi ---------- */
+const EXAM_KIND = { vize: "Vize", final: "Final", but: "Bütünleme", diger: "Sınav" };
+const daysLeft = (iso) => {
+  const d = new Date(iso); const now = new Date();
+  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const b = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return Math.round((a - b) / 86400000);
+};
+
+function ExamCountdown({ exams, classNo }) {
+  const list = (exams || []).filter((e) => (e.class_no == null || e.class_no === classNo) && daysLeft(e.starts_at) >= 0).slice(0, 3);
+  if (!list.length) return null;
+  return (
+    <div className="mt-4 w-full max-w-xl rounded-3xl border border-amber-300/25 bg-gradient-to-br from-amber-500/10 to-[#0a1a30]/90 p-4 text-left backdrop-blur-xl">
+      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-amber-200/90"><CalendarDays className="h-4 w-4" /> Sınav takvimi</div>
+      <div className="space-y-2">
+        {list.map((e, i) => {
+          const n = daysLeft(e.starts_at);
+          return (
+            <div key={e.id} className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-white">{e.title}</div>
+                <div className="text-xs text-slate-400">{EXAM_KIND[e.kind] || "Sınav"} · {new Date(e.starts_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "short" })}</div>
+              </div>
+              <div className={"shrink-0 rounded-2xl px-3 py-1.5 text-center " + (i === 0 ? "bg-amber-400/20 text-amber-100" : "bg-white/5 text-slate-200")}>
+                <div className="font-display text-xl font-extrabold leading-none">{n === 0 ? "Bugün" : n}</div>
+                {n > 0 && <div className="text-[10px] uppercase tracking-wide opacity-80">gün kaldı</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ExamAdmin({ setToast, reload }) {
+  const [list, setList] = useState([]);
+  const [f, setF] = useState({ title: "", kind: "vize", at: "", cls: "" });
+  const load = useCallback(async () => {
+    const { data } = await sb.rpc("exam_events_list");
+    setList(Array.isArray(data) ? data : []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const add = async () => {
+    if (f.title.trim().length < 2) return setToast("Sınav adını yaz (örn. Nefroloji Vize).");
+    if (!f.at) return setToast("Tarih seç.");
+    const { error } = await sb.rpc("admin_exam_add", { p_title: f.title.trim(), p_kind: f.kind, p_at: new Date(f.at).toISOString(), p_class: f.cls ? Number(f.cls) : null });
+    if (error) return setToast("Eklenemedi. arsiv_sistemi.sql çalıştırıldı mı?");
+    setF({ title: "", kind: "vize", at: "", cls: "" }); setToast("Sınav eklendi."); load(); reload();
+  };
+  const del = async (e) => {
+    if (!(await ask(`"${e.title}" takvimden silinsin mi?`))) return;
+    const { error } = await sb.rpc("admin_exam_delete", { p_id: e.id });
+    if (error) return setToast("Silinemedi.");
+    load(); reload();
+  };
+  return (
+    <div className="mb-4 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-4">
+      <div className="font-display text-base font-bold text-white">Sınav takvimi</div>
+      <div className="mt-2 space-y-1.5">
+        {list.length === 0 && <div className="text-xs text-slate-400">Henüz sınav eklenmemiş.</div>}
+        {list.map((e) => (
+          <div key={e.id} className="flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-200">
+            <span className="min-w-0 truncate">{e.title} · {EXAM_KIND[e.kind]} · {new Date(e.starts_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })}{e.class_no ? ` · ${e.class_no}. sınıf` : ""}</span>
+            <button type="button" onClick={() => del(e)} className="shrink-0 text-rose-300"><Trash2 className="h-4 w-4" /></button>
+          </div>
+        ))}
+      </div>
+      <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value.slice(0, 80) })} placeholder="Sınav adı (örn. Nefroloji Vize)" className={inp + " mt-3"} />
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} className={inp}>{Object.entries(EXAM_KIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+        <select value={f.cls} onChange={(e) => setF({ ...f, cls: e.target.value })} className={inp}><option value="">Tüm sınıflar</option><option value="1">1. sınıf</option><option value="2">2. sınıf</option></select>
+      </div>
+      <input type="datetime-local" value={f.at} onChange={(e) => setF({ ...f, at: e.target.value })} className={inp + " mt-2"} />
+      <button type="button" onClick={add} className="mt-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white">Takvime ekle</button>
+    </div>
+  );
+}
+
+/* ---------- Çıkmış soru arşivi ---------- */
+const ARCH_KIND = { vize: "Vize", final: "Final", but: "Bütünleme", diger: "Diğer" };
+const ARCH_BUCKET = "archive-files";
+
+// Her sayfanın üstüne okuyan kişinin adı ve e-postası silik olarak işlenir; sızan görüntünün kaynağı bellidir.
+function stampPage(ctx, w, h, text, dpr) {
+  ctx.save();
+  ctx.globalAlpha = 0.16; ctx.fillStyle = "#0f172a"; ctx.font = `600 ${13 * dpr}px sans-serif`;
+  ctx.rotate(-Math.PI / 6);
+  const sx = 330 * dpr, sy = 120 * dpr;
+  let row = 0;
+  for (let y = -w; y < h + w; y += sy, row++) for (let x = -h - (row % 2) * (sx / 2); x < w + h; x += sx) ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function PdfPage({ doc, n, width, mark }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return undefined;
+    let done = false, task = null;
+    const io = new IntersectionObserver(async (es) => {
+      if (done || !es[0].isIntersecting) return;
+      done = true; io.disconnect();
+      try {
+        const page = await doc.getPage(n);
+        const base = page.getViewport({ scale: 1 });
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const vp = page.getViewport({ scale: (width / base.width) * dpr });
+        c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+        c.style.aspectRatio = `${c.width} / ${c.height}`;
+        const ctx = c.getContext("2d");
+        task = page.render({ canvasContext: ctx, canvas: c, viewport: vp });
+        await task.promise;
+        stampPage(ctx, c.width, c.height, mark, dpr);
+      } catch (e) { /* iptal edilen çizim sessizce geçilir */ }
+    }, { rootMargin: "700px" });
+    io.observe(c);
+    return () => { done = true; io.disconnect(); try { task?.cancel(); } catch (e) { /* yok say */ } };
+  }, [doc, n, width, mark]);
+  return <canvas ref={ref} className="mx-auto mb-3 block h-auto w-full rounded-md bg-white shadow-lg" style={{ aspectRatio: "1 / 1.414", maxWidth: width }} />;
+}
+
+function ArchiveViewer({ item, user, profile, onClose }) {
+  const [doc, setDoc] = useState(null);
+  const [err, setErr] = useState("");
+  const [away, setAway] = useState(false);
+  const wrap = useRef(null);
+  const [width, setWidth] = useState(() => Math.min(window.innerWidth - 16, 820));
+  const mark = `${profile?.full_name || "Öğrenci"} · ${user?.email || ""} · ${new Date().toLocaleDateString("tr-TR")}`;
+
+  useEffect(() => {
+    let dead = false, loaded = null;
+    (async () => {
+      try {
+        const { data: path, error } = await sb.rpc("archive_open", { p_id: item.id });
+        if (error) throw error;
+        const { data: blob, error: e2 } = await sb.storage.from(ARCH_BUCKET).download(path);
+        if (e2) throw e2;
+        const buf = new Uint8Array(await blob.arrayBuffer());
+        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.min.mjs");
+        const worker = (await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url")).default;
+        pdfjs.GlobalWorkerOptions.workerSrc = worker;
+        loaded = await pdfjs.getDocument({ data: buf }).promise;
+        if (dead) { loaded.destroy(); return; }
+        setDoc(loaded);
+      } catch (e) {
+        if (!dead) setErr("Dosya açılamadı. Kilidin hâlâ açık olduğundan emin ol ya da biraz sonra tekrar dene.");
+      }
+    })();
+    return () => { dead = true; try { loaded?.destroy(); } catch (e) { /* yok say */ } };
+  }, [item.id]);
+
+  useEffect(() => {
+    const onVis = () => setAway(document.visibilityState !== "visible");
+    const onBlur = () => setAway(true);
+    const onFocus = () => setAway(document.visibilityState !== "visible" ? true : false);
+    const onKey = (e) => {
+      const k = (e.key || "").toLowerCase();
+      if (e.key === "PrintScreen") { try { navigator.clipboard?.writeText(""); } catch (x) { /* yok say */ } setAway(true); }
+      if ((e.ctrlKey || e.metaKey) && ["p", "s", "c", "u"].includes(k)) e.preventDefault();
+    };
+    const onResize = () => setWidth(Math.min(window.innerWidth - 16, 820));
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("blur", onBlur); window.addEventListener("focus", onFocus);
+    window.addEventListener("keydown", onKey); window.addEventListener("resize", onResize);
+    const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("blur", onBlur); window.removeEventListener("focus", onFocus);
+      window.removeEventListener("keydown", onKey); window.removeEventListener("resize", onResize);
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  return (
+    <div className="arsiv-guard fixed inset-0 z-[80] flex flex-col bg-[#020712]" onContextMenu={(e) => e.preventDefault()} onDragStart={(e) => e.preventDefault()} style={{ WebkitUserSelect: "none", userSelect: "none", WebkitTouchCallout: "none" }}>
+      <style>{`@media print{.arsiv-guard{display:none !important}body{visibility:hidden}}`}</style>
+      <div className="flex items-center justify-between gap-3 border-b border-sky-300/15 bg-[#0a1a30] px-4 py-3">
+        <div className="min-w-0"><div className="truncate text-sm font-bold text-white">{item.title}</div><div className="text-[11px] text-slate-400">{catOf(item.course).short} · {ARCH_KIND[item.kind]}{item.year ? ` · ${item.year}` : ""}</div></div>
+        <button type="button" onClick={onClose} className="shrink-0 rounded-full bg-white/10 p-2 text-white" aria-label="Kapat"><X className="h-5 w-5" /></button>
+      </div>
+      <div ref={wrap} className="relative flex-1 overflow-y-auto px-2 py-3" style={{ filter: away ? "blur(18px)" : "none" }}>
+        {!doc && !err && <div className="py-16 text-center text-sm text-slate-400">Dosya açılıyor…</div>}
+        {err && <div className="mx-auto max-w-sm py-16 text-center text-sm text-rose-300">{err}</div>}
+        {doc && Array.from({ length: doc.numPages }, (_, i) => <PdfPage key={i} doc={doc} n={i + 1} width={width} mark={mark} />)}
+        {doc && <p className="pb-10 text-center text-[11px] text-slate-500">Bu içerik yalnızca sitede okunmak içindir. Paylaşılması ya da kopyalanması yasaktır; her sayfada adın görünür.</p>}
+      </div>
+      {away && <div className="absolute inset-0 flex items-center justify-center bg-black/70 px-8 text-center text-sm text-slate-200">Görünüm gizlendi. Okumaya devam etmek için bu sayfaya dön.</div>}
+    </div>
+  );
+}
+
+function ArchivePage({ user, profile, onLogin, onQuiz, setToast }) {
+  const [items, setItems] = useState(null);
+  const [st, setSt] = useState(null);
+  const [handle, setHandle] = useState("");
+  const [igOpened, setIgOpened] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [term, setTerm] = useState("all");
+  const [open, setOpen] = useState(null);
+  const uid = user?.id;
+  const card = "rounded-3xl border border-sky-300/15 bg-[#0a1a30]/90 p-4 backdrop-blur-xl";
+
+  const load = useCallback(async () => {
+    const a = await sb.rpc("archive_list");
+    setItems(Array.isArray(a.data) ? a.data : []);
+    if (!uid) { setSt(null); return; }
+    let { data } = await sb.rpc("archive_status");
+    if (data && !data.has_access && !data.revoked && data.answers >= data.rules.min_answers && (!data.rules.require_ig || data.ig_handle)) {
+      const r = await sb.rpc("archive_try_unlock");
+      if (r.data) data = r.data;
+    }
+    setSt(data || null);
+  }, [uid]);
+  useEffect(() => { if (sb) load(); }, [load]);
+
+  const submitIg = async () => {
+    setBusy(true);
+    const { data, error } = await sb.rpc("archive_try_unlock", { p_handle: handle });
+    setBusy(false);
+    if (error) return setToast(error.message.includes("gecersiz") ? "Kullanıcı adı geçersiz. Sadece harf, rakam, nokta ve alt çizgi kullan." : "Kaydedilemedi, biraz sonra tekrar dene.");
+    setSt(data);
+    setToast(data?.has_access ? "Arşivin kilidi açıldı!" : "Instagram adın kaydedildi.");
+  };
+  const recheck = async () => {
+    setBusy(true);
+    const { data } = await sb.rpc("archive_try_unlock");
+    setBusy(false);
+    if (data) setSt(data);
+    setToast(data?.has_access ? "Arşivin kilidi açıldı!" : "Görevler henüz tamamlanmadı.");
+  };
+
+  const rules = st?.rules || { min_answers: 20, require_ig: true };
+  const has = !!st?.has_access;
+  const total = items?.length || 0;
+  const shown = (items || []).filter((x) => term === "all" || x.term === term);
+  const byCourse = {};
+  shown.forEach((x) => { (byCourse[x.course] = byCourse[x.course] || []).push(x); });
+
+  const list = (
+    <div className="mt-4 space-y-4">
+      {Object.keys(byCourse).map((cid) => (
+        <div key={cid}>
+          <div className="mb-1.5 text-sm font-bold text-white">{catOf(cid).name}</div>
+          <div className="space-y-2">
+            {byCourse[cid].map((x) => (
+              <button key={x.id} type="button" disabled={!has} onClick={() => setOpen(x)} className={"flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left " + (has ? "border-sky-300/20 bg-[#0a1a30]/90 hover:border-teal-300/40" : "border-white/5 bg-white/[0.03] opacity-70")}>
+                <span className="min-w-0"><span className="block truncate text-sm font-semibold text-white">{x.title}</span><span className="text-xs text-slate-400">{ARCH_KIND[x.kind]}{x.year ? ` · ${x.year}` : ""}</span></span>
+                {has ? <span className="shrink-0 rounded-full bg-teal-500/20 px-3 py-1 text-xs font-semibold text-teal-100">Oku</span> : <Lock className="h-4 w-4 shrink-0 text-slate-500" />}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      {items && shown.length === 0 && <div className="rounded-2xl border border-dashed border-sky-300/20 p-6 text-center text-sm text-slate-400">{total === 0 ? "Arşive yakında dosyalar eklenecek." : "Bu dönemde henüz dosya yok."}</div>}
+    </div>
+  );
+
+  return (
+    <section>
+      <SectionHead title="Çıkmış sorular" desc="Dersine göre geçmiş sınav soruları. Sitede okunur; indirilemez ve paylaşılamaz." />
+      {!sb ? <div className={card + " text-sm text-slate-300"}>Arşiv için sunucu bağlantısı gerekir.</div> : !uid ? (
+        <div className={card + " text-center"}>
+          <Lock className="mx-auto h-8 w-8 text-teal-300" />
+          <div className="mt-2 font-display text-lg font-bold text-white">Arşiv kilitli</div>
+          <p className="mt-1 text-sm text-slate-400">Önce giriş yap, sonra iki kısa görevi tamamlayıp kilidi aç.</p>
+          <button type="button" onClick={onLogin} className="mt-3 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white">Giriş yap</button>
+        </div>
+      ) : !st ? <div className="py-10 text-center text-sm text-slate-400">Yükleniyor…</div> : st.revoked ? (
+        <div className={card + " text-sm text-amber-200"}>Arşiv erişimin kapatıldı. Bilgi için geri bildirim gönderebilirsin.</div>
+      ) : !has ? (
+        <div className={card}>
+          <div className="flex items-center gap-2 font-display text-lg font-bold text-white"><Lock className="h-5 w-5 text-teal-300" /> Kilidi aç</div>
+          <p className="mt-1 text-sm text-slate-400">{total ? `${total} dosya seni bekliyor. ` : ""}Aşağıdaki görev{rules.require_ig ? "leri" : ""} tamamla, arşiv kendiliğinden açılır.</p>
+          {rules.require_ig && (
+            <div className={"mt-3 rounded-2xl border p-3 " + (st.ig_handle ? "border-teal-300/40 bg-teal-500/10" : "border-sky-300/15")}>
+              <div className="flex items-center justify-between text-sm font-semibold text-white"><span>1. Instagram'da bizi takip et</span>{st.ig_handle && <Check className="h-4 w-4 text-teal-300" />}</div>
+              {st.ig_handle ? <div className="mt-1 text-xs text-slate-300">Kayıtlı: @{st.ig_handle}</div> : (
+                <>
+                  <a href={IG_URL} target="_blank" rel="noreferrer" onClick={() => setIgOpened(true)} className="mt-2 inline-block rounded-full border border-rose-300/30 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-100">@afsudiyalizteam sayfasını aç</a>
+                  <input value={handle} onChange={(e) => setHandle(e.target.value.slice(0, 31))} placeholder="Instagram kullanıcı adın (@olmadan da olur)" className={inp + " mt-2"} />
+                  <button type="button" disabled={busy || !igOpened || handle.trim().length < 2} onClick={submitIg} className="mt-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">Takip ediyorum</button>
+                  <p className="mt-1.5 text-[11px] text-slate-500">Önce sayfayı aç ve takip et. Takip etmeden yazılan kullanıcı adları kontrol edilir ve erişim kapatılır.</p>
+                </>
+              )}
+            </div>
+          )}
+          <div className={"mt-3 rounded-2xl border p-3 " + (st.answers >= rules.min_answers ? "border-teal-300/40 bg-teal-500/10" : "border-sky-300/15")}>
+            <div className="flex items-center justify-between text-sm font-semibold text-white"><span>{rules.require_ig ? "2" : "1"}. {rules.min_answers} test sorusu çöz</span>{st.answers >= rules.min_answers && <Check className="h-4 w-4 text-teal-300" />}</div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-teal-400 transition-all" style={{ width: `${Math.min(100, (st.answers / Math.max(1, rules.min_answers)) * 100)}%` }} /></div>
+            <div className="mt-1 text-xs text-slate-400">{Math.min(st.answers, rules.min_answers)} / {rules.min_answers}</div>
+            {st.answers < rules.min_answers && <button type="button" onClick={onQuiz} className="mt-2 rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white">Teste git</button>}
+          </div>
+          <button type="button" disabled={busy} onClick={recheck} className="mt-3 w-full rounded-xl border border-teal-300/30 px-4 py-2.5 text-sm font-semibold text-teal-100 disabled:opacity-40">Görevleri kontrol et</button>
+        </div>
+      ) : (
+        <div className="mb-1 flex flex-wrap gap-2">
+          {[{ id: "all", label: "Tümü" }, ...TERMS].map((t) => (
+            <button key={t.id} type="button" onClick={() => setTerm(t.id)} className={"rounded-full px-3.5 py-1.5 text-xs font-semibold " + (term === t.id ? "bg-teal-500 text-white" : "bg-white/5 text-slate-300")}>{t.label}</button>
+          ))}
+        </div>
+      )}
+      {sb && uid && st && !st.revoked && list}
+      {open && <ArchiveViewer item={open} user={user} profile={profile} onClose={() => setOpen(null)} />}
+    </section>
+  );
+}
+
+function ArchiveAdmin({ setToast }) {
+  const [items, setItems] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [rules, setRules] = useState({ min_answers: 20, require_ig: true });
+  const [f, setF] = useState({ term: TERMS[0].id, course: TERMS[0].courses[0]?.id || "", title: "", kind: "vize", year: String(new Date().getFullYear()), file: null });
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef(null);
+  const load = useCallback(async () => {
+    const a = await sb.rpc("archive_list"); setItems(Array.isArray(a.data) ? a.data : []);
+    const u = await sb.rpc("admin_archive_users"); setUsers(Array.isArray(u.data) ? u.data : []);
+    const r = await sb.rpc("archive_status"); if (r.data?.rules) setRules(r.data.rules);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const termCourses = (TERMS.find((t) => t.id === f.term) || TERMS[0]).courses;
+  const upload = async () => {
+    if (!f.file) return setToast("PDF dosyası seç.");
+    if (f.file.size > 30 * 1024 * 1024) return setToast("Dosya 30 MB'dan küçük olmalı.");
+    if (f.title.trim().length < 2) return setToast("Başlık yaz (örn. 2024 Vize Soruları).");
+    setBusy(true);
+    const path = `${crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2, 10)}.pdf`;
+    const up = await sb.storage.from(ARCH_BUCKET).upload(path, f.file, { contentType: "application/pdf" });
+    if (up.error) { setBusy(false); return setToast("Yüklenemedi. arsiv_sistemi.sql çalıştırıldı mı?"); }
+    const { error } = await sb.rpc("admin_archive_add", { p_term: f.term, p_course: f.course, p_title: f.title.trim(), p_kind: f.kind, p_year: f.year ? Number(f.year) : null, p_path: path });
+    if (error) { await sb.storage.from(ARCH_BUCKET).remove([path]); setBusy(false); return setToast("Kayıt eklenemedi."); }
+    setBusy(false); setF({ ...f, title: "", file: null }); if (fileRef.current) fileRef.current.value = "";
+    setToast("Dosya arşive eklendi."); load();
+  };
+  const del = async (x) => {
+    if (!(await ask(`"${x.title}" arşivden silinsin mi?`))) return;
+    const { data, error } = await sb.rpc("admin_archive_delete", { p_id: x.id });
+    if (error) return setToast("Silinemedi.");
+    if (data) await sb.storage.from(ARCH_BUCKET).remove([data]);
+    load();
+  };
+  const revoke = async (u, v) => {
+    if (v && !(await ask(`${u.name || u.email} için arşiv erişimi kapatılsın mı?`))) return;
+    const { error } = await sb.rpc("admin_archive_revoke", { p_user: u.user_id, p_revoke: v });
+    if (error) return setToast("İşlem yapılamadı.");
+    load();
+  };
+  const saveRules = async () => {
+    const { data, error } = await sb.rpc("admin_archive_rules", { p_min: Number(rules.min_answers) || 0, p_ig: !!rules.require_ig });
+    if (error) return setToast("Kaydedilemedi.");
+    if (data) setRules(data); setToast("Kilit kuralları kaydedildi.");
+  };
+  return (
+    <div className="mb-4 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-4">
+      <div className="font-display text-base font-bold text-white">Çıkmış soru arşivi</div>
+      <div className="mt-3 text-xs font-semibold text-slate-300">Kilit kuralları</div>
+      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-300">
+        <label className="flex items-center gap-2"><input type="checkbox" checked={!!rules.require_ig} onChange={(e) => setRules({ ...rules, require_ig: e.target.checked })} /> Instagram takibi şart</label>
+        <label className="flex items-center gap-2">En az <input type="number" min="0" max="500" value={rules.min_answers} onChange={(e) => setRules({ ...rules, min_answers: e.target.value })} className="w-16 rounded-lg border border-sky-300/15 bg-[#0a1a30] px-2 py-1 text-white" /> test sorusu</label>
+        <button type="button" onClick={saveRules} className="rounded-lg bg-sky-600 px-3 py-1.5 font-semibold text-white">Kaydet</button>
+      </div>
+      <div className="mt-4 text-xs font-semibold text-slate-300">Dosya ekle (PDF)</div>
+      <div className="mt-1 grid grid-cols-2 gap-2">
+        <select value={f.term} onChange={(e) => { const t = TERMS.find((x) => x.id === e.target.value); setF({ ...f, term: e.target.value, course: t?.courses[0]?.id || "" }); }} className={inp}>{TERMS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select>
+        <select value={f.course} onChange={(e) => setF({ ...f, course: e.target.value })} className={inp}>{termCourses.map((c) => <option key={c.id} value={c.id}>{c.short}</option>)}</select>
+        <select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} className={inp}>{Object.entries(ARCH_KIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+        <input value={f.year} onChange={(e) => setF({ ...f, year: e.target.value.replace(/\D/g, "").slice(0, 4) })} placeholder="Yıl" className={inp} />
+      </div>
+      <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value.slice(0, 120) })} placeholder="Başlık (örn. 2024 Vize Soruları ve Cevapları)" className={inp + " mt-2"} />
+      <input ref={fileRef} type="file" accept="application/pdf" onChange={(e) => setF({ ...f, file: e.target.files?.[0] || null })} className="mt-2 block w-full text-xs text-slate-300" />
+      <button type="button" disabled={busy} onClick={upload} className="mt-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Yükleniyor…" : "Arşive yükle"}</button>
+      <div className="mt-4 text-xs font-semibold text-slate-300">Dosyalar ({items.length})</div>
+      <div className="mt-1 space-y-1.5">
+        {items.map((x) => (
+          <div key={x.id} className="flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-200">
+            <span className="min-w-0 truncate">{catOf(x.course).short} · {x.title}{x.year ? ` · ${x.year}` : ""}</span>
+            <button type="button" onClick={() => del(x)} className="shrink-0 text-rose-300"><Trash2 className="h-4 w-4" /></button>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 text-xs font-semibold text-slate-300">Erişenler ve Instagram adları ({users.length})</div>
+      <div className="mt-1 max-h-64 space-y-1.5 overflow-y-auto">
+        {users.map((u) => (
+          <div key={u.user_id} className="flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-200">
+            <span className="min-w-0 truncate">{u.name || u.email} · {u.ig ? <a className="text-sky-300 underline" href={`https://instagram.com/${u.ig}`} target="_blank" rel="noreferrer">@{u.ig}</a> : "ig yok"} · {u.unlocked_at ? "açık" : "kilitli"} · {u.views} açılış</span>
+            <button type="button" onClick={() => revoke(u, !u.revoked)} className={"shrink-0 rounded-lg px-2 py-1 font-semibold " + (u.revoked ? "bg-emerald-600/80 text-white" : "bg-rose-600/80 text-white")}>{u.revoked ? "Geri ver" : "Kapat"}</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Bakım modu ---------- */
 function MaintenancePage({ message, onAdminLogin }) {
   return (
@@ -1826,6 +2221,7 @@ function MaintenanceAdmin({ maint, reload, setToast }) {
 // Yönetici işlem kaydı (kim, ne zaman, ne yaptı)
 const LOG_LABEL = {
   duels_eklendi: "Düello oluşturuldu", duels_guncellendi: "Düello güncellendi", duels_silindi: "Düello silindi",
+  sinav_eklendi: "Sınav eklendi", sinav_silindi: "Sınav silindi", arsiv_eklendi: "Arşive dosya eklendi", arsiv_silindi: "Arşivden dosya silindi", arsiv_iptal: "Arşiv erişimi kapatıldı", arsiv_geri: "Arşiv erişimi geri verildi",
   anket_acildi: "Anket başlatıldı", anket_kapandi: "Anket kapatıldı",
   bakim_acildi: "Bakım modu açıldı", bakim_kapandi: "Bakım modu kapatıldı",
   duel_questions_eklendi: "Soru eklendi", duel_questions_guncellendi: "Soru güncellendi", duel_questions_silindi: "Soru silindi",
@@ -2161,7 +2557,7 @@ const PAGES = [
 ];
 const pageFromHash = () => {
   const h = window.location.hash.replace("#/", "");
-  return PAGES.some((p) => p.id === h) || h === "yonetim" || h === "hakkimizda" || h === "duello" || h === "karne" || h === "profil" ? h : "home";
+  return PAGES.some((p) => p.id === h) || h === "yonetim" || h === "hakkimizda" || h === "duello" || h === "karne" || h === "profil" || h === "arsiv" ? h : "home";
 };
 
 // Tanıtım videosu: public/tanitim.mp4 için "/tanitim.mp4" ya da bir YouTube linki yaz.
@@ -2488,6 +2884,12 @@ export default function App() {
   const [cat, setCat] = useState("all");
   const [grp, setGrp] = useState("all");
   const [query, setQuery] = useState("");
+  const [exams, setExams] = useState([]);
+  const loadExams = useCallback(async () => {
+    if (!sb) return;
+    try { const { data, error } = await sb.rpc("exam_events_list"); if (!error && Array.isArray(data)) setExams(data); } catch (e) { /* sessiz */ }
+  }, []);
+  useEffect(() => { loadExams(); const t = setInterval(loadExams, 600000); return () => clearInterval(t); }, [loadExams]);
   const [poll, setPoll] = useState(null);
   const [voting, setVoting] = useState(false);
   const loadPoll = useCallback(async () => {
@@ -2787,6 +3189,7 @@ export default function App() {
   const tiles = [
     { id: "notlar", Icon: FileText, title: "Not havuzu", sub: `${notes.length} not`, cls: "border-teal-400/40 from-teal-600/40 to-teal-950/70", ic: "text-teal-200" },
     { id: "test", Icon: ClipboardList, title: "Test çöz", sub: `${TEST_BANK.length} soru`, cls: "border-cyan-400/40 from-cyan-600/40 to-cyan-950/70", ic: "text-cyan-200" },
+    { id: "arsiv", Icon: Archive, title: "Çıkmış sorular", sub: "Ders ders arşiv", cls: "border-violet-400/40 from-violet-600/40 to-violet-950/70", ic: "text-violet-200" },
     { id: "duello", Icon: Trophy, title: "Düello", sub: "Haftalık yarışma", cls: "border-amber-400/40 from-amber-600/40 to-amber-950/70", ic: "text-amber-200" },
     { id: "mitler", Icon: Lightbulb, title: "Doğru mu, yanlış mı?", sub: `${QUESTIONS.length} soru · 3 seviye`, cls: "border-indigo-400/40 from-indigo-600/40 to-indigo-950/70", ic: "text-indigo-200" },
     { id: "instagram", Icon: Insta, title: "Instagram", sub: "Duyuru ve anketler", cls: "border-rose-400/40 from-rose-600/40 to-rose-950/70", ic: "text-rose-200" },
@@ -2873,6 +3276,7 @@ export default function App() {
                 <path className="ecg" d="M0 62 H110 L130 62 L146 22 L168 104 L190 42 L206 62 H330 L350 62 L366 22 L388 104 L410 42 L426 62 H600" stroke="url(#g)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <DuelBanner duels={duels} go={go} />
+              <ExamCountdown exams={exams} classNo={classOf(profile?.entry_year)} />
               <div className="mt-6 grid w-full max-w-xl grid-cols-2 gap-3 text-left">
                 {tiles.map(({ id, Icon, title, sub, cls, ic }, ti) => (
                   <button key={id} onClick={() => go(id)} className={`flex flex-col justify-between rounded-3xl border bg-gradient-to-br p-4 transition active:scale-[0.97] ${cls} ${ti === tiles.length - 1 && tiles.length % 2 ? "col-span-2" : ""}`} style={{ minHeight: "7.5rem" }}>
@@ -2945,6 +3349,7 @@ export default function App() {
           {/* DOĞRU MU, YANLIŞ MI */}
           {page === "duello" && <DuelPage user={user} onLogin={() => setAuthOpen(true)} setToast={setToast} duels={duels} openPod={setPod} needClass={needClass} onPickClass={() => setClassOpen(true)} onKarne={() => go("karne")} />}
           {page === "profil" && <ProfilePage user={user} profile={profile} onLogin={() => setAuthOpen(true)} podiums={podiums} notes={dbNotes} quizHist={quizHist} onClass={() => setClassOpen(true)} setToast={setToast} />}
+          {page === "arsiv" && <ArchivePage user={user} profile={profile} onLogin={() => setAuthOpen(true)} onQuiz={() => go("test")} setToast={setToast} />}
           {page === "karne" && <KarnePage user={user} onLogin={() => setAuthOpen(true)} quizHist={quizHist} />}
 
           {page === "mitler" && (
@@ -3062,6 +3467,8 @@ export default function App() {
                   </div>
                   <MaintenanceAdmin maint={maint} reload={loadMaint} setToast={setToast} />
                   <PollAdmin setToast={setToast} />
+                  <ExamAdmin setToast={setToast} reload={loadExams} />
+                  <ArchiveAdmin setToast={setToast} />
                   <DuelAdmin setToast={setToast} />
                   <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Duyurular</h3>
                   <div className="space-y-2 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
