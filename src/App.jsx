@@ -3101,7 +3101,7 @@ const SK_ORDER = {
 
 /* ---------- 3D iskelet (WebGL, kütüphanesiz) ---------- */
 const SK3D_URL = "/iskelet3d.bin";
-const SK3D_SKULL = "/kafa3d.bin";
+const SK3D_SKULL = "/kafa3d2.bin";
 const SK3D_SRC2 = "https://sketchfab.com/3d-models/craneo-desarticulado-disarticulated-skull-50edae6fcc2e40c4a2023fee215d4555";
 const SK3D_SRC = "https://sketchfab.com/3d-models/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b";
 const SK3D_COL = { base: [0.92, 0.88, 0.77], hot: [0.96, 0.8, 0.5], dim: [0.42, 0.42, 0.45], sel: [0.37, 0.93, 0.83], ask: [1, 0.88, 0.25], ok: [0.2, 0.85, 0.55], no: [0.98, 0.42, 0.5], m1: [0.62, 0.95, 0.78], m2: [0.99, 0.78, 0.82] };
@@ -3116,10 +3116,10 @@ const m4 = {
   },
   mul(a, b) { const o = new Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; } return o; },
 };
-const SK3D_VS = `attribute vec3 aPos;attribute vec3 aNrm;attribute float aReg;attribute float aBone;
+const SK3D_VS = `attribute vec3 aPos;attribute vec3 aPos2;attribute vec3 aNrm;attribute float aReg;attribute float aBone;uniform float uT;
 uniform mat4 uMVP;uniform mat3 uNM;uniform float uScale;uniform vec4 uCol[48];uniform float uPick;
 varying vec3 vN;varying vec4 vC;varying vec3 vP;varying float vB;
-void main(){vec4 c=uCol[int(aReg+0.5)];vC=c;vB=(aBone+1.0)/255.0;vN=uNM*aNrm;vec4 p=uMVP*vec4(aPos*uScale,1.0);vP=p.xyz;gl_Position=p;}`;
+void main(){vec4 c=uCol[int(aReg+0.5)];vC=c;vB=(aBone+1.0)/255.0;vN=uNM*aNrm;vec4 p=uMVP*vec4(mix(aPos,aPos2,uT)*uScale,1.0);vP=p.xyz;gl_Position=p;}`;
 const SK3D_FS = `precision mediump float;varying vec3 vN;varying vec4 vC;varying vec3 vP;varying float vB;uniform float uPick;
 void main(){if(vC.a<0.5)discard;if(uPick>0.5){gl_FragColor=vec4(vB,0.0,0.0,1.0);return;}
 vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;
@@ -3128,13 +3128,13 @@ float h=0.5+0.5*n.y;float rim=pow(1.0-max(n.z,0.0),2.5);
 vec3 h2=normalize(normalize(vec3(-0.4,0.6,0.7))+vec3(0.0,0.0,1.0));float sp=pow(max(dot(n,h2),0.0),24.0)*0.18;
 vec3 col=vC.rgb*(0.30+0.28*h+0.62*k+0.22*f)+vec3(0.10,0.14,0.2)*rim+sp;gl_FragColor=vec4(col,1.0);}`;
 
-function Sk3D({ states, hidden, onTap, focus, viewCmd, auto, onErr, url, d0 }) {
+function Sk3D({ states, hidden, onTap, focus, viewCmd, auto, onErr, url, d0, asm }) {
   const D0 = d0 || 3.5;
   const cv = useRef(null);
   const S = useRef({ yaw: 0.35, pitch: 0.12, dist: D0, tx: 0, ty: 0, tz: 0, g: null, dirty: true, auto: auto, meta: null });
   const [load, setLoad] = useState("Model yükleniyor…");
   const propsRef = useRef({});
-  propsRef.current = { states, hidden, onTap };
+  propsRef.current = { states, hidden, onTap, asm };
   S.current.auto = auto;
 
   /* renk dizisi */
@@ -3159,16 +3159,16 @@ function Sk3D({ states, hidden, onTap, focus, viewCmd, auto, onErr, url, d0 }) {
     try { pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, SK3D_VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, SK3D_FS)); gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error("link"); } catch (e) { onErr && onErr("shader"); return; }
     gl.useProgram(pr);
     const U = (n) => gl.getUniformLocation(pr, n); const A = (n) => gl.getAttribLocation(pr, n);
-    const loc = { mvp: U("uMVP"), nm: U("uNM"), sc: U("uScale"), col: U("uCol"), pick: U("uPick") };
+    const loc = { mvp: U("uMVP"), nm: U("uNM"), sc: U("uScale"), col: U("uCol"), pick: U("uPick"), t: U("uT") };
     let fbo = null, tex = null, rb = null, fw = 0, fh = 0, nIdx = 0;
     const setup = (buf) => {
       const dv = new DataView(buf); const jl = dv.getUint32(0, true);
       const meta = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, jl))); s.meta = meta;
-      const vo = 4 + jl; const vb = buf.slice(vo, vo + meta.nv * 12); const ib = buf.slice(vo + meta.nv * 12, vo + meta.nv * 12 + meta.ni * 2);
+      const STR = meta.asm ? 18 : 12; const vo = 4 + jl; const vb = buf.slice(vo, vo + meta.nv * STR); const ib = buf.slice(vo + meta.nv * STR, vo + meta.nv * STR + meta.ni * 2);
       const vbuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vbuf); gl.bufferData(gl.ARRAY_BUFFER, vb, gl.STATIC_DRAW);
       const ibuf = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ib, gl.STATIC_DRAW);
-      const at = (n, size, type, norm, off) => { const l = A(n); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, size, type, norm, 12, off); };
-      at("aPos", 3, gl.SHORT, false, 0); at("aNrm", 3, gl.BYTE, true, 6); at("aReg", 1, gl.UNSIGNED_BYTE, false, 9); at("aBone", 1, gl.UNSIGNED_BYTE, false, 10);
+      const at = (n, size, type, norm, off) => { const l = A(n); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, size, type, norm, STR, off); };
+      at("aPos", 3, gl.SHORT, false, 0); at("aNrm", 3, gl.BYTE, true, 6); at("aReg", 1, gl.UNSIGNED_BYTE, false, 9); at("aBone", 1, gl.UNSIGNED_BYTE, false, 10); if (meta.asm) at("aPos2", 3, gl.SHORT, false, 12);
       nIdx = meta.ni; gl.uniform1f(loc.sc, 1 / 32767);
       gl.enable(gl.DEPTH_TEST); gl.clearColor(0.03, 0.07, 0.13, 1);
     };
@@ -3185,7 +3185,7 @@ function Sk3D({ states, hidden, onTap, focus, viewCmd, auto, onErr, url, d0 }) {
       gl.uniformMatrix3fv(loc.nm, false, new Float32Array([view[0], view[1], view[2], view[4], view[5], view[6], view[8], view[9], view[10]]));
     };
     const draw = (pick) => {
-      gl.uniform1f(loc.pick, pick ? 1 : 0); const c = colors(); if (c) gl.uniform4fv(loc.col, c);
+      gl.uniform1f(loc.pick, pick ? 1 : 0); gl.uniform1f(loc.t, s.meta && s.meta.asm ? Math.max(0, Math.min(1, propsRef.current.asm || 0)) : 0); const c = colors(); if (c) gl.uniform4fv(loc.col, c);
       matrices(); gl.viewport(0, 0, canvas.width, canvas.height);
       if (pick) gl.clearColor(0, 0, 0, 1); else gl.clearColor(0.03, 0.07, 0.13, 1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.drawElements(gl.TRIANGLES, nIdx, gl.UNSIGNED_SHORT, 0);
@@ -3226,7 +3226,7 @@ function Sk3D({ states, hidden, onTap, focus, viewCmd, auto, onErr, url, d0 }) {
       if (P.size === 1) { const dx = e.clientX - old[0], dy = e.clientY - old[1]; if (down) down.moved += Math.abs(dx) + Math.abs(dy); s.yaw -= dx * 0.008; s.pitch = Math.max(-1.35, Math.min(1.35, s.pitch + dy * 0.008)); s.dirty = true; }
       else if (P.size === 2) {
         const [a, b] = [...P.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); const m2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-        if (pinch > 0) { s.dist = Math.max(0.45, Math.min(5, s.dist * pinch / d)); s.goal.dist = s.dist; }
+        if (pinch > 0) { s.dist = Math.max(0.45, Math.min(D0 * 1.45, s.dist * pinch / d)); s.goal.dist = s.dist; }
         const sc = s.dist * 0.0021; const cy = Math.cos(s.yaw), sy = Math.sin(s.yaw);
         const dx = m2[0] - mid[0], dy2 = m2[1] - mid[1];
         s.tx -= (cy * dx) * sc; s.tz += (sy * dx) * sc; s.ty += dy2 * sc; s.goal.tx = s.tx; s.goal.ty = s.ty; s.goal.tz = s.tz;
@@ -3255,14 +3255,14 @@ function Sk3D({ states, hidden, onTap, focus, viewCmd, auto, onErr, url, d0 }) {
     return () => { dead = true; cancelAnimationFrame(raf); canvas.removeEventListener("pointerdown", pd); canvas.removeEventListener("pointermove", pm); canvas.removeEventListener("pointerup", pu); canvas.removeEventListener("pointercancel", pu); canvas.removeEventListener("wheel", wh); canvas.removeEventListener("webglcontextlost", lost); };
   }, []);
 
-  useEffect(() => { S.current.dirty = true; }, [states, hidden]);
+  useEffect(() => { S.current.dirty = true; }, [states, hidden, asm]);
   /* odak: bölgeye yakınlaş */
   useEffect(() => {
     const s = S.current; if (!s.goal) return; const m = s.meta;
-    if (focus && m && m.box[focus]) { const b = m.box[focus]; const c = [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2]; const sz = Math.max(b[3] - b[0], b[4] - b[1], b[5] - b[2]); s.goal.tx = c[0]; s.goal.ty = c[1]; s.goal.tz = c[2]; s.goal.dist = Math.max(0.75, Math.min(D0, sz * 2.6 + 0.5)); }
-    else { s.goal.tx = 0; s.goal.ty = 0; s.goal.tz = 0; s.goal.dist = D0; }
+    if (focus && m && m.box[focus]) { const a = m.asm ? Math.max(0, Math.min(1, asm || 0)) : 0; const b0 = m.box[focus], b2 = m.box2 && m.box2[focus] ? m.box2[focus] : b0; const b = b0.map((v, i) => v + (b2[i] - v) * a); const c = [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2]; const sz = Math.max(b[3] - b[0], b[4] - b[1], b[5] - b[2]); s.goal.tx = c[0]; s.goal.ty = c[1]; s.goal.tz = c[2]; s.goal.dist = Math.max(0.75, Math.min(D0, sz * 2.6 + 0.5)); }
+    else { const a = m && m.asm ? Math.max(0, Math.min(1, asm || 0)) : 0; const c0 = (m && m.c0) || [0, 0, 0], c1 = (m && m.c1) || c0; s.goal.tx = c0[0] + (c1[0] - c0[0]) * a; s.goal.ty = c0[1] + (c1[1] - c0[1]) * a; s.goal.tz = c0[2] + (c1[2] - c0[2]) * a; s.goal.dist = D0; }
     s.dirty = true;
-  }, [focus, load]);
+  }, [focus, load, asm]);
   useEffect(() => { const s = S.current; if (!viewCmd || !s.goal) return; const y = { on: 0, arka: Math.PI, sol: Math.PI / 2, sag: -Math.PI / 2 }[viewCmd.name]; if (y !== undefined) { s.goal.yaw = y; s.pitch = 0.08; } if (viewCmd.name === "sifirla") { s.goal.tx = 0; s.goal.ty = 0; s.goal.tz = 0; s.goal.dist = D0; s.goal.yaw = 0; s.pitch = 0.12; } s.dirty = true; }, [viewCmd]);
 
   return (
@@ -3292,6 +3292,15 @@ function VipSkeleton({ uid }) {
   const [cmd3, setCmd3] = useState(null);
   const [layers, setLayers] = useState({});
   const [err3, setErr3] = useState({});
+  const [asm, setAsm] = useState(0);
+  const asmAnim = useRef(0);
+  const goAsm = (to) => {
+    cancelAnimationFrame(asmAnim.current);
+    const from = asm, t0 = performance.now(), dur = 1500;
+    const step = (t) => { const k = Math.min(1, (t - t0) / dur); const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; setAsm(from + (to - from) * e); if (k < 1) asmAnim.current = requestAnimationFrame(step); };
+    asmAnim.current = requestAnimationFrame(step);
+  };
+  useEffect(() => () => cancelAnimationFrame(asmAnim.current), []);
   const [vb, setVb] = useState(() => skParse(SK_VIEWS.iskelet.vb));
   const vbRef = useRef(vb);
   const V = SK_VIEWS[view];
@@ -3434,7 +3443,7 @@ function VipSkeleton({ uid }) {
             {quiz.kind === "nerede" ? (<div className="text-base font-bold text-white">Göster: <span className="text-amber-200">{SK_R[q].n}</span></div>) : (<div className="text-base font-bold text-white">Parlayan kemik hangisi?</div>)}
           </div>
         )}
-        {is3 && !err3[view] && <Sk3D key={view} url={view === "kafa3d" ? SK3D_SKULL : undefined} d0={view === "kafa3d" ? 4.3 : undefined} states={states3} hidden={hidden3} focus={mode === "ogren" ? sel : null} viewCmd={cmd3} auto={auto3 && !sel && !quiz} onTap={tap3} onErr={() => { const v0 = view; setErr3((o) => ({ ...o, [v0]: true })); setView(v0 === "kafa3d" ? "kafa" : "iskelet"); }} />}
+        {is3 && !err3[view] && <Sk3D key={view} url={view === "kafa3d" ? SK3D_SKULL : undefined} d0={view === "kafa3d" ? 4.3 : undefined} asm={view === "kafa3d" ? asm : 0} states={states3} hidden={hidden3} focus={mode === "ogren" ? sel : null} viewCmd={cmd3} auto={auto3 && !sel && !quiz} onTap={tap3} onErr={() => { const v0 = view; setErr3((o) => ({ ...o, [v0]: true })); setView(v0 === "kafa3d" ? "kafa" : "iskelet"); }} />}
         {!is3 && <svg ref={svgRef} className="sk-svg block w-full" viewBox={vb.join(" ")} style={{ maxHeight: "68vh", minHeight: 280 }} onClick={() => { if (!quiz) setSel(null); }}>
           {view === "iskelet" && <BodyArt cls={clsOf} pick={pick} />}
           {view === "omurga" && <SpineArt cls={clsOf} onPick={pick} />}
@@ -3452,6 +3461,17 @@ function VipSkeleton({ uid }) {
             {[["on", "Ön"], ["arka", "Arka"], ["sol", "Sol yan"], ["sag", "Sağ yan"], ["sifirla", "Sıfırla"]].map(([k, t]) => (<button key={k} type="button" onClick={() => setCmd3({ name: k, n: Math.random() })} className="shrink-0 rounded-full border border-sky-300/20 px-3 py-1.5 font-semibold text-slate-200">{t}</button>))}
             <button type="button" onClick={() => setAuto3(!auto3)} className={"shrink-0 rounded-full border px-3 py-1.5 font-semibold " + (auto3 ? "border-teal-300 bg-teal-500/20 text-white" : "border-sky-300/20 text-slate-300")}>Otomatik dön</button>
           </div>
+          {view === "kafa3d" && (
+            <div className="rounded-xl border border-sky-300/20 bg-slate-900/40 p-3">
+              <div className="mb-2 flex items-center gap-2 text-xs">
+                <button type="button" onClick={() => goAsm(asm < 0.5 ? 1 : 0)} className="shrink-0 rounded-full border border-teal-300 bg-teal-500/20 px-3 py-1.5 font-semibold text-white">{asm < 0.5 ? "Birleştir" : "Ayır"}</button>
+                <span className="text-slate-400">{asm < 0.05 ? "Ayrık" : asm > 0.95 ? "Birleşik" : "Hareket ediyor…"}</span>
+              </div>
+              <input type="range" min="0" max="1" step="0.01" value={asm} onChange={(e) => { cancelAnimationFrame(asmAnim.current); setAsm(parseFloat(e.target.value)); }} className="w-full" aria-label="Ayır – birleştir" />
+              <div className="mt-1 flex justify-between text-[10px] text-slate-500"><span>Ayrık</span><span>Birleşik</span></div>
+              <p className="mt-1 text-[10px] leading-snug text-slate-500">Birleşik konum, bütün bir kafatası modeline (martinjario, CC BY 4.0) göre yaklaşık yerleştirilmiştir; iç kemikler yaklaşıktır.</p>
+            </div>
+          )}
           <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 text-xs">
             {(view === "kafa3d" ? [["kubbe", "Kafa kubbesini gizle"], ["yuz", "Yüz kemiklerini gizle"], ["mand", "Mandibulayı gizle"]] : [["kaburga", "Kaburgaları gizle"], ["kol", "Kolları gizle"], ["bacak", "Bacakları gizle"], ["pelvis", "Pelvisi gizle"]]).map(([k, t]) => (<button key={k} type="button" onClick={() => setLayers({ ...layers, [k]: !layers[k] })} className={"shrink-0 rounded-full border px-3 py-1.5 font-semibold " + (layers[k] ? "border-amber-300/60 bg-amber-500/15 text-amber-100" : "border-sky-300/20 text-slate-300")}>{layers[k] ? t.replace("gizle", "göster") : t}</button>))}
           </div>
