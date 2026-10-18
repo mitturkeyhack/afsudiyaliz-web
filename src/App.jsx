@@ -3330,6 +3330,10 @@ function VipSkeleton({ uid }) {
   const [label3, setLabel3] = useState(null);
   const [auto3, setAuto3] = useState(false);
   const [sheetMin, setSheetMin] = useState(false);
+  const [speaking, setSpeaking] = useState(null);
+  const [tour, setTour] = useState(false);
+  const audRef = useRef(null);
+  const tourRef = useRef(false);
   const [cmd3, setCmd3] = useState(null);
   const [layers, setLayers] = useState({});
   const [err3, setErr3] = useState({});
@@ -3387,7 +3391,28 @@ function VipSkeleton({ uid }) {
     return () => cancelAnimationFrame(raf);
   }, [sel, view, mode, base]);
 
-  const goView = (v) => { setView(v); setSel(null); setLabel3(null); };
+  const stopAudio = () => { tourRef.current = false; setTour(false); try { if (audRef.current) { audRef.current.onended = null; audRef.current.onerror = null; audRef.current.pause(); } } catch (e) { /* yok say */ } audRef.current = null; setSpeaking(null); };
+  const playId = (id, then) => {
+    try { if (audRef.current) { audRef.current.onended = null; audRef.current.onerror = null; audRef.current.pause(); } } catch (e) { /* yok say */ }
+    const a = new Audio("/ses/" + id + ".mp3");
+    audRef.current = a; setSpeaking(id);
+    a.onended = () => { setSpeaking(null); if (then) then(); };
+    a.onerror = () => { tourRef.current = false; setTour(false); setSpeaking(null); };
+    const pr = a.play(); if (pr && pr.catch) pr.catch(() => { tourRef.current = false; setTour(false); setSpeaking(null); });
+  };
+  const startTour = () => {
+    const list = SK_ORDER[view] || []; if (!list.length) return;
+    tourRef.current = true; setTour(true); setQuiz(null);
+    const step = (i) => {
+      if (!tourRef.current) return;
+      if (i >= list.length) { tourRef.current = false; setTour(false); return; }
+      setSel(list[i]); setLabel3(null); setSheetMin(false);
+      playId(list[i], () => step(i + 1));
+    };
+    step(0);
+  };
+  useEffect(() => () => { tourRef.current = false; try { if (audRef.current) { audRef.current.onended = null; audRef.current.pause(); } } catch (e) { /* yok say */ } }, []);
+  const goView = (v) => { stopAudio(); setView(v); setSel(null); setLabel3(null); };
   const q = quiz && quiz.i < quiz.list.length ? quiz.list[quiz.i] : null;
   const tap3 = (id, lab) => {
     if (!id) { if (!quiz) { setSel(null); setLabel3(null); } return; }
@@ -3415,6 +3440,7 @@ function VipSkeleton({ uid }) {
     setQuiz({ ...quiz, picked: id, right: quiz.right + (ok ? 1 : 0), missed: ok ? quiz.missed : [...quiz.missed, q] });
   };
   const startQuiz = (kind, scope, ids) => {
+    stopAudio();
     let list;
     if (ids) list = skShuffle(ids);
     else if (scope === "weak") {
@@ -3473,7 +3499,7 @@ function VipSkeleton({ uid }) {
       {/* mod seçici */}
       <div className="mb-3 grid grid-cols-3 gap-1.5 rounded-xl bg-white/5 p-1 text-sm font-semibold">
         {[["ogren", "Öğren"], ["nerede", "Nerede?"], ["hangisi", "Bu hangisi?"]].map(([k, t]) => (
-          <button key={k} type="button" onClick={() => { if (k === "ogren") exitQuiz(); else { setSel(null); setMode(k); setQuiz(null); } }} className={"rounded-lg py-2 " + (mode === k ? "bg-sky-500/25 text-white" : "text-slate-400")}>{t}</button>
+          <button key={k} type="button" onClick={() => { if (k === "ogren") exitQuiz(); else { stopAudio(); setSel(null); setMode(k); setQuiz(null); } }} className={"rounded-lg py-2 " + (mode === k ? "bg-sky-500/25 text-white" : "text-slate-400")}>{t}</button>
         ))}
       </div>
 
@@ -3524,6 +3550,7 @@ function VipSkeleton({ uid }) {
       {mode === "ogren" && (
         <div className="mt-3 space-y-3">
           <div className="flex flex-wrap gap-2 text-xs">
+            <button type="button" onClick={() => (tour ? stopAudio() : startTour())} className={"rounded-full border px-3 py-1.5 font-semibold " + (tour ? "border-rose-300/60 bg-rose-500/20 text-rose-100" : "border-teal-300/60 bg-teal-500/20 text-teal-100")}>{tour ? "■ Anlatımı durdur" : "▶ Sırayla dinle"}</button>
             <button type="button" onClick={() => setHot(!hot)} className={"rounded-full border px-3 py-1.5 font-semibold " + (hot ? "border-amber-300/60 bg-amber-500/15 text-amber-100" : "border-sky-300/20 text-slate-300")}>Öncelikli bölgeler {hot ? "açık" : "kapalı"}</button>
             <button type="button" onClick={() => setHeat(!heat)} className={"rounded-full border px-3 py-1.5 font-semibold " + (heat ? "border-emerald-300/60 bg-emerald-500/15 text-emerald-100" : "border-sky-300/20 text-slate-300")}>Hakimiyetim {heat ? "açık" : "kapalı"}</button>
           </div>
@@ -3541,7 +3568,7 @@ function VipSkeleton({ uid }) {
           )}
           {r && (
             <div className={sheet3 ? "fixed inset-x-0 z-40 mx-auto w-full max-w-xl px-2" : ""} style={sheet3 ? { bottom: "calc(76px + env(safe-area-inset-bottom, 0px))" } : undefined}>
-            {sheet3 && (<button type="button" onClick={() => setSheetMin(!sheetMin)} className="flex w-full items-center justify-between rounded-t-2xl border border-b-0 border-teal-300/30 bg-[#0b1f38] px-4 py-2 text-left shadow-[0_-8px_24px_rgba(0,0,0,.5)]"><span className="truncate text-sm font-bold text-white">{r.tr}{label3 ? " · " + label3 : ""}</span><span className="ml-3 shrink-0 text-xs font-semibold text-teal-200">{sheetMin ? "Bilgiyi aç ▲" : "Küçült ▼"}</span></button>)}
+            {sheet3 && (<div className="flex w-full items-stretch rounded-t-2xl border border-b-0 border-teal-300/30 bg-[#0b1f38] shadow-[0_-8px_24px_rgba(0,0,0,.5)]"><button type="button" onClick={() => setSheetMin(!sheetMin)} className="flex min-w-0 flex-1 items-center justify-between px-4 py-2 text-left"><span className="truncate text-sm font-bold text-white">{r.tr}{label3 ? " · " + label3 : ""}</span><span className="ml-3 shrink-0 text-xs font-semibold text-teal-200">{sheetMin ? "Bilgiyi aç ▲" : "Küçült ▼"}</span></button>{(speaking || tour) && (<button type="button" onClick={stopAudio} className="m-1.5 shrink-0 rounded-full border border-rose-300/60 bg-rose-500/20 px-3 py-1 text-xs font-semibold text-rose-100">■ Durdur</button>)}</div>)}
             <div className={STAFF_CARD + " space-y-3" + (sheet3 ? " !rounded-t-none !bg-[#0b1f38] overflow-y-auto" + (sheetMin ? " hidden" : "") : "")} style={sheet3 ? { maxHeight: "32vh", background: "#0b1f38" } : undefined}>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -3550,6 +3577,7 @@ function VipSkeleton({ uid }) {
                 </div>
                 <div className="text-sm text-slate-400">{r.tr}</div>
                 {label3 && is3 && <div className="mt-1 text-xs text-teal-200">Dokunduğun kemik: {label3}</div>}
+                <button type="button" onClick={() => (speaking === r.id ? stopAudio() : (tourRef.current = false, setTour(false), playId(r.id)))} className={"mt-2 rounded-full border px-4 py-2 text-sm font-semibold " + (speaking === r.id ? "border-rose-300/60 bg-rose-500/20 text-rose-100" : "border-teal-300/60 bg-teal-500/20 text-teal-100")}>{speaking === r.id ? "■ Durdur" : "▶ Dinle"}</button>
               </div>
               <ul className="space-y-2">
                 {r.i.map((t, k) => (<li key={k} className="flex gap-2 text-[15px] leading-snug text-slate-100"><span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-teal-300" /><span>{t}</span></li>))}
