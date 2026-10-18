@@ -3673,8 +3673,15 @@ function VipWatermark({ text }) {
   );
 }
 
-function VipQuiz({ list, title, topics, onRecord, onExit, onAgain }) {
+function VipQuiz({ list, title, topics, onRecord, onExit, onAgain, exam, secs }) {
   const [i, setI] = useState(0);
+  const [left, setLeft] = useState(secs || 0);
+  useEffect(() => {
+    if (!secs) return undefined;
+    const t = setInterval(() => setLeft((x) => (x > 0 ? x - 1 : 0)), 1000);
+    return () => clearInterval(t);
+  }, [secs]);
+  useEffect(() => { if (secs && left === 0) setI(list.length); }, [left, secs, list.length]);
   const [picked, setPicked] = useState(null);
   const [missed, setMissed] = useState([]);
   const [right, setRight] = useState(0);
@@ -3686,6 +3693,7 @@ function VipQuiz({ list, title, topics, onRecord, onExit, onAgain }) {
         <div className={STAFF_CARD + " text-center"}>
           <div className="text-xs text-teal-300">{title}</div>
           <div className="font-display mt-1 text-5xl font-bold text-white">{right}/{list.length}</div>
+          {exam && <div className="mt-1 text-xs text-slate-400">{list.length} soruluk sınav provası{secs ? ` · kalan süre ${Math.floor(left / 60)} dk` : ""}</div>}
           <div className="mt-1 text-sm text-slate-300">%{pct} doğru. {pct >= 80 ? "Bu konularda iyisin." : pct >= 50 ? "Yanlışlarına tekrar bak." : "Önce kartlardan başla."}</div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button type="button" onClick={onExit} className="rounded-xl border border-sky-300/20 px-3 py-3 text-sm font-semibold text-white">Ana sayfa</button>
@@ -3697,6 +3705,7 @@ function VipQuiz({ list, title, topics, onRecord, onExit, onAgain }) {
             <div className="font-display text-lg font-bold text-white">Yanlışların</div>
             {missed.map((q) => (
               <div key={q.id} className={STAFF_CARD}>
+                {q.img && <img src={q.img} alt="" draggable={false} loading="lazy" className="mb-2 max-h-56 w-full rounded-xl bg-white object-contain" />}
                 <div className="text-sm font-semibold text-white">{q.stem}</div>
                 <div className="mt-2 rounded-xl bg-emerald-500/15 p-3 text-sm text-emerald-100"><b>{VIP_LETTERS[q.answer]}) {q.options[q.answer]}</b><div className="mt-1 text-emerald-50/90">{q.explain}</div></div>
               </div>
@@ -3713,6 +3722,7 @@ function VipQuiz({ list, title, topics, onRecord, onExit, onAgain }) {
     const ok = k === q.answer;
     onRecord(q.id, ok);
     if (ok) setRight((r) => r + 1); else setMissed((m) => [...m, q]);
+    if (exam) { setTimeout(() => { setI((x) => x + 1); setPicked(null); window.scrollTo(0, 0); }, 250); }
   };
   return (
     <div>
@@ -3720,17 +3730,20 @@ function VipQuiz({ list, title, topics, onRecord, onExit, onAgain }) {
         <button type="button" onClick={onExit} className="text-sm font-semibold text-teal-300">← Çık</button>
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-teal-400 transition-all" style={{ width: `${(i * 100) / list.length}%` }} /></div>
         <div className="text-xs tabular-nums text-slate-400">{i + 1}/{list.length}</div>
+        {secs ? <div className={"rounded-full px-2.5 py-1 text-xs font-bold tabular-nums " + (left < 300 ? "bg-rose-500/25 text-rose-100" : "bg-white/10 text-slate-200")}>{String(Math.floor(left / 60)).padStart(2, "0")}:{String(left % 60).padStart(2, "0")}</div> : null}
       </div>
       <div className={STAFF_CARD}>
         <div className="flex flex-wrap gap-1.5">
           <span className="rounded-full bg-teal-500/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-teal-200">{tt(q.topic)}</span>
           {q.exam && <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-200">Çıkmış soru</span>}
           {q.kind === "degildir" && <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-200">Değildir tipi</span>}
+          {q.img && <span className="rounded-full bg-sky-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-sky-200">Görselli</span>}
         </div>
+        {q.img && <div className="mt-3 overflow-hidden rounded-xl bg-white"><img src={q.img} alt="Soru görseli" draggable={false} className="mx-auto block max-h-[50vh] w-auto max-w-full object-contain" /></div>}
         <div className="mt-3 text-[17px] font-semibold leading-snug text-white">{q.stem}</div>
         <div className="mt-3 space-y-2">
           {q.options.map((o, k) => {
-            const state = picked === null ? "" : k === q.answer ? "ok" : k === picked ? "no" : "";
+            const state = picked === null || exam ? "" : k === q.answer ? "ok" : k === picked ? "no" : "";
             return (
               <button key={k} type="button" disabled={picked !== null} onClick={() => choose(k)}
                 className={"flex w-full items-start gap-3 rounded-xl border px-3.5 py-3 text-left text-sm " + (state === "ok" ? "border-emerald-400 bg-emerald-500/15 text-white" : state === "no" ? "border-rose-400 bg-rose-500/15 text-white" : "border-sky-300/15 bg-white/5 text-slate-100")}>
@@ -3740,7 +3753,7 @@ function VipQuiz({ list, title, topics, onRecord, onExit, onAgain }) {
             );
           })}
         </div>
-        {picked !== null && (
+        {picked !== null && !exam && (
           <>
             <div className={"mt-3 rounded-xl p-3 text-sm " + (picked === q.answer ? "bg-emerald-500/15 text-emerald-50" : "bg-rose-500/15 text-rose-50")}>
               <b>{picked === q.answer ? "Doğru" : `Yanlış. Doğru cevap ${VIP_LETTERS[q.answer]}`}</b>
@@ -3778,11 +3791,13 @@ function VipCards({ list, topics, prog, onKnow, onExit }) {
         {!flip ? (
           <>
             <span className="w-fit rounded-full bg-teal-500/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-teal-200">{topics.find((t) => t.id === c.topic)?.title}</span>
-            <div className="font-display text-2xl font-bold leading-snug text-white">{c.front}</div>
+            {c.img && <div className="overflow-hidden rounded-xl bg-white"><img src={c.img} alt="Kart görseli" draggable={false} className="mx-auto block max-h-[45vh] w-auto max-w-full object-contain" /></div>}
+            <div className={"font-display font-bold leading-snug text-white " + (c.img ? "text-xl" : "text-2xl")}>{c.front}</div>
             <div className="text-center text-xs text-slate-400">Cevap için dokun</div>
           </>
         ) : (
           <>
+            {c.img && <div className="overflow-hidden rounded-xl bg-white"><img src={c.img} alt="" draggable={false} className="mx-auto block max-h-[28vh] w-auto max-w-full object-contain" /></div>}
             <div className="text-[17px] leading-relaxed text-slate-50">{c.back}</div>
             {c.trap && <div className="rounded-xl bg-amber-500/15 p-3 text-sm text-amber-100"><b>Tuzak: </b>{c.trap}</div>}
           </>
@@ -3821,7 +3836,7 @@ function VipStudy({ pkg, user, profile, setToast }) {
   const okCount = answered.filter((x) => x.ok).length;
   const pct = answered.length ? Math.round((okCount * 100) / answered.length) : 0;
   const startQuiz = (tid) => {
-    const l = D.questions.filter((q) => tid === "all" || q.topic === tid);
+    const l = vipShuffle(D.questions.filter((q) => tid === "all" || q.topic === tid));
     setMode({ name: "quiz", list: l, title: tid === "all" ? "Tüm konular" : topics.find((t) => t.id === tid)?.title || "", n: Math.random() });
   };
   const startDeneme = () => {
@@ -3831,13 +3846,21 @@ function VipStudy({ pkg, user, profile, setToast }) {
     pool.sort((x, y) => y.w - x.w);
     setMode({ name: "quiz", list: vipShuffle(pool.slice(0, 15).map((p) => p.q)), title: answered.length ? "Yanlışlarımdan deneme" : "Karışık deneme", n: Math.random() });
   };
+  const imgQs = D.questions.filter((q) => q.img);
+  const startGorsel = () => setMode({ name: "quiz", list: vipShuffle(imgQs).slice(0, 20), title: "Görselli sorular", n: Math.random() });
+  const startProva = () => {
+    const w = (q) => (q.exam ? 2.2 : 1) * (0.5 + Math.random());
+    const pickN = (arr, k) => arr.map((q) => ({ q, r: w(q) })).sort((a, b) => b.r - a.r).slice(0, k).map((x) => x.q);
+    const iq = pickN(imgQs, 8); const tq = pickN(D.questions.filter((q) => !q.img), 27);
+    setMode({ name: "quiz", list: vipShuffle([...tq, ...iq]), title: "Sınav provası", exam: true, secs: 40 * 60, n: Math.random() });
+  };
   const wm = `${profile?.full_name || ""} ${user.email || ""}`.trim();
   const exit = () => { setMode({ name: "home" }); window.scrollTo(0, 0); };
   return (
     <div className="relative select-none" onContextMenu={(e) => e.preventDefault()}>
       <VipWatermark text={wm} />
       {!content.published && <div className="mb-3 rounded-xl bg-amber-500/15 p-3 text-xs text-amber-100">Taslak: bu içerik henüz öğrencilere açık değil, sadece sen görüyorsun.</div>}
-      {mode.name === "quiz" && <VipQuiz key={mode.n} list={mode.list} title={mode.title} topics={topics} onRecord={record} onExit={exit} onAgain={startDeneme} />}
+      {mode.name === "quiz" && <VipQuiz key={mode.n} list={mode.list} title={mode.title} topics={topics} onRecord={record} onExit={exit} onAgain={startDeneme} exam={mode.exam} secs={mode.secs} />}
       {mode.name === "cards" && <VipCards list={D.cards.filter((c) => mode.t === "all" || c.topic === mode.t)} topics={topics} prog={prog.c} onKnow={know} onExit={exit} />}
       {mode.name === "home" && (
         <div className="space-y-4">
@@ -3852,6 +3875,8 @@ function VipStudy({ pkg, user, profile, setToast }) {
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => setMode({ name: "cards", t: "all" })} className={STAFF_CARD + " text-left"}><FileText className="h-5 w-5 text-teal-300" /><div className="font-display mt-2 font-bold text-white">Bilgi kartları</div><div className="text-xs text-slate-400">Çevir, bildiklerini ayır</div></button>
             <button type="button" onClick={() => startQuiz("all")} className={STAFF_CARD + " text-left"}><ClipboardList className="h-5 w-5 text-teal-300" /><div className="font-display mt-2 font-bold text-white">Soru çöz</div><div className="text-xs text-slate-400">Anında açıklama</div></button>
+            {imgQs.length > 0 && <button type="button" onClick={startGorsel} className={STAFF_CARD + " text-left"}><FileText className="h-5 w-5 text-sky-300" /><div className="font-display mt-2 font-bold text-white">Görselli sorular</div><div className="text-xs text-slate-400">{imgQs.length} soru · "şurası neresi?"</div></button>}
+            <button type="button" onClick={startProva} className={STAFF_CARD + " text-left"}><RotateCw className="h-5 w-5 text-amber-300" /><div className="font-display mt-2 font-bold text-white">Sınav provası</div><div className="text-xs text-slate-400">35 soru · 40 dakika</div></button>
           </div>
           <div className="font-display text-lg font-bold text-white">Konular</div>
           {topics.map((t) => {
