@@ -2844,6 +2844,7 @@ function HandArt({ cls, pick }) {
 const SK_VIEWS = {
   model3d: { t: "3D iskelet", vb: "0 0 1 1", intro: "Gerçekçi 3D iskelet. Tek parmakla döndür, iki parmakla yakınlaştır ve kaydır. Bir kemiğe dokununca adı ve bilgisi açılır, o kemik renklenir. Gözükmeyen kemikleri görmek için kaburga, kol ve bacakları gizleyebilirsin." },
   kafa3d: { t: "3D kafatası", vb: "0 0 1 1", intro: "Ayrılmış (disarticulated) kafatası: 22 kemiğin hepsi birbirinden ayrı durur. Tek parmakla döndür, iki parmakla yakınlaştır ve kaydır. Bir kemiğe dokununca adı ve bilgisi açılır. Kubbeyi veya yüz kemiklerini gizleyerek içtekileri görebilirsin. Dişler, kulak kemikçikleri ve os hyoideum modelde yoktur." },
+  el3d: { t: "3D el", vb: "0 0 1 1", intro: "Gerçekçi 3D sağ el: 27 kemiğin hepsi ayrı durur (8 karpal, 5 metakarp, 14 falanks). Elin sırtından bakıyorsun; başparmak solda. Tek parmakla döndür, iki parmakla yakınlaştır ve kaydır. Bir kemiğe dokununca adı ve bilgisi açılır, hangi parmağa ait olduğu üstte yazar. Karpalları, metakarpları ya da falanksları gizleyip diğerlerini yakından görebilirsin." },
   iskelet: { t: "Tüm iskelet", vb: "0 0 300 645", intro: "Bir kemiğe dokun, slayttaki bilgiler altta açılsın. Kafatası, omurga ve el için yakından görünüm var." },
   omurga: { t: "Omurga", vb: "0 20 300 600", intro: "33 omur: 7 boyun, 12 göğüs, 5 bel, 5 kaynaşık sakrum, 4 kaynaşık koksiks. 24'ü hareketli, 9'u sabit. Omurlar arasında 23 disk vardır (axis ile sacrum arası). Eğrilikler: servikal lordoz, torakal kifoz, lumbal lordoz, sakral kifoz. Torakal ve sakral kifoz esas eğriliktir; skolyoz patolojiktir." },
   kafa: { t: "Kafatası", vb: "40 10 240 215", intro: "Kafatası yandan görünüm. Renkler komşu kemikleri ayırt etmen için. Kesik çizgiler dikişlerdir (sutura)." },
@@ -3091,6 +3092,7 @@ const SK_R = {
 };
 Object.keys(SK_R).forEach((k) => { SK_R[k].id = k; });
 const SK_ORDER = {
+  el3d: ["scaphoideum", "lunatum", "triquetrum", "pisiforme", "trapezium", "trapezoideum", "capitatum", "hamatum", "metacarpi", "phalanx_proximalis", "phalanx_media", "phalanx_distalis"],
   kafa3d: ["frontale", "parietale", "occipitale", "sphenoidale", "temporale", "ethmoidale", "zygomaticum", "maxilla", "nasale", "lacrimale", "palatinum", "concha_inf", "vomer", "mandibula"],
   model3d: ["kafatasi", "mandibula", "atlas", "axis", "cervicales", "prominens", "thoracicae", "lumbales", "sacrum", "sternum", "costae", "clavicula", "scapula", "humerus", "radius", "ulna", "scaphoideum", "lunatum", "triquetrum", "pisiforme", "trapezium", "trapezoideum", "capitatum", "hamatum", "metacarpi", "phalanx_proximalis", "phalanx_media", "phalanx_distalis", "oscoxae", "femur", "patella", "tibia", "fibula", "talus", "calcaneus", "naviculare", "cuboideum", "cuneiforme_med", "cuneiforme_int", "cuneiforme_lat", "metatarsi", "phalanges_pedis"],
   iskelet: ["kafatasi", "cervicales", "thoracicae", "lumbales", "sacrum", "coccygis", "sternum", "costae", "clavicula", "scapula", "humerus", "radius", "ulna", "el", "oscoxae", "femur", "patella", "tibia", "fibula", "ayak"],
@@ -3102,6 +3104,8 @@ const SK_ORDER = {
 /* ---------- 3D iskelet (WebGL, kütüphanesiz) ---------- */
 const SK3D_URL = "/iskelet3d.bin";
 const SK3D_SKULL = "/kafa3d2.bin";
+const SK3D_HAND = "/el3d.bin";
+const SK3D_SRC3 = "https://sketchfab.com/3d-models/hand-efd1df50e4a2457d91045a1727db7679";
 const SK3D_SRC2 = "https://sketchfab.com/3d-models/craneo-desarticulado-disarticulated-skull-50edae6fcc2e40c4a2023fee215d4555";
 const SK3D_SRC = "https://sketchfab.com/3d-models/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b";
 const SK3D_COL = { base: [0.92, 0.88, 0.77], hot: [0.96, 0.8, 0.5], dim: [0.42, 0.42, 0.45], sel: [0.37, 0.93, 0.83], ask: [1, 0.88, 0.25], ok: [0.2, 0.85, 0.55], no: [0.98, 0.42, 0.5], m1: [0.62, 0.95, 0.78], m2: [0.99, 0.78, 0.82] };
@@ -3304,7 +3308,7 @@ function VipSkeleton({ uid }) {
   const [vb, setVb] = useState(() => skParse(SK_VIEWS.iskelet.vb));
   const vbRef = useRef(vb);
   const V = SK_VIEWS[view];
-  const is3 = view === "model3d" || view === "kafa3d";
+  const is3 = view === "model3d" || view === "kafa3d" || view === "el3d";
   const base = useMemo(() => skParse(V.vb), [view]);
 
   const save = (p) => { setProg(p); try { localStorage.setItem(key, JSON.stringify(p)); } catch (e) { /* kayıt yoksa sorun değil */ } };
@@ -3354,7 +3358,7 @@ function VipSkeleton({ uid }) {
     setSel(id); setLabel3(lab);
   };
   const LAYER_DEF = { kaburga: ["costae", "sternum"], kol: ["clavicula", "scapula", "humerus", "radius", "ulna", "scaphoideum", "lunatum", "triquetrum", "pisiforme", "trapezium", "trapezoideum", "capitatum", "hamatum", "metacarpi", "phalanx_proximalis", "phalanx_media", "phalanx_distalis"], bacak: ["femur", "patella", "tibia", "fibula", "talus", "calcaneus", "naviculare", "cuboideum", "cuneiforme_med", "cuneiforme_int", "cuneiforme_lat", "metatarsi", "phalanges_pedis"], pelvis: ["oscoxae"] };
-  const LAYER_K = { kubbe: ["frontale", "parietale", "occipitale", "temporale"], yuz: ["zygomaticum", "nasale", "lacrimale", "maxilla", "palatinum", "concha_inf", "vomer"], mand: ["mandibula"] };
+  const LAYER_K = { kubbe: ["frontale", "parietale", "occipitale", "temporale"], yuz: ["zygomaticum", "nasale", "lacrimale", "maxilla", "palatinum", "concha_inf", "vomer"], mand: ["mandibula"], karpal: ["scaphoideum", "lunatum", "triquetrum", "pisiforme", "trapezium", "trapezoideum", "capitatum", "hamatum"], meta: ["metacarpi"], falanks: ["phalanx_proximalis", "phalanx_media", "phalanx_distalis"] };
   const hidden3 = useMemo(() => { const h = {}; const LD = { ...LAYER_DEF, ...LAYER_K }; Object.keys(layers).forEach((k) => { if (layers[k] && LD[k]) LD[k].forEach((id) => { h[id] = true; }); }); return h; }, [layers]);
   const states3 = {};
   (is3 ? SK_ORDER[view] : []).forEach((id) => {
@@ -3443,7 +3447,7 @@ function VipSkeleton({ uid }) {
             {quiz.kind === "nerede" ? (<div className="text-base font-bold text-white">Göster: <span className="text-amber-200">{SK_R[q].n}</span></div>) : (<div className="text-base font-bold text-white">Parlayan kemik hangisi?</div>)}
           </div>
         )}
-        {is3 && !err3[view] && <Sk3D key={view} url={view === "kafa3d" ? SK3D_SKULL : undefined} d0={view === "kafa3d" ? 4.3 : undefined} asm={view === "kafa3d" ? asm : 0} states={states3} hidden={hidden3} focus={mode === "ogren" ? sel : null} viewCmd={cmd3} auto={auto3 && !sel && !quiz} onTap={tap3} onErr={() => { const v0 = view; setErr3((o) => ({ ...o, [v0]: true })); setView(v0 === "kafa3d" ? "kafa" : "iskelet"); }} />}
+        {is3 && !err3[view] && <Sk3D key={view} url={view === "kafa3d" ? SK3D_SKULL : view === "el3d" ? SK3D_HAND : undefined} d0={view === "kafa3d" ? 4.3 : undefined} asm={view === "kafa3d" ? asm : 0} states={states3} hidden={hidden3} focus={mode === "ogren" ? sel : null} viewCmd={cmd3} auto={auto3 && !sel && !quiz} onTap={tap3} onErr={() => { const v0 = view; setErr3((o) => ({ ...o, [v0]: true })); setView(v0 === "kafa3d" ? "kafa" : v0 === "el3d" ? "el" : "iskelet"); }} />}
         {!is3 && <svg ref={svgRef} className="sk-svg block w-full" viewBox={vb.join(" ")} style={{ maxHeight: "68vh", minHeight: 280 }} onClick={() => { if (!quiz) setSel(null); }}>
           {view === "iskelet" && <BodyArt cls={clsOf} pick={pick} />}
           {view === "omurga" && <SpineArt cls={clsOf} onPick={pick} />}
@@ -3473,9 +3477,9 @@ function VipSkeleton({ uid }) {
             </div>
           )}
           <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 text-xs">
-            {(view === "kafa3d" ? [["kubbe", "Kafa kubbesini gizle"], ["yuz", "Yüz kemiklerini gizle"], ["mand", "Mandibulayı gizle"]] : [["kaburga", "Kaburgaları gizle"], ["kol", "Kolları gizle"], ["bacak", "Bacakları gizle"], ["pelvis", "Pelvisi gizle"]]).map(([k, t]) => (<button key={k} type="button" onClick={() => setLayers({ ...layers, [k]: !layers[k] })} className={"shrink-0 rounded-full border px-3 py-1.5 font-semibold " + (layers[k] ? "border-amber-300/60 bg-amber-500/15 text-amber-100" : "border-sky-300/20 text-slate-300")}>{layers[k] ? t.replace("gizle", "göster") : t}</button>))}
+            {(view === "el3d" ? [["karpal", "Karpalları gizle"], ["meta", "Metakarpları gizle"], ["falanks", "Falanksları gizle"]] : view === "kafa3d" ? [["kubbe", "Kafa kubbesini gizle"], ["yuz", "Yüz kemiklerini gizle"], ["mand", "Mandibulayı gizle"]] : [["kaburga", "Kaburgaları gizle"], ["kol", "Kolları gizle"], ["bacak", "Bacakları gizle"], ["pelvis", "Pelvisi gizle"]]).map(([k, t]) => (<button key={k} type="button" onClick={() => setLayers({ ...layers, [k]: !layers[k] })} className={"shrink-0 rounded-full border px-3 py-1.5 font-semibold " + (layers[k] ? "border-amber-300/60 bg-amber-500/15 text-amber-100" : "border-sky-300/20 text-slate-300")}>{layers[k] ? t.replace("gizle", "göster") : t}</button>))}
           </div>
-          {view === "kafa3d" ? (<p className="text-[11px] leading-snug text-slate-500">Model: <a href={SK3D_SRC2} target="_blank" rel="noreferrer" className="underline">Cráneo desarticulado / Disarticulated skull</a>, Ualde, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="underline">CC BY 4.0</a>. Model kemik gruplarına ayrıldı ve sadeleştirildi (dişler çıkarıldı). Sağ/sol ayrımı modelin yönüne göredir.</p>) : (<p className="text-[11px] leading-snug text-slate-500">Model: <a href={SK3D_SRC} target="_blank" rel="noreferrer" className="underline">Female Human Skeleton – ZBrush – Anatomy Study</a>, Ruslan Gadzhiev, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="underline">CC BY 4.0</a>. Model parçalara ayrıldı ve sıkıştırıldı. Omurga bölgesi: koksiks sakrumla, ayrı ayrı olmayan kafatası kemikleri tek parça gösterilir.</p>)}
+          {view === "el3d" ? (<p className="text-[11px] leading-snug text-slate-500">Model: <a href={SK3D_SRC3} target="_blank" rel="noreferrer" className="underline">Hand</a>, Team Skeleton Wars, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="underline">CC BY 4.0</a>. Model parçalara ayrıldı ve etiketlendi; başparmakta fazla olan bir falanks çıkarıldı (başparmakta 2 falanks vardır). Önkol kemikleri modelde yok.</p>) : view === "kafa3d" ? (<p className="text-[11px] leading-snug text-slate-500">Model: <a href={SK3D_SRC2} target="_blank" rel="noreferrer" className="underline">Cráneo desarticulado / Disarticulated skull</a>, Ualde, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="underline">CC BY 4.0</a>. Model kemik gruplarına ayrıldı ve sadeleştirildi (dişler çıkarıldı). Sağ/sol ayrımı modelin yönüne göredir.</p>) : (<p className="text-[11px] leading-snug text-slate-500">Model: <a href={SK3D_SRC} target="_blank" rel="noreferrer" className="underline">Female Human Skeleton – ZBrush – Anatomy Study</a>, Ruslan Gadzhiev, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="underline">CC BY 4.0</a>. Model parçalara ayrıldı ve sıkıştırıldı. Omurga bölgesi: koksiks sakrumla, ayrı ayrı olmayan kafatası kemikleri tek parça gösterilir.</p>)}
         </div>
       )}
       {/* öğren: araçlar + bölge listesi */}
