@@ -2843,6 +2843,7 @@ function HandArt({ cls, pick }) {
 /* ---------- İskelet bölge verisi (slaytlardan özetlenmiştir) ---------- */
 const SK_VIEWS = {
   model3d: { t: "3D iskelet", vb: "0 0 1 1", intro: "Gerçekçi 3D iskelet. Tek parmakla döndür, iki parmakla yakınlaştır ve kaydır. Bir kemiğe dokununca adı ve bilgisi açılır, o kemik renklenir. Gözükmeyen kemikleri görmek için kaburga, kol ve bacakları gizleyebilirsin." },
+  kafa3d: { t: "3D kafatası", vb: "0 0 1 1", intro: "Ayrılmış (disarticulated) kafatası: 22 kemiğin hepsi birbirinden ayrı durur. Tek parmakla döndür, iki parmakla yakınlaştır ve kaydır. Bir kemiğe dokununca adı ve bilgisi açılır. Kubbeyi veya yüz kemiklerini gizleyerek içtekileri görebilirsin. Dişler, kulak kemikçikleri ve os hyoideum modelde yoktur." },
   iskelet: { t: "Tüm iskelet", vb: "0 0 300 645", intro: "Bir kemiğe dokun, slayttaki bilgiler altta açılsın. Kafatası, omurga ve el için yakından görünüm var." },
   omurga: { t: "Omurga", vb: "0 20 300 600", intro: "33 omur: 7 boyun, 12 göğüs, 5 bel, 5 kaynaşık sakrum, 4 kaynaşık koksiks. 24'ü hareketli, 9'u sabit. Omurlar arasında 23 disk vardır (axis ile sacrum arası). Eğrilikler: servikal lordoz, torakal kifoz, lumbal lordoz, sakral kifoz. Torakal ve sakral kifoz esas eğriliktir; skolyoz patolojiktir." },
   kafa: { t: "Kafatası", vb: "40 10 240 215", intro: "Kafatası yandan görünüm. Renkler komşu kemikleri ayırt etmen için. Kesik çizgiler dikişlerdir (sutura)." },
@@ -2852,7 +2853,7 @@ const SK_TINT = { frontale: "ta", parietale: "tb", occipitale: "ta", sphenoidale
   scaphoideum: "tp", lunatum: "tp", triquetrum: "tp", pisiforme: "tp", trapezium: "tq", trapezoideum: "tq", capitatum: "tq", hamatum: "tq" };
 /* v: bölgenin asıl bölümü; sv: göründüğü bölümler; hot: vize için öncelikli */
 const SK_R = {
-  kafatasi: { v: "iskelet", n: "Cranium", tr: "Kafatası (kafa iskeleti)", hot: 1, det: "kafa", i: [
+  kafatasi: { v: "iskelet", n: "Cranium", tr: "Kafatası (kafa iskeleti)", hot: 1, det: "kafa", det3: "kafa3d", i: [
     "Kulak kemikçikleri ve os hyoideum hariç 22 kemikten oluşur.",
     "Neurocranium 8 kemik: tek olanlar frontale, occipitale, sphenoidale, ethmoidale; çift olanlar parietale ve temporale.",
     "Viscerocranium 14 kemik: tek olanlar vomer ve mandibula; çift olanlar maxilla, zygomaticum, nasale, lacrimale, palatinum ve concha nasalis inferior.",
@@ -3060,9 +3061,37 @@ const SK_R = {
   cuneiforme_lat: { v: "model3d", n: "Os cuneiforme laterale", tr: "Dış kama kemik", i: ["Ayak bileği kemiklerinden (ossa tarsi, 7 adet) biridir."], ek: ["Üç kama kemiğin dış olanıdır (slayt dışı bilgi)."] },
   metatarsi: { v: "model3d", n: "Ossa metatarsi", tr: "Ayak tarağı kemikleri (5)", hot: 1, i: ["Elde olduğu gibi ayakta da 5 tarak kemiği vardır.", "İçten dışa Romen rakamlarıyla I.–V. metatars diye adlandırılır."] },
   phalanges_pedis: { v: "model3d", n: "Ossa digitorum pedis", tr: "Ayak parmak kemikleri (14)", hot: 1, i: ["Başparmakta 2, diğer parmaklarda 3'er falanks, toplam 14 falanks vardır.", "Birinci sıra phalanx proximalis, ikinci sıra phalanx media, üçüncü sıra phalanx distalis'tir. Başparmakta phalanx media yoktur."], trap: "El ve ayakta 14'er falanks vardır; başparmakta (halluks da) media yoktur." },
+
+  ethmoidale: { v: "kafa3d", n: "Os ethmoidale", tr: "Kalbur kemik", hot: 1, i: [
+    "Tek kemiktir. Neurocranium'un 4 tek kemiğinden biridir (frontale, occipitale, sphenoidale, ethmoidale).",
+    "Burun boşluğunun üst ve arka kısmının, burun bölmesinin, burun dış duvarlarının ve kafatası tabanının ön kısmının yapısına katılır.",
+    "Üç kısma ayrılır: lamina cribrosa, lamina perpendicularis ve labyrinthus ethmoidalis.",
+    "Lamina perpendicularis dikey uzanır ve orta hatta burun bölmesinin yapısına katılır.",
+    "Labyrinthus ethmoidalis'ler iki yanda kemik kıvrımlar ve boşluklardan oluşur; içinde hava dolu cellulae ethmoidales bulunur.",
+    "Burun boşluğuna bakan iç yüzündeki kıvrık, yaprak şeklindeki çıkıntılardan üsttekine concha nasalis superior, alttakine concha nasalis media denir."],
+    trap: "Concha nasalis superior ve media ethmoid kemiğe aittir. Concha nasalis inferior ise ayrı bir kemiktir." },
+  lacrimale: { v: "kafa3d", n: "Os lacrimale", tr: "Gözyaşı kemiği", i: [
+    "Çift kemiktir. Orbita'nın iç duvarında yer alan ince bir kemiktir.",
+    "Orbita'yı burun boşluğuna bağlayan canalis nasolacrimalis'in yapısına katılır."] },
+  palatinum: { v: "kafa3d", n: "Os palatinum", tr: "Damak kemiği", i: [
+    "Çift kemiktir. Maxilla ile sphenoid kemiğin processus pterygoideus'u arasında bulunur.",
+    "L harfine benzer: yukarı doğru uzanan dikey laminasına lamina perpendicularis, yatay uzanan laminasına lamina horizontalis denir.",
+    "Lamina horizontalis sert damağın arka kısmının yapısına katılır; üst yüzü burnun tabanını, alt yüzü ağzın tavanını yapar. Ön kenarı maxilla ile eklem yapar.",
+    "Serbest sonlanan arka kenarına canlıda yumuşak damak tutunur.",
+    "Alt yüzün arka dış tarafında foramen palatinum majus ve foramina palatina minora bulunur; bu deliklerden arterler ve sinirler geçer."],
+    trap: "Sert damağın ön 3/4'ünü maxilla'nın processus palatinus'u, arka 1/4'ünü palatin kemiğin lamina horizontalis'i yapar." },
+  concha_inf: { v: "kafa3d", n: "Concha nasalis inferior", tr: "Alt burun konkası", i: [
+    "Çift kemiktir. Burun dış duvarında bulunan, kendi üzerine kıvrılmış yaprak şeklinde bir kemiktir.",
+    "Altında bulunan geçide meatus nasi inferior denir."],
+    trap: "Concha nasalis superior ve media ethmoid kemiğin parçasıdır; inferior ise bağımsız bir kemiktir." },
+  vomer: { v: "kafa3d", n: "Vomer", tr: "Saban kemiği", i: [
+    "Tek kemiktir. Viscerocranium'un 2 tek kemiğinden biridir (diğeri mandibula).",
+    "Yüz iskeletini oluşturan 14 kemikten biridir."],
+    trap: "Viscerocranium'da tek olanlar: vomer ve mandibula." },
 };
 Object.keys(SK_R).forEach((k) => { SK_R[k].id = k; });
 const SK_ORDER = {
+  kafa3d: ["frontale", "parietale", "occipitale", "sphenoidale", "temporale", "ethmoidale", "zygomaticum", "maxilla", "nasale", "lacrimale", "palatinum", "concha_inf", "vomer", "mandibula"],
   model3d: ["kafatasi", "mandibula", "atlas", "axis", "cervicales", "prominens", "thoracicae", "lumbales", "sacrum", "sternum", "costae", "clavicula", "scapula", "humerus", "radius", "ulna", "scaphoideum", "lunatum", "triquetrum", "pisiforme", "trapezium", "trapezoideum", "capitatum", "hamatum", "metacarpi", "phalanx_proximalis", "phalanx_media", "phalanx_distalis", "oscoxae", "femur", "patella", "tibia", "fibula", "talus", "calcaneus", "naviculare", "cuboideum", "cuneiforme_med", "cuneiforme_int", "cuneiforme_lat", "metatarsi", "phalanges_pedis"],
   iskelet: ["kafatasi", "cervicales", "thoracicae", "lumbales", "sacrum", "coccygis", "sternum", "costae", "clavicula", "scapula", "humerus", "radius", "ulna", "el", "oscoxae", "femur", "patella", "tibia", "fibula", "ayak"],
   omurga: ["atlas", "axis", "cervicales", "prominens", "thoracicae", "lumbales", "sacrum", "coccygis"],
@@ -3072,9 +3101,11 @@ const SK_ORDER = {
 
 /* ---------- 3D iskelet (WebGL, kütüphanesiz) ---------- */
 const SK3D_URL = "/iskelet3d.bin";
+const SK3D_SKULL = "/kafa3d.bin";
+const SK3D_SRC2 = "https://sketchfab.com/3d-models/craneo-desarticulado-disarticulated-skull-50edae6fcc2e40c4a2023fee215d4555";
 const SK3D_SRC = "https://sketchfab.com/3d-models/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b";
 const SK3D_COL = { base: [0.92, 0.88, 0.77], hot: [0.96, 0.8, 0.5], dim: [0.42, 0.42, 0.45], sel: [0.37, 0.93, 0.83], ask: [1, 0.88, 0.25], ok: [0.2, 0.85, 0.55], no: [0.98, 0.42, 0.5], m1: [0.62, 0.95, 0.78], m2: [0.99, 0.78, 0.82] };
-let sk3dCache = null;
+const sk3dCache = {};
 const m4 = {
   persp(f, a, n, r) { const t = 1 / Math.tan(f / 2), q = 1 / (n - r); return [t / a, 0, 0, 0, 0, t, 0, 0, 0, 0, (n + r) * q, -1, 0, 0, 2 * n * r * q, 0]; },
   look(e, c) {
@@ -3097,9 +3128,10 @@ float h=0.5+0.5*n.y;float rim=pow(1.0-max(n.z,0.0),2.5);
 vec3 h2=normalize(normalize(vec3(-0.4,0.6,0.7))+vec3(0.0,0.0,1.0));float sp=pow(max(dot(n,h2),0.0),24.0)*0.18;
 vec3 col=vC.rgb*(0.30+0.28*h+0.62*k+0.22*f)+vec3(0.10,0.14,0.2)*rim+sp;gl_FragColor=vec4(col,1.0);}`;
 
-function Sk3D({ states, hidden, onTap, focus, viewCmd, auto, onErr }) {
+function Sk3D({ states, hidden, onTap, focus, viewCmd, auto, onErr, url, d0 }) {
+  const D0 = d0 || 3.5;
   const cv = useRef(null);
-  const S = useRef({ yaw: 0.35, pitch: 0.12, dist: 3.5, tx: 0, ty: 0, tz: 0, g: null, dirty: true, auto: auto, meta: null });
+  const S = useRef({ yaw: 0.35, pitch: 0.12, dist: D0, tx: 0, ty: 0, tz: 0, g: null, dirty: true, auto: auto, meta: null });
   const [load, setLoad] = useState("Model yükleniyor…");
   const propsRef = useRef({});
   propsRef.current = { states, hidden, onTap };
@@ -3174,7 +3206,7 @@ function Sk3D({ states, hidden, onTap, focus, viewCmd, auto, onErr }) {
       return o[0] > 0 ? o[0] - 1 : -1;
     };
     /* animasyon hedefleri */
-    s.goal = { yaw: null, dist: 3.5, tx: 0, ty: 0, tz: 0 };
+    s.goal = { yaw: null, dist: D0, tx: 0, ty: 0, tz: 0 };
     let last = performance.now();
     const loop = (t) => {
       if (dead) return; const dt = Math.min(0.05, (t - last) / 1000); last = t; size();
@@ -3209,14 +3241,14 @@ function Sk3D({ states, hidden, onTap, focus, viewCmd, auto, onErr }) {
       }
       if (P.size < 2) pinch = 0; if (P.size === 0) { down = null; s.touch = false; }
     };
-    const wh = (e) => { e.preventDefault(); s.dist = Math.max(0.45, Math.min(5, s.dist * Math.exp(e.deltaY * 0.0012))); s.goal.dist = s.dist; s.dirty = true; };
+    const wh = (e) => { e.preventDefault(); s.dist = Math.max(0.45, Math.min(D0 * 1.45, s.dist * Math.exp(e.deltaY * 0.0012))); s.goal.dist = s.dist; s.dirty = true; };
     canvas.addEventListener("pointerdown", pd); canvas.addEventListener("pointermove", pm); canvas.addEventListener("pointerup", pu); canvas.addEventListener("pointercancel", pu); canvas.addEventListener("wheel", wh, { passive: false });
     const lost = (e) => { e.preventDefault(); onErr && onErr("lost"); }; canvas.addEventListener("webglcontextlost", lost);
     s.g = { gl };
     (async () => {
       try {
-        if (!sk3dCache) { const r = await fetch(SK3D_URL); if (!r.ok) throw new Error("http " + r.status); sk3dCache = await r.arrayBuffer(); }
-        if (dead) return; setup(sk3dCache); setLoad(""); s.dirty = true;
+        const U = url || SK3D_URL; if (!sk3dCache[U]) { const r = await fetch(U); if (!r.ok) throw new Error("http " + r.status); const ab = await r.arrayBuffer(); if (ab.byteLength < 100 || new DataView(ab).getUint32(0, true) > 20000) throw new Error("bad"); sk3dCache[U] = ab; }
+        if (dead) return; setup(sk3dCache[U]); setLoad(""); s.dirty = true;
       } catch (e) { if (!dead) { setLoad(""); onErr && onErr("load"); } }
     })();
     raf = requestAnimationFrame(loop);
@@ -3227,11 +3259,11 @@ function Sk3D({ states, hidden, onTap, focus, viewCmd, auto, onErr }) {
   /* odak: bölgeye yakınlaş */
   useEffect(() => {
     const s = S.current; if (!s.goal) return; const m = s.meta;
-    if (focus && m && m.box[focus]) { const b = m.box[focus]; const c = [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2]; const sz = Math.max(b[3] - b[0], b[4] - b[1], b[5] - b[2]); s.goal.tx = c[0]; s.goal.ty = c[1]; s.goal.tz = c[2]; s.goal.dist = Math.max(0.75, Math.min(3.5, sz * 2.6 + 0.5)); }
-    else { s.goal.tx = 0; s.goal.ty = 0; s.goal.tz = 0; s.goal.dist = 3.5; }
+    if (focus && m && m.box[focus]) { const b = m.box[focus]; const c = [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2]; const sz = Math.max(b[3] - b[0], b[4] - b[1], b[5] - b[2]); s.goal.tx = c[0]; s.goal.ty = c[1]; s.goal.tz = c[2]; s.goal.dist = Math.max(0.75, Math.min(D0, sz * 2.6 + 0.5)); }
+    else { s.goal.tx = 0; s.goal.ty = 0; s.goal.tz = 0; s.goal.dist = D0; }
     s.dirty = true;
   }, [focus, load]);
-  useEffect(() => { const s = S.current; if (!viewCmd || !s.goal) return; const y = { on: 0, arka: Math.PI, sol: Math.PI / 2, sag: -Math.PI / 2 }[viewCmd.name]; if (y !== undefined) { s.goal.yaw = y; s.pitch = 0.08; } if (viewCmd.name === "sifirla") { s.goal.tx = 0; s.goal.ty = 0; s.goal.tz = 0; s.goal.dist = 3.5; s.goal.yaw = 0; s.pitch = 0.12; } s.dirty = true; }, [viewCmd]);
+  useEffect(() => { const s = S.current; if (!viewCmd || !s.goal) return; const y = { on: 0, arka: Math.PI, sol: Math.PI / 2, sag: -Math.PI / 2 }[viewCmd.name]; if (y !== undefined) { s.goal.yaw = y; s.pitch = 0.08; } if (viewCmd.name === "sifirla") { s.goal.tx = 0; s.goal.ty = 0; s.goal.tz = 0; s.goal.dist = D0; s.goal.yaw = 0; s.pitch = 0.12; } s.dirty = true; }, [viewCmd]);
 
   return (
     <div className="relative w-full" style={{ height: "min(70vh, 640px)", minHeight: 360 }}>
@@ -3259,10 +3291,11 @@ function VipSkeleton({ uid }) {
   const [auto3, setAuto3] = useState(false);
   const [cmd3, setCmd3] = useState(null);
   const [layers, setLayers] = useState({});
-  const [err3, setErr3] = useState(false);
+  const [err3, setErr3] = useState({});
   const [vb, setVb] = useState(() => skParse(SK_VIEWS.iskelet.vb));
   const vbRef = useRef(vb);
   const V = SK_VIEWS[view];
+  const is3 = view === "model3d" || view === "kafa3d";
   const base = useMemo(() => skParse(V.vb), [view]);
 
   const save = (p) => { setProg(p); try { localStorage.setItem(key, JSON.stringify(p)); } catch (e) { /* kayıt yoksa sorun değil */ } };
@@ -3270,7 +3303,7 @@ function VipSkeleton({ uid }) {
 
   /* yakınlaştırma */
   useEffect(() => {
-    if (view === "model3d") return undefined;
+    if (is3) return undefined;
     let target = base;
     const svg = svgRef.current;
     if (svg && sel && mode === "ogren") {
@@ -3312,9 +3345,10 @@ function VipSkeleton({ uid }) {
     setSel(id); setLabel3(lab);
   };
   const LAYER_DEF = { kaburga: ["costae", "sternum"], kol: ["clavicula", "scapula", "humerus", "radius", "ulna", "scaphoideum", "lunatum", "triquetrum", "pisiforme", "trapezium", "trapezoideum", "capitatum", "hamatum", "metacarpi", "phalanx_proximalis", "phalanx_media", "phalanx_distalis"], bacak: ["femur", "patella", "tibia", "fibula", "talus", "calcaneus", "naviculare", "cuboideum", "cuneiforme_med", "cuneiforme_int", "cuneiforme_lat", "metatarsi", "phalanges_pedis"], pelvis: ["oscoxae"] };
-  const hidden3 = useMemo(() => { const h = {}; Object.keys(layers).forEach((k) => { if (layers[k]) LAYER_DEF[k].forEach((id) => { h[id] = true; }); }); return h; }, [layers]);
+  const LAYER_K = { kubbe: ["frontale", "parietale", "occipitale", "temporale"], yuz: ["zygomaticum", "nasale", "lacrimale", "maxilla", "palatinum", "concha_inf", "vomer"], mand: ["mandibula"] };
+  const hidden3 = useMemo(() => { const h = {}; const LD = { ...LAYER_DEF, ...LAYER_K }; Object.keys(layers).forEach((k) => { if (layers[k] && LD[k]) LD[k].forEach((id) => { h[id] = true; }); }); return h; }, [layers]);
   const states3 = {};
-  SK_ORDER.model3d.forEach((id) => {
+  (is3 ? SK_ORDER[view] : []).forEach((id) => {
     let s = null;
     if (quiz && q) { if (quiz.picked === null) { if (quiz.kind === "hangisi" && id === q) s = "ask"; } else if (id === q) s = "ok"; else if (id === quiz.picked) s = "no"; }
     else if (mode === "ogren") { if (id === sel) s = "sel"; else if (heat && prog[id]) s = prog[id].last ? "m1" : "m2"; else if (hot && SK_R[id].hot) s = "hot"; }
@@ -3340,7 +3374,7 @@ function VipSkeleton({ uid }) {
     const first = list[0];
     if (scope === "weak" || ids) setView(SK_R[first].v);
     setSel(null); setMode(kind);
-    const opts = (id) => { const vw = SK_R[id].v; const pool = (SK_ORDER[vw] || []).filter((x) => x !== id); return skShuffle([id, ...skShuffle(pool).slice(0, 3)]); };
+    const opts = (id) => { const vw = SK_ORDER[view] && SK_ORDER[view].includes(id) ? view : SK_R[id].v; const pool = (SK_ORDER[vw] || []).filter((x) => x !== id); return skShuffle([id, ...skShuffle(pool).slice(0, 3)]); };
     setQuiz({ kind, scope, list, i: 0, picked: null, right: 0, missed: [], opts: kind === "hangisi" ? opts(first) : null, optsFn: opts });
   };
   const next = () => {
@@ -3381,7 +3415,7 @@ function VipSkeleton({ uid }) {
       <style>{SK_CSS + SK_CSS2}</style>
       {/* bölüm seçici */}
       <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
-        {Object.entries(SK_VIEWS).filter(([k]) => !(k === "model3d" && err3)).map(([k, v]) => (
+        {Object.entries(SK_VIEWS).filter(([k]) => !err3[k]).map(([k, v]) => (
           <button key={k} type="button" disabled={!!quiz} onClick={() => goView(k)} className={"shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold " + (view === k ? "bg-teal-500 text-slate-950" : "border border-sky-300/20 text-slate-200") + (quiz ? " opacity-50" : "")}>{v.t}</button>
         ))}
       </div>
@@ -3400,8 +3434,8 @@ function VipSkeleton({ uid }) {
             {quiz.kind === "nerede" ? (<div className="text-base font-bold text-white">Göster: <span className="text-amber-200">{SK_R[q].n}</span></div>) : (<div className="text-base font-bold text-white">Parlayan kemik hangisi?</div>)}
           </div>
         )}
-        {view === "model3d" && !err3 && <Sk3D states={states3} hidden={hidden3} focus={mode === "ogren" ? sel : null} viewCmd={cmd3} auto={auto3 && !sel && !quiz} onTap={tap3} onErr={() => { setErr3(true); setView("iskelet"); }} />}
-        {view !== "model3d" && <svg ref={svgRef} className="sk-svg block w-full" viewBox={vb.join(" ")} style={{ maxHeight: "68vh", minHeight: 280 }} onClick={() => { if (!quiz) setSel(null); }}>
+        {is3 && !err3[view] && <Sk3D key={view} url={view === "kafa3d" ? SK3D_SKULL : undefined} d0={view === "kafa3d" ? 4.3 : undefined} states={states3} hidden={hidden3} focus={mode === "ogren" ? sel : null} viewCmd={cmd3} auto={auto3 && !sel && !quiz} onTap={tap3} onErr={() => { const v0 = view; setErr3((o) => ({ ...o, [v0]: true })); setView(v0 === "kafa3d" ? "kafa" : "iskelet"); }} />}
+        {!is3 && <svg ref={svgRef} className="sk-svg block w-full" viewBox={vb.join(" ")} style={{ maxHeight: "68vh", minHeight: 280 }} onClick={() => { if (!quiz) setSel(null); }}>
           {view === "iskelet" && <BodyArt cls={clsOf} pick={pick} />}
           {view === "omurga" && <SpineArt cls={clsOf} onPick={pick} />}
           {view === "kafa" && <SkullArt cls={clsOf} pick={pick} />}
@@ -3412,16 +3446,16 @@ function VipSkeleton({ uid }) {
         )}
       </div>
 
-      {view === "model3d" && !err3 && (
+      {is3 && !err3[view] && (
         <div className="mt-3 space-y-2">
           <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 text-xs">
             {[["on", "Ön"], ["arka", "Arka"], ["sol", "Sol yan"], ["sag", "Sağ yan"], ["sifirla", "Sıfırla"]].map(([k, t]) => (<button key={k} type="button" onClick={() => setCmd3({ name: k, n: Math.random() })} className="shrink-0 rounded-full border border-sky-300/20 px-3 py-1.5 font-semibold text-slate-200">{t}</button>))}
             <button type="button" onClick={() => setAuto3(!auto3)} className={"shrink-0 rounded-full border px-3 py-1.5 font-semibold " + (auto3 ? "border-teal-300 bg-teal-500/20 text-white" : "border-sky-300/20 text-slate-300")}>Otomatik dön</button>
           </div>
           <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 text-xs">
-            {[["kaburga", "Kaburgaları gizle"], ["kol", "Kolları gizle"], ["bacak", "Bacakları gizle"], ["pelvis", "Pelvisi gizle"]].map(([k, t]) => (<button key={k} type="button" onClick={() => setLayers({ ...layers, [k]: !layers[k] })} className={"shrink-0 rounded-full border px-3 py-1.5 font-semibold " + (layers[k] ? "border-amber-300/60 bg-amber-500/15 text-amber-100" : "border-sky-300/20 text-slate-300")}>{layers[k] ? t.replace("gizle", "göster") : t}</button>))}
+            {(view === "kafa3d" ? [["kubbe", "Kafa kubbesini gizle"], ["yuz", "Yüz kemiklerini gizle"], ["mand", "Mandibulayı gizle"]] : [["kaburga", "Kaburgaları gizle"], ["kol", "Kolları gizle"], ["bacak", "Bacakları gizle"], ["pelvis", "Pelvisi gizle"]]).map(([k, t]) => (<button key={k} type="button" onClick={() => setLayers({ ...layers, [k]: !layers[k] })} className={"shrink-0 rounded-full border px-3 py-1.5 font-semibold " + (layers[k] ? "border-amber-300/60 bg-amber-500/15 text-amber-100" : "border-sky-300/20 text-slate-300")}>{layers[k] ? t.replace("gizle", "göster") : t}</button>))}
           </div>
-          <p className="text-[11px] leading-snug text-slate-500">Model: <a href={SK3D_SRC} target="_blank" rel="noreferrer" className="underline">Female Human Skeleton – ZBrush – Anatomy Study</a>, Ruslan Gadzhiev, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="underline">CC BY 4.0</a>. Model parçalara ayrıldı ve sıkıştırıldı. Omurga bölgesi: koksiks sakrumla, ayrı ayrı olmayan kafatası kemikleri tek parça gösterilir.</p>
+          {view === "kafa3d" ? (<p className="text-[11px] leading-snug text-slate-500">Model: <a href={SK3D_SRC2} target="_blank" rel="noreferrer" className="underline">Cráneo desarticulado / Disarticulated skull</a>, Ualde, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="underline">CC BY 4.0</a>. Model kemik gruplarına ayrıldı ve sadeleştirildi (dişler çıkarıldı). Sağ/sol ayrımı modelin yönüne göredir.</p>) : (<p className="text-[11px] leading-snug text-slate-500">Model: <a href={SK3D_SRC} target="_blank" rel="noreferrer" className="underline">Female Human Skeleton – ZBrush – Anatomy Study</a>, Ruslan Gadzhiev, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="underline">CC BY 4.0</a>. Model parçalara ayrıldı ve sıkıştırıldı. Omurga bölgesi: koksiks sakrumla, ayrı ayrı olmayan kafatası kemikleri tek parça gösterilir.</p>)}
         </div>
       )}
       {/* öğren: araçlar + bölge listesi */}
@@ -3451,7 +3485,7 @@ function VipSkeleton({ uid }) {
                   {r.hot ? <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-200">Vize için öncelikli</span> : <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-300">Düşük ihtimal</span>}
                 </div>
                 <div className="text-sm text-slate-400">{r.tr}</div>
-                {label3 && view === "model3d" && <div className="mt-1 text-xs text-teal-200">Dokunduğun kemik: {label3}</div>}
+                {label3 && is3 && <div className="mt-1 text-xs text-teal-200">Dokunduğun kemik: {label3}</div>}
               </div>
               <ul className="space-y-2">
                 {r.i.map((t, k) => (<li key={k} className="flex gap-2 text-[15px] leading-snug text-slate-100"><span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-teal-300" /><span>{t}</span></li>))}
@@ -3459,6 +3493,7 @@ function VipSkeleton({ uid }) {
               {r.trap && <div className="rounded-xl bg-amber-500/15 p-3 text-sm text-amber-100"><b>Dikkat: </b>{r.trap}</div>}
               {r.ek && <div className="rounded-xl bg-white/5 p-3 text-xs text-slate-300"><b>Ek bilgi: </b>{r.ek.join(" ")}</div>}
               {r.det && <button type="button" onClick={() => goView(r.det)} className="w-full rounded-xl bg-sky-500/20 py-3 text-sm font-semibold text-sky-100">Yakından aç: {SK_VIEWS[r.det].t}</button>}
+              {r.det3 && view !== r.det3 && !err3[r.det3] && <button type="button" onClick={() => goView(r.det3)} className="w-full rounded-xl bg-teal-500/20 py-3 text-sm font-semibold text-teal-100">Ayrık 3D kafatasını aç</button>}
               {prog[r.id] && <div className="text-xs text-slate-400">Sınavda: {prog[r.id].ok} doğru, {prog[r.id].no} yanlış</div>}
             </div>
           )}
