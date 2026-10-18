@@ -3540,9 +3540,9 @@ function VipSkeleton({ uid }) {
             </div>
           )}
           {r && (
-            <div className={sheet3 ? "fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-xl px-2 pb-[max(8px,env(safe-area-inset-bottom,0px))]" : ""}>
+            <div className={sheet3 ? "fixed inset-x-0 z-40 mx-auto w-full max-w-xl px-2" : ""} style={sheet3 ? { bottom: "calc(76px + env(safe-area-inset-bottom, 0px))" } : undefined}>
             {sheet3 && (<button type="button" onClick={() => setSheetMin(!sheetMin)} className="flex w-full items-center justify-between rounded-t-2xl border border-b-0 border-teal-300/30 bg-[#0b1f38] px-4 py-2 text-left shadow-[0_-8px_24px_rgba(0,0,0,.5)]"><span className="truncate text-sm font-bold text-white">{r.tr}{label3 ? " · " + label3 : ""}</span><span className="ml-3 shrink-0 text-xs font-semibold text-teal-200">{sheetMin ? "Bilgiyi aç ▲" : "Küçült ▼"}</span></button>)}
-            <div className={STAFF_CARD + " space-y-3" + (sheet3 ? " !rounded-t-none !bg-[#0b1f38] overflow-y-auto" + (sheetMin ? " hidden" : "") : "")} style={sheet3 ? { maxHeight: "38vh", background: "#0b1f38" } : undefined}>
+            <div className={STAFF_CARD + " space-y-3" + (sheet3 ? " !rounded-t-none !bg-[#0b1f38] overflow-y-auto" + (sheetMin ? " hidden" : "") : "")} style={sheet3 ? { maxHeight: "32vh", background: "#0b1f38" } : undefined}>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="font-display text-xl font-bold text-white">{r.n}</div>
