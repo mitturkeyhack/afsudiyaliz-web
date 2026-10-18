@@ -2842,6 +2842,7 @@ function HandArt({ cls, pick }) {
 
 /* ---------- İskelet bölge verisi (slaytlardan özetlenmiştir) ---------- */
 const SK_VIEWS = {
+  model3d: { t: "3D iskelet", vb: "0 0 1 1", intro: "Gerçekçi 3D iskelet. Tek parmakla döndür, iki parmakla yakınlaştır ve kaydır. Bir kemiğe dokununca adı ve bilgisi açılır, o kemik renklenir. Gözükmeyen kemikleri görmek için kaburga, kol ve bacakları gizleyebilirsin." },
   iskelet: { t: "Tüm iskelet", vb: "0 0 300 645", intro: "Bir kemiğe dokun, slayttaki bilgiler altta açılsın. Kafatası, omurga ve el için yakından görünüm var." },
   omurga: { t: "Omurga", vb: "0 20 300 600", intro: "33 omur: 7 boyun, 12 göğüs, 5 bel, 5 kaynaşık sakrum, 4 kaynaşık koksiks. 24'ü hareketli, 9'u sabit. Omurlar arasında 23 disk vardır (axis ile sacrum arası). Eğrilikler: servikal lordoz, torakal kifoz, lumbal lordoz, sakral kifoz. Torakal ve sakral kifoz esas eğriliktir; skolyoz patolojiktir." },
   kafa: { t: "Kafatası", vb: "40 10 240 215", intro: "Kafatası yandan görünüm. Renkler komşu kemikleri ayırt etmen için. Kesik çizgiler dikişlerdir (sutura)." },
@@ -3050,14 +3051,195 @@ const SK_R = {
   phalanx_proximalis: { v: "el", n: "Phalanx proximalis", tr: "Proksimal falanks (birinci sıra)", i: ["Parmakların metakarpa yakın ilk kemiğidir. Her parmakta bulunur (5 adet)."] },
   phalanx_media: { v: "el", n: "Phalanx media", tr: "Orta falanks (ikinci sıra)", i: ["Sadece 4 parmakta bulunur (4 adet). Başparmakta phalanx media yoktur."], trap: "Başparmakta 2 falanks var: proksimal ve distal." },
   phalanx_distalis: { v: "el", n: "Phalanx distalis", tr: "Distal falanks (üçüncü sıra)", i: ["Parmakların uç kemiğidir. Her parmakta bulunur (5 adet)."] },
+  talus: { v: "model3d", n: "Talus", tr: "Ayak bileği kemiği", hot: 1, i: ["Ayak bileği kemiklerinden (ossa tarsi, toplam 7 adet) biridir.", "Ayak iskeleti: ossa tarsi 7, ossa metatarsi 5, ossa digitorum 14; toplam 26 kemik."], ek: ["Tibia ve fibula ile eklem yapan tarsal kemiktir. Slaytta tek tek adı geçmez (slayt dışı bilgi)."] },
+  calcaneus: { v: "model3d", n: "Calcaneus", tr: "Topuk kemiği", hot: 1, i: ["Ayak bileği kemiklerinden (ossa tarsi, 7 adet) biridir."], ek: ["En büyük tarsal kemiktir, topuğu oluşturur. Slaytta tek tek adı geçmez (slayt dışı bilgi)."] },
+  naviculare: { v: "model3d", n: "Os naviculare", tr: "Kayık kemik (ayak)", i: ["Ayak bileği kemiklerinden (ossa tarsi, 7 adet) biridir."], ek: ["Talus'un önünde, iç tarafta yer alır; üç cuneiforme ile eklem yapar (slayt dışı bilgi)."] },
+  cuboideum: { v: "model3d", n: "Os cuboideum", tr: "Küp kemik", i: ["Ayak bileği kemiklerinden (ossa tarsi, 7 adet) biridir."], ek: ["Ayağın dış kenarında bulunur (slayt dışı bilgi)."] },
+  cuneiforme_med: { v: "model3d", n: "Os cuneiforme mediale", tr: "İç kama kemik", i: ["Ayak bileği kemiklerinden (ossa tarsi, 7 adet) biridir."], ek: ["Üç kama kemiğin en iç ve en büyüğüdür (slayt dışı bilgi)."] },
+  cuneiforme_int: { v: "model3d", n: "Os cuneiforme intermedium", tr: "Orta kama kemik", i: ["Ayak bileği kemiklerinden (ossa tarsi, 7 adet) biridir."], ek: ["Üç kama kemiğin ortadakidir ve en küçüğüdür (slayt dışı bilgi)."] },
+  cuneiforme_lat: { v: "model3d", n: "Os cuneiforme laterale", tr: "Dış kama kemik", i: ["Ayak bileği kemiklerinden (ossa tarsi, 7 adet) biridir."], ek: ["Üç kama kemiğin dış olanıdır (slayt dışı bilgi)."] },
+  metatarsi: { v: "model3d", n: "Ossa metatarsi", tr: "Ayak tarağı kemikleri (5)", hot: 1, i: ["Elde olduğu gibi ayakta da 5 tarak kemiği vardır.", "İçten dışa Romen rakamlarıyla I.–V. metatars diye adlandırılır."] },
+  phalanges_pedis: { v: "model3d", n: "Ossa digitorum pedis", tr: "Ayak parmak kemikleri (14)", hot: 1, i: ["Başparmakta 2, diğer parmaklarda 3'er falanks, toplam 14 falanks vardır.", "Birinci sıra phalanx proximalis, ikinci sıra phalanx media, üçüncü sıra phalanx distalis'tir. Başparmakta phalanx media yoktur."], trap: "El ve ayakta 14'er falanks vardır; başparmakta (halluks da) media yoktur." },
 };
 Object.keys(SK_R).forEach((k) => { SK_R[k].id = k; });
 const SK_ORDER = {
+  model3d: ["kafatasi", "mandibula", "atlas", "axis", "cervicales", "prominens", "thoracicae", "lumbales", "sacrum", "sternum", "costae", "clavicula", "scapula", "humerus", "radius", "ulna", "scaphoideum", "lunatum", "triquetrum", "pisiforme", "trapezium", "trapezoideum", "capitatum", "hamatum", "metacarpi", "phalanx_proximalis", "phalanx_media", "phalanx_distalis", "oscoxae", "femur", "patella", "tibia", "fibula", "talus", "calcaneus", "naviculare", "cuboideum", "cuneiforme_med", "cuneiforme_int", "cuneiforme_lat", "metatarsi", "phalanges_pedis"],
   iskelet: ["kafatasi", "cervicales", "thoracicae", "lumbales", "sacrum", "coccygis", "sternum", "costae", "clavicula", "scapula", "humerus", "radius", "ulna", "el", "oscoxae", "femur", "patella", "tibia", "fibula", "ayak"],
   omurga: ["atlas", "axis", "cervicales", "prominens", "thoracicae", "lumbales", "sacrum", "coccygis"],
   kafa: ["frontale", "parietale", "occipitale", "sphenoidale", "temporale", "mastoideus", "styloideus", "zygomaticum", "maxilla", "nasale", "mandibula", "sutura_coronalis", "sutura_squamosa", "sutura_lambdoidea"],
   el: ["scaphoideum", "lunatum", "triquetrum", "pisiforme", "trapezium", "trapezoideum", "capitatum", "hamatum", "metacarpi", "phalanx_proximalis", "phalanx_media", "phalanx_distalis"],
 };
+
+/* ---------- 3D iskelet (WebGL, kütüphanesiz) ---------- */
+const SK3D_URL = "/iskelet3d.bin";
+const SK3D_SRC = "https://sketchfab.com/3d-models/female-human-skeleton-zbrush-anatomy-study-5f28b52cab3e439490727e0aede55a6b";
+const SK3D_COL = { base: [0.92, 0.88, 0.77], hot: [0.96, 0.8, 0.5], dim: [0.42, 0.42, 0.45], sel: [0.37, 0.93, 0.83], ask: [1, 0.88, 0.25], ok: [0.2, 0.85, 0.55], no: [0.98, 0.42, 0.5], m1: [0.62, 0.95, 0.78], m2: [0.99, 0.78, 0.82] };
+let sk3dCache = null;
+const m4 = {
+  persp(f, a, n, r) { const t = 1 / Math.tan(f / 2), q = 1 / (n - r); return [t / a, 0, 0, 0, 0, t, 0, 0, 0, 0, (n + r) * q, -1, 0, 0, 2 * n * r * q, 0]; },
+  look(e, c) {
+    let z = [e[0] - c[0], e[1] - c[1], e[2] - c[2]]; const zl = Math.hypot(...z); z = z.map((v) => v / zl);
+    let x = [z[2], 0, -z[0]]; const xl = Math.hypot(...x) || 1; x = x.map((v) => v / xl);
+    const y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]];
+    return [x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -(x[0] * e[0] + x[1] * e[1] + x[2] * e[2]), -(y[0] * e[0] + y[1] * e[1] + y[2] * e[2]), -(z[0] * e[0] + z[1] * e[1] + z[2] * e[2]), 1];
+  },
+  mul(a, b) { const o = new Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; } return o; },
+};
+const SK3D_VS = `attribute vec3 aPos;attribute vec3 aNrm;attribute float aReg;attribute float aBone;
+uniform mat4 uMVP;uniform mat3 uNM;uniform float uScale;uniform vec4 uCol[48];uniform float uPick;
+varying vec3 vN;varying vec4 vC;varying vec3 vP;varying float vB;
+void main(){vec4 c=uCol[int(aReg+0.5)];vC=c;vB=(aBone+1.0)/255.0;vN=uNM*aNrm;vec4 p=uMVP*vec4(aPos*uScale,1.0);vP=p.xyz;gl_Position=p;}`;
+const SK3D_FS = `precision mediump float;varying vec3 vN;varying vec4 vC;varying vec3 vP;varying float vB;uniform float uPick;
+void main(){if(vC.a<0.5)discard;if(uPick>0.5){gl_FragColor=vec4(vB,0.0,0.0,1.0);return;}
+vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;
+float k=max(dot(n,normalize(vec3(-0.4,0.6,0.7))),0.0);float f=max(dot(n,normalize(vec3(0.6,-0.2,0.5))),0.0);
+float h=0.5+0.5*n.y;float rim=pow(1.0-max(n.z,0.0),2.5);
+vec3 h2=normalize(normalize(vec3(-0.4,0.6,0.7))+vec3(0.0,0.0,1.0));float sp=pow(max(dot(n,h2),0.0),24.0)*0.18;
+vec3 col=vC.rgb*(0.30+0.28*h+0.62*k+0.22*f)+vec3(0.10,0.14,0.2)*rim+sp;gl_FragColor=vec4(col,1.0);}`;
+
+function Sk3D({ states, hidden, onTap, focus, viewCmd, auto, onErr }) {
+  const cv = useRef(null);
+  const S = useRef({ yaw: 0.35, pitch: 0.12, dist: 3.5, tx: 0, ty: 0, tz: 0, g: null, dirty: true, auto: auto, meta: null });
+  const [load, setLoad] = useState("Model yükleniyor…");
+  const propsRef = useRef({});
+  propsRef.current = { states, hidden, onTap };
+  S.current.auto = auto;
+
+  /* renk dizisi */
+  const colors = () => {
+    const m = S.current.meta; if (!m) return null;
+    const { states: st, hidden: hd } = propsRef.current; const dim = Object.values(st || {}).some((v) => v === "sel" || v === "ask" || v === "ok" || v === "no");
+    const a = new Float32Array(48 * 4);
+    m.regions.forEach((r, i) => {
+      const s = st && st[r]; let c = SK3D_COL[s && s !== "none" ? s : "base"] || SK3D_COL.base;
+      if (!s && dim) c = SK3D_COL.dim;
+      a.set([c[0], c[1], c[2], hd && hd[r] ? 0 : 1], i * 4);
+    });
+    return a;
+  };
+
+  useEffect(() => {
+    const canvas = cv.current; let dead = false, raf = 0; const s = S.current;
+    const gl = canvas.getContext("webgl", { antialias: true, alpha: false });
+    if (!gl) { onErr && onErr("webgl"); return; }
+    const sh = (t, src) => { const o = gl.createShader(t); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+    let pr;
+    try { pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, SK3D_VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, SK3D_FS)); gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error("link"); } catch (e) { onErr && onErr("shader"); return; }
+    gl.useProgram(pr);
+    const U = (n) => gl.getUniformLocation(pr, n); const A = (n) => gl.getAttribLocation(pr, n);
+    const loc = { mvp: U("uMVP"), nm: U("uNM"), sc: U("uScale"), col: U("uCol"), pick: U("uPick") };
+    let fbo = null, tex = null, rb = null, fw = 0, fh = 0, nIdx = 0;
+    const setup = (buf) => {
+      const dv = new DataView(buf); const jl = dv.getUint32(0, true);
+      const meta = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, jl))); s.meta = meta;
+      const vo = 4 + jl; const vb = buf.slice(vo, vo + meta.nv * 12); const ib = buf.slice(vo + meta.nv * 12, vo + meta.nv * 12 + meta.ni * 2);
+      const vbuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vbuf); gl.bufferData(gl.ARRAY_BUFFER, vb, gl.STATIC_DRAW);
+      const ibuf = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ib, gl.STATIC_DRAW);
+      const at = (n, size, type, norm, off) => { const l = A(n); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, size, type, norm, 12, off); };
+      at("aPos", 3, gl.SHORT, false, 0); at("aNrm", 3, gl.BYTE, true, 6); at("aReg", 1, gl.UNSIGNED_BYTE, false, 9); at("aBone", 1, gl.UNSIGNED_BYTE, false, 10);
+      nIdx = meta.ni; gl.uniform1f(loc.sc, 1 / 32767);
+      gl.enable(gl.DEPTH_TEST); gl.clearColor(0.03, 0.07, 0.13, 1);
+    };
+    const size = () => {
+      const r = canvas.getBoundingClientRect(); const d = Math.min(window.devicePixelRatio || 1, 2);
+      const w = Math.max(2, Math.round(r.width * d)), h = Math.max(2, Math.round(r.height * d));
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; s.dirty = true; }
+    };
+    const matrices = () => {
+      const w = canvas.width, h = canvas.height; const cp = Math.cos(s.pitch);
+      const eye = [s.tx + s.dist * cp * Math.sin(s.yaw), s.ty + s.dist * Math.sin(s.pitch), s.tz + s.dist * cp * Math.cos(s.yaw)];
+      const view = m4.look(eye, [s.tx, s.ty, s.tz]); const proj = m4.persp(0.62, w / h, 0.05, 20);
+      gl.uniformMatrix4fv(loc.mvp, false, new Float32Array(m4.mul(proj, view)));
+      gl.uniformMatrix3fv(loc.nm, false, new Float32Array([view[0], view[1], view[2], view[4], view[5], view[6], view[8], view[9], view[10]]));
+    };
+    const draw = (pick) => {
+      gl.uniform1f(loc.pick, pick ? 1 : 0); const c = colors(); if (c) gl.uniform4fv(loc.col, c);
+      matrices(); gl.viewport(0, 0, canvas.width, canvas.height);
+      if (pick) gl.clearColor(0, 0, 0, 1); else gl.clearColor(0.03, 0.07, 0.13, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.drawElements(gl.TRIANGLES, nIdx, gl.UNSIGNED_SHORT, 0);
+    };
+    s.pick = (px, py) => {
+      const w = canvas.width, h = canvas.height;
+      if (!fbo || fw !== w || fh !== h) {
+        if (fbo) { gl.deleteFramebuffer(fbo); gl.deleteTexture(tex); gl.deleteRenderbuffer(rb); }
+        fbo = gl.createFramebuffer(); tex = gl.createTexture(); rb = gl.createRenderbuffer(); fw = w; fh = h;
+        gl.bindTexture(gl.TEXTURE_2D, tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, rb); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, w, h);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb);
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo); draw(true);
+      const o = new Uint8Array(4); gl.readPixels(Math.round(px * w / canvas.clientWidth), h - 1 - Math.round(py * h / canvas.clientHeight), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, o);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); s.dirty = true;
+      return o[0] > 0 ? o[0] - 1 : -1;
+    };
+    /* animasyon hedefleri */
+    s.goal = { yaw: null, dist: 3.5, tx: 0, ty: 0, tz: 0 };
+    let last = performance.now();
+    const loop = (t) => {
+      if (dead) return; const dt = Math.min(0.05, (t - last) / 1000); last = t; size();
+      const g = s.goal, k = 1 - Math.pow(0.0009, dt);
+      const nd = (a, b) => { const d = b - a; if (Math.abs(d) > 1e-4) { s.dirty = true; return a + d * k; } return b; };
+      s.dist = nd(s.dist, g.dist); s.tx = nd(s.tx, g.tx); s.ty = nd(s.ty, g.ty); s.tz = nd(s.tz, g.tz);
+      if (g.yaw !== null) { const d = Math.atan2(Math.sin(g.yaw - s.yaw), Math.cos(g.yaw - s.yaw)); if (Math.abs(d) > 1e-3) { s.yaw += d * k; s.dirty = true; } else g.yaw = null; }
+      if (s.auto && !s.touch) { s.yaw += dt * 0.35; s.dirty = true; }
+      if (s.meta && s.dirty) { s.dirty = false; draw(false); }
+      raf = requestAnimationFrame(loop);
+    };
+    /* dokunma */
+    const P = new Map(); let down = null, pinch = 0, mid = null;
+    const pd = (e) => { canvas.setPointerCapture(e.pointerId); P.set(e.pointerId, [e.clientX, e.clientY]); s.touch = true; s.goal.yaw = null; if (P.size === 1) down = { x: e.clientX, y: e.clientY, t: performance.now(), moved: 0 }; else { down = null; const [a, b] = [...P.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; } };
+    const pm = (e) => {
+      if (!P.has(e.pointerId)) return; const old = P.get(e.pointerId); P.set(e.pointerId, [e.clientX, e.clientY]);
+      if (P.size === 1) { const dx = e.clientX - old[0], dy = e.clientY - old[1]; if (down) down.moved += Math.abs(dx) + Math.abs(dy); s.yaw -= dx * 0.008; s.pitch = Math.max(-1.35, Math.min(1.35, s.pitch + dy * 0.008)); s.dirty = true; }
+      else if (P.size === 2) {
+        const [a, b] = [...P.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); const m2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        if (pinch > 0) { s.dist = Math.max(0.45, Math.min(5, s.dist * pinch / d)); s.goal.dist = s.dist; }
+        const sc = s.dist * 0.0021; const cy = Math.cos(s.yaw), sy = Math.sin(s.yaw);
+        const dx = m2[0] - mid[0], dy2 = m2[1] - mid[1];
+        s.tx -= (cy * dx) * sc; s.tz += (sy * dx) * sc; s.ty += dy2 * sc; s.goal.tx = s.tx; s.goal.ty = s.ty; s.goal.tz = s.tz;
+        pinch = d; mid = m2; s.dirty = true;
+      }
+    };
+    const pu = (e) => {
+      const had = P.has(e.pointerId); P.delete(e.pointerId);
+      if (had && down && P.size === 0 && down.moved < 8 && performance.now() - down.t < 500) {
+        const r = canvas.getBoundingClientRect(); const b = s.pick(e.clientX - r.left, e.clientY - r.top);
+        const m = s.meta; if (b >= 0 && m) propsRef.current.onTap && propsRef.current.onTap(m.regions[m.bones[b][1]], m.bones[b][0]); else propsRef.current.onTap && propsRef.current.onTap(null, null);
+      }
+      if (P.size < 2) pinch = 0; if (P.size === 0) { down = null; s.touch = false; }
+    };
+    const wh = (e) => { e.preventDefault(); s.dist = Math.max(0.45, Math.min(5, s.dist * Math.exp(e.deltaY * 0.0012))); s.goal.dist = s.dist; s.dirty = true; };
+    canvas.addEventListener("pointerdown", pd); canvas.addEventListener("pointermove", pm); canvas.addEventListener("pointerup", pu); canvas.addEventListener("pointercancel", pu); canvas.addEventListener("wheel", wh, { passive: false });
+    const lost = (e) => { e.preventDefault(); onErr && onErr("lost"); }; canvas.addEventListener("webglcontextlost", lost);
+    s.g = { gl };
+    (async () => {
+      try {
+        if (!sk3dCache) { const r = await fetch(SK3D_URL); if (!r.ok) throw new Error("http " + r.status); sk3dCache = await r.arrayBuffer(); }
+        if (dead) return; setup(sk3dCache); setLoad(""); s.dirty = true;
+      } catch (e) { if (!dead) { setLoad(""); onErr && onErr("load"); } }
+    })();
+    raf = requestAnimationFrame(loop);
+    return () => { dead = true; cancelAnimationFrame(raf); canvas.removeEventListener("pointerdown", pd); canvas.removeEventListener("pointermove", pm); canvas.removeEventListener("pointerup", pu); canvas.removeEventListener("pointercancel", pu); canvas.removeEventListener("wheel", wh); canvas.removeEventListener("webglcontextlost", lost); };
+  }, []);
+
+  useEffect(() => { S.current.dirty = true; }, [states, hidden]);
+  /* odak: bölgeye yakınlaş */
+  useEffect(() => {
+    const s = S.current; if (!s.goal) return; const m = s.meta;
+    if (focus && m && m.box[focus]) { const b = m.box[focus]; const c = [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2]; const sz = Math.max(b[3] - b[0], b[4] - b[1], b[5] - b[2]); s.goal.tx = c[0]; s.goal.ty = c[1]; s.goal.tz = c[2]; s.goal.dist = Math.max(0.75, Math.min(3.5, sz * 2.6 + 0.5)); }
+    else { s.goal.tx = 0; s.goal.ty = 0; s.goal.tz = 0; s.goal.dist = 3.5; }
+    s.dirty = true;
+  }, [focus, load]);
+  useEffect(() => { const s = S.current; if (!viewCmd || !s.goal) return; const y = { on: 0, arka: Math.PI, sol: Math.PI / 2, sag: -Math.PI / 2 }[viewCmd.name]; if (y !== undefined) { s.goal.yaw = y; s.pitch = 0.08; } if (viewCmd.name === "sifirla") { s.goal.tx = 0; s.goal.ty = 0; s.goal.tz = 0; s.goal.dist = 3.5; s.goal.yaw = 0; s.pitch = 0.12; } s.dirty = true; }, [viewCmd]);
+
+  return (
+    <div className="relative w-full" style={{ height: "min(70vh, 640px)", minHeight: 360 }}>
+      <canvas ref={cv} style={{ display: "block", width: "100%", height: "100%", touchAction: "none" }} />
+      {load && <div className="absolute inset-0 grid place-items-center text-sm text-slate-300">{load}</div>}
+    </div>
+  );
+}
 
 /* ---------- İskelet modülü ---------- */
 const skShuffle = (a) => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
@@ -3066,13 +3248,18 @@ const skParse = (s) => s.split(" ").map(Number);
 function VipSkeleton({ uid }) {
   const key = `vip_sk_${uid}`;
   const [prog, setProg] = useState(() => { try { return JSON.parse(localStorage.getItem(key) || "null") || {}; } catch (e) { return {}; } });
-  const [view, setView] = useState("iskelet");
+  const [view, setView] = useState("model3d");
   const [sel, setSel] = useState(null);
   const [mode, setMode] = useState("ogren");
   const [hot, setHot] = useState(true);
   const [heat, setHeat] = useState(false);
   const [quiz, setQuiz] = useState(null);
   const svgRef = useRef(null);
+  const [label3, setLabel3] = useState(null);
+  const [auto3, setAuto3] = useState(false);
+  const [cmd3, setCmd3] = useState(null);
+  const [layers, setLayers] = useState({});
+  const [err3, setErr3] = useState(false);
   const [vb, setVb] = useState(() => skParse(SK_VIEWS.iskelet.vb));
   const vbRef = useRef(vb);
   const V = SK_VIEWS[view];
@@ -3083,6 +3270,7 @@ function VipSkeleton({ uid }) {
 
   /* yakınlaştırma */
   useEffect(() => {
+    if (view === "model3d") return undefined;
     let target = base;
     const svg = svgRef.current;
     if (svg && sel && mode === "ogren") {
@@ -3116,8 +3304,22 @@ function VipSkeleton({ uid }) {
     return () => cancelAnimationFrame(raf);
   }, [sel, view, mode, base]);
 
-  const goView = (v) => { setView(v); setSel(null); };
+  const goView = (v) => { setView(v); setSel(null); setLabel3(null); };
   const q = quiz && quiz.i < quiz.list.length ? quiz.list[quiz.i] : null;
+  const tap3 = (id, lab) => {
+    if (!id) { if (!quiz) { setSel(null); setLabel3(null); } return; }
+    if (quiz) { onTap(id); return; }
+    setSel(id); setLabel3(lab);
+  };
+  const LAYER_DEF = { kaburga: ["costae", "sternum"], kol: ["clavicula", "scapula", "humerus", "radius", "ulna", "scaphoideum", "lunatum", "triquetrum", "pisiforme", "trapezium", "trapezoideum", "capitatum", "hamatum", "metacarpi", "phalanx_proximalis", "phalanx_media", "phalanx_distalis"], bacak: ["femur", "patella", "tibia", "fibula", "talus", "calcaneus", "naviculare", "cuboideum", "cuneiforme_med", "cuneiforme_int", "cuneiforme_lat", "metatarsi", "phalanges_pedis"], pelvis: ["oscoxae"] };
+  const hidden3 = useMemo(() => { const h = {}; Object.keys(layers).forEach((k) => { if (layers[k]) LAYER_DEF[k].forEach((id) => { h[id] = true; }); }); return h; }, [layers]);
+  const states3 = {};
+  SK_ORDER.model3d.forEach((id) => {
+    let s = null;
+    if (quiz && q) { if (quiz.picked === null) { if (quiz.kind === "hangisi" && id === q) s = "ask"; } else if (id === q) s = "ok"; else if (id === quiz.picked) s = "no"; }
+    else if (mode === "ogren") { if (id === sel) s = "sel"; else if (heat && prog[id]) s = prog[id].last ? "m1" : "m2"; else if (hot && SK_R[id].hot) s = "hot"; }
+    if (s) states3[id] = s;
+  });
   const onTap = (id) => {
     if (quiz && mode === "nerede") { if (q && quiz.picked === null) answer(id); return; }
     if (quiz) return;
@@ -3179,7 +3381,7 @@ function VipSkeleton({ uid }) {
       <style>{SK_CSS + SK_CSS2}</style>
       {/* bölüm seçici */}
       <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
-        {Object.entries(SK_VIEWS).map(([k, v]) => (
+        {Object.entries(SK_VIEWS).filter(([k]) => !(k === "model3d" && err3)).map(([k, v]) => (
           <button key={k} type="button" disabled={!!quiz} onClick={() => goView(k)} className={"shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold " + (view === k ? "bg-teal-500 text-slate-950" : "border border-sky-300/20 text-slate-200") + (quiz ? " opacity-50" : "")}>{v.t}</button>
         ))}
       </div>
@@ -3198,17 +3400,30 @@ function VipSkeleton({ uid }) {
             {quiz.kind === "nerede" ? (<div className="text-base font-bold text-white">Göster: <span className="text-amber-200">{SK_R[q].n}</span></div>) : (<div className="text-base font-bold text-white">Parlayan kemik hangisi?</div>)}
           </div>
         )}
-        <svg ref={svgRef} className="sk-svg block w-full" viewBox={vb.join(" ")} style={{ maxHeight: "68vh", minHeight: 280 }} onClick={() => { if (!quiz) setSel(null); }}>
+        {view === "model3d" && !err3 && <Sk3D states={states3} hidden={hidden3} focus={mode === "ogren" ? sel : null} viewCmd={cmd3} auto={auto3 && !sel && !quiz} onTap={tap3} onErr={() => { setErr3(true); setView("iskelet"); }} />}
+        {view !== "model3d" && <svg ref={svgRef} className="sk-svg block w-full" viewBox={vb.join(" ")} style={{ maxHeight: "68vh", minHeight: 280 }} onClick={() => { if (!quiz) setSel(null); }}>
           {view === "iskelet" && <BodyArt cls={clsOf} pick={pick} />}
           {view === "omurga" && <SpineArt cls={clsOf} onPick={pick} />}
           {view === "kafa" && <SkullArt cls={clsOf} pick={pick} />}
           {view === "el" && <HandArt cls={clsOf} pick={pick} />}
-        </svg>
+        </svg>}
         {mode === "ogren" && sel && (
           <button type="button" onClick={() => setSel(null)} className="absolute right-2 top-2 rounded-full bg-black/50 px-3 py-1.5 text-xs font-semibold text-white">Tümünü göster</button>
         )}
       </div>
 
+      {view === "model3d" && !err3 && (
+        <div className="mt-3 space-y-2">
+          <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 text-xs">
+            {[["on", "Ön"], ["arka", "Arka"], ["sol", "Sol yan"], ["sag", "Sağ yan"], ["sifirla", "Sıfırla"]].map(([k, t]) => (<button key={k} type="button" onClick={() => setCmd3({ name: k, n: Math.random() })} className="shrink-0 rounded-full border border-sky-300/20 px-3 py-1.5 font-semibold text-slate-200">{t}</button>))}
+            <button type="button" onClick={() => setAuto3(!auto3)} className={"shrink-0 rounded-full border px-3 py-1.5 font-semibold " + (auto3 ? "border-teal-300 bg-teal-500/20 text-white" : "border-sky-300/20 text-slate-300")}>Otomatik dön</button>
+          </div>
+          <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 text-xs">
+            {[["kaburga", "Kaburgaları gizle"], ["kol", "Kolları gizle"], ["bacak", "Bacakları gizle"], ["pelvis", "Pelvisi gizle"]].map(([k, t]) => (<button key={k} type="button" onClick={() => setLayers({ ...layers, [k]: !layers[k] })} className={"shrink-0 rounded-full border px-3 py-1.5 font-semibold " + (layers[k] ? "border-amber-300/60 bg-amber-500/15 text-amber-100" : "border-sky-300/20 text-slate-300")}>{layers[k] ? t.replace("gizle", "göster") : t}</button>))}
+          </div>
+          <p className="text-[11px] leading-snug text-slate-500">Model: <a href={SK3D_SRC} target="_blank" rel="noreferrer" className="underline">Female Human Skeleton – ZBrush – Anatomy Study</a>, Ruslan Gadzhiev, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className="underline">CC BY 4.0</a>. Model parçalara ayrıldı ve sıkıştırıldı. Omurga bölgesi: koksiks sakrumla, ayrı ayrı olmayan kafatası kemikleri tek parça gösterilir.</p>
+        </div>
+      )}
       {/* öğren: araçlar + bölge listesi */}
       {mode === "ogren" && (
         <div className="mt-3 space-y-3">
@@ -3218,7 +3433,7 @@ function VipSkeleton({ uid }) {
           </div>
           <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
             {SK_ORDER[view].map((id) => (
-              <button key={id} type="button" onClick={() => setSel(id === sel ? null : id)} className={"shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold " + (id === sel ? "border-teal-300 bg-teal-500/25 text-white" : SK_R[id].hot && hot ? "border-amber-300/40 text-amber-100" : "border-sky-300/20 text-slate-300")}>{SK_R[id].tr.replace(/ \(.*\)/, "")}</button>
+              <button key={id} type="button" onClick={() => { setSel(id === sel ? null : id); setLabel3(null); }} className={"shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold " + (id === sel ? "border-teal-300 bg-teal-500/25 text-white" : SK_R[id].hot && hot ? "border-amber-300/40 text-amber-100" : "border-sky-300/20 text-slate-300")}>{SK_R[id].tr.replace(/ \(.*\)/, "")}</button>
             ))}
           </div>
           {!r && (
@@ -3236,6 +3451,7 @@ function VipSkeleton({ uid }) {
                   {r.hot ? <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-200">Vize için öncelikli</span> : <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-300">Düşük ihtimal</span>}
                 </div>
                 <div className="text-sm text-slate-400">{r.tr}</div>
+                {label3 && view === "model3d" && <div className="mt-1 text-xs text-teal-200">Dokunduğun kemik: {label3}</div>}
               </div>
               <ul className="space-y-2">
                 {r.i.map((t, k) => (<li key={k} className="flex gap-2 text-[15px] leading-snug text-slate-100"><span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-teal-300" /><span>{t}</span></li>))}
