@@ -3329,6 +3329,7 @@ function VipSkeleton({ uid }) {
   const svgRef = useRef(null);
   const [label3, setLabel3] = useState(null);
   const [auto3, setAuto3] = useState(false);
+  const [sheetMin, setSheetMin] = useState(false);
   const [cmd3, setCmd3] = useState(null);
   const [layers, setLayers] = useState({});
   const [err3, setErr3] = useState({});
@@ -3391,7 +3392,7 @@ function VipSkeleton({ uid }) {
   const tap3 = (id, lab) => {
     if (!id) { if (!quiz) { setSel(null); setLabel3(null); } return; }
     if (quiz) { onTap(id); return; }
-    setSel(id); setLabel3(lab);
+    setSel(id); setLabel3(lab); setSheetMin(false);
   };
   const LAYER_DEF = { kaburga: ["costae", "sternum"], kol: ["clavicula", "scapula", "humerus", "radius", "ulna", "scaphoideum", "lunatum", "triquetrum", "pisiforme", "trapezium", "trapezoideum", "capitatum", "hamatum", "metacarpi", "phalanx_proximalis", "phalanx_media", "phalanx_distalis"], bacak: ["femur", "patella", "tibia", "fibula", "talus", "calcaneus", "naviculare", "cuboideum", "cuneiforme_med", "cuneiforme_int", "cuneiforme_lat", "metatarsi", "phalanges_pedis"], pelvis: ["oscoxae"] };
   const LAYER_K = { kubbe: ["frontale", "parietale", "occipitale", "temporale"], yuz: ["zygomaticum", "nasale", "lacrimale", "maxilla", "palatinum", "concha_inf", "vomer"], mand: ["mandibula"], karpal: ["scaphoideum", "lunatum", "triquetrum", "pisiforme", "trapezium", "trapezoideum", "capitatum", "hamatum"], meta: ["metacarpi"], falanks: ["phalanx_proximalis", "phalanx_media", "phalanx_distalis"], servikal: ["atlas", "axis", "cervicales", "prominens"], torakal: ["thoracicae"], lomber: ["lumbales"], diskler: ["disci"], kolhum: ["humerus"], onkol: ["radius", "ulna"], uyluk: ["femur", "patella"], baldir: ["tibia", "fibula"], tarsal: ["talus", "calcaneus", "naviculare", "cuboideum", "cuneiforme_med", "cuneiforme_int", "cuneiforme_lat"], ayakm: ["metatarsi", "phalanges_pedis"], kgercek: ["costae_g"], kyalanci: ["costae_y", "costae_yz"], kikirdak: ["cartilago_costalis"], kvert: ["thoracicae"], pkalca: ["oscoxae"], psakrum: ["sacrum", "coccygis"], oclav: ["clavicula"], oscap: ["scapula"] };
@@ -3451,6 +3452,7 @@ function VipSkeleton({ uid }) {
   };
   const pick = (id) => ({ "data-rid": id, onClick: (e) => { e.stopPropagation(); onTap(id); } });
   const r = sel ? SK_R[sel] : null;
+  const sheet3 = is3 && !err3[view] && mode === "ogren";
   const total = Array.from(new Set([].concat(...Object.values(SK_ORDER)))).length;
   const seen = Object.keys(prog).length;
   const mastered = Object.values(prog).filter((p) => p.last).length;
@@ -3527,7 +3529,7 @@ function VipSkeleton({ uid }) {
           </div>
           <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
             {SK_ORDER[view].map((id) => (
-              <button key={id} type="button" onClick={() => { setSel(id === sel ? null : id); setLabel3(null); }} className={"shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold " + (id === sel ? "border-teal-300 bg-teal-500/25 text-white" : SK_R[id].hot && hot ? "border-amber-300/40 text-amber-100" : "border-sky-300/20 text-slate-300")}>{SK_R[id].tr.replace(/ \(.*\)/, "")}</button>
+              <button key={id} type="button" onClick={() => { setSel(id === sel ? null : id); setLabel3(null); setSheetMin(false); }} className={"shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold " + (id === sel ? "border-teal-300 bg-teal-500/25 text-white" : SK_R[id].hot && hot ? "border-amber-300/40 text-amber-100" : "border-sky-300/20 text-slate-300")}>{SK_R[id].tr.replace(/ \(.*\)/, "")}</button>
             ))}
           </div>
           {!r && (
@@ -3538,7 +3540,9 @@ function VipSkeleton({ uid }) {
             </div>
           )}
           {r && (
-            <div className={STAFF_CARD + " space-y-3"}>
+            <div className={sheet3 ? "fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-xl px-2 pb-[max(8px,env(safe-area-inset-bottom,0px))]" : ""}>
+            {sheet3 && (<button type="button" onClick={() => setSheetMin(!sheetMin)} className="flex w-full items-center justify-between rounded-t-2xl border border-b-0 border-teal-300/30 bg-[#0b1f38] px-4 py-2 text-left shadow-[0_-8px_24px_rgba(0,0,0,.5)]"><span className="truncate text-sm font-bold text-white">{r.tr}{label3 ? " · " + label3 : ""}</span><span className="ml-3 shrink-0 text-xs font-semibold text-teal-200">{sheetMin ? "Bilgiyi aç ▲" : "Küçült ▼"}</span></button>)}
+            <div className={STAFF_CARD + " space-y-3" + (sheet3 ? " !rounded-t-none !bg-[#0b1f38] overflow-y-auto" + (sheetMin ? " hidden" : "") : "")} style={sheet3 ? { maxHeight: "38vh", background: "#0b1f38" } : undefined}>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="font-display text-xl font-bold text-white">{r.n}</div>
@@ -3555,6 +3559,7 @@ function VipSkeleton({ uid }) {
               {r.det && <button type="button" onClick={() => goView(r.det)} className="w-full rounded-xl bg-sky-500/20 py-3 text-sm font-semibold text-sky-100">Yakından aç: {SK_VIEWS[r.det].t}</button>}
               {r.det3 && view !== r.det3 && !err3[r.det3] && <button type="button" onClick={() => goView(r.det3)} className="w-full rounded-xl bg-teal-500/20 py-3 text-sm font-semibold text-teal-100">Ayrık 3D kafatasını aç</button>}
               {prog[r.id] && <div className="text-xs text-slate-400">Sınavda: {prog[r.id].ok} doğru, {prog[r.id].no} yanlış</div>}
+            </div>
             </div>
           )}
           <div className={STAFF_CARD + " space-y-2"}>
