@@ -4061,6 +4061,30 @@ function VipGate({ pkg, user, profile, onLogin, status, reload, setToast }) {
         : <div className="rounded-xl bg-white/5 p-3 text-sm text-slate-200">Bir sonraki taşıma: <b>{st.switch_at ? new Date(st.switch_at).toLocaleDateString("tr-TR") : "-"}</b>. Acil durumda Instagram'dan yöneticiye yaz.</div>}
     </div>
   );
+  if (st.mode === "login" || st.mode === "iplimit") {
+    const m0 = pkg.trial_minutes || st.trial_minutes || 60;
+    const dur = m0 >= 60 && m0 % 60 === 0 ? `${m0 / 60} saat` : `${m0} dakika`;
+    return (
+      <div className="space-y-4">
+        {st.mode === "login" ? (
+          <div className="relative overflow-hidden rounded-2xl border border-amber-300/50 bg-gradient-to-br from-amber-500/30 via-fuchsia-600/20 to-indigo-700/30 p-4 text-center vip-glow">
+            <Sparkles className="mx-auto h-7 w-7 text-amber-200" />
+            <div className="font-display mt-2 text-lg font-bold text-white">{dur} ücretsiz dene</div>
+            <p className="mt-1 text-sm text-amber-50/90">Ücretsiz denemeyi başlatmak için giriş yap ya da hızlıca üye ol. Tüm paket açılır: 3D iskelet, sesli anlatım, kartlar ve sorular.</p>
+            <button type="button" onClick={onLogin} className="mt-3 w-full rounded-xl bg-amber-400 py-3 text-sm font-bold text-slate-950">Giriş yap ve denemeyi aç</button>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-amber-300/30 bg-amber-500/10 p-4 text-center">
+            <Clock className="mx-auto h-7 w-7 text-amber-200" />
+            <div className="font-display mt-2 text-lg font-bold text-white">Bu internetten deneme hakkı doldu</div>
+            <p className="mt-1 text-sm text-amber-50/90">Bu bağlantıdan son 24 saatte izin verilen sayıda deneme başlatıldı.{st.retry_at ? ` ${new Date(st.retry_at).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} sonrası tekrar deneyebilirsin` : " Daha sonra tekrar deneyebilirsin"} ya da paketi hemen satın alabilirsin.</p>
+            <button type="button" disabled={busy} onClick={startTrial} className="mt-3 w-full rounded-xl border border-amber-300/40 py-2.5 text-sm font-semibold text-amber-100 disabled:opacity-50">{busy ? "Kontrol ediliyor…" : "Tekrar dene"}</button>
+          </div>
+        )}
+        <VipSales pkg={pkg} status={status} user={user} onLogin={onLogin} reload={reload} setToast={setToast} />
+      </div>
+    );
+  }
   if (st.mode === "error") return <div className={STAFF_CARD + " text-center text-sm text-slate-300"}>{st.code === "askida" ? "Hesabın askıda olduğu için paket açılamıyor." : "Paket şu an açılamadı. Bağlantını kontrol edip sayfayı yenile."}</div>;
   // none / expired
   const expired = st.mode === "expired";
@@ -4078,7 +4102,7 @@ function VipGate({ pkg, user, profile, onLogin, status, reload, setToast }) {
         <div className="relative overflow-hidden rounded-2xl border border-amber-300/50 bg-gradient-to-br from-amber-500/30 via-fuchsia-600/20 to-indigo-700/30 p-4 text-center vip-glow">
           <Sparkles className="mx-auto h-7 w-7 text-amber-200" />
           <div className="font-display mt-2 text-lg font-bold text-white">{mins >= 60 && mins % 60 === 0 ? `${mins / 60} saat` : `${mins} dakika`} ücretsiz dene</div>
-          <p className="mt-1 text-sm text-amber-50/90">{user ? "Tüm paket açılır: 3D iskelet, sesli anlatım, kartlar ve sorular." : "Giriş yapmadan da deneyebilirsin. Tüm paket açılır."} Süre başladıktan sonra durdurulamaz.</p>
+          <p className="mt-1 text-sm text-amber-50/90">{user || pkg.trial_requires_login ? "Tüm paket açılır: 3D iskelet, sesli anlatım, kartlar ve sorular." : "Giriş yapmadan da deneyebilirsin. Tüm paket açılır."} Süre başladıktan sonra durdurulamaz.</p>
           <button type="button" disabled={busy} onClick={startTrial} className="mt-3 w-full rounded-xl bg-amber-400 py-3 text-sm font-bold text-slate-950 disabled:opacity-50">{busy ? "Açılıyor…" : "Denemeyi başlat"}</button>
         </div>
       )}
@@ -4119,6 +4143,8 @@ function VipAdmin({ setToast }) {
   const [publish, setPublish] = useState(false);
   const [edit, setEdit] = useState(null);
   const [sec, setSec] = useState(null);
+  const [trials, setTrials] = useState(null);
+  const [allTr, setAllTr] = useState(false);
   const pk = pkgs[0];
   const load = useCallback(async () => {
     const a = await sb.rpc("vip_packages_list");
@@ -4126,7 +4152,11 @@ function VipAdmin({ setToast }) {
     setPkgs(list);
     const r = await sb.rpc("admin_vip_requests");
     setReqs(Array.isArray(r.data) ? r.data : []);
-    if (list[0]) { const m = await sb.rpc("admin_vip_members", { p_pkg: list[0].id }); setMem(Array.isArray(m.data) ? m.data : []); }
+    if (list[0]) {
+      const [m, tr] = await Promise.all([sb.rpc("admin_vip_members", { p_pkg: list[0].id }), sb.rpc("admin_vip_trials", { p_pkg: list[0].id })]);
+      setMem(Array.isArray(m.data) ? m.data : []);
+      setTrials(Array.isArray(tr.data) ? tr.data : null);
+    }
   }, []);
   useEffect(() => { load(); }, [load]);
   const decide = async (r, yes) => {
@@ -4141,7 +4171,13 @@ function VipAdmin({ setToast }) {
   };
   const saveSec = async () => {
     const { error } = await sb.rpc("admin_vip_security_set", { p_pkg: pk.id, p_trial: Number(sec.trial || 0), p_max_devices: Number(sec.dev || 1) });
-    setToast(error ? "Kaydedilemedi (vip_3 SQL çalıştı mı?)" : "Deneme ve cihaz ayarı kaydedildi."); if (!error) setSec(null); load();
+    const r2 = error ? { error } : await sb.rpc("admin_vip_trial_set", { p_pkg: pk.id, p_login: !!sec.login, p_ip_limit: Number(sec.ip || 0) });
+    setToast(error ? "Kaydedilemedi (vip_3 SQL çalıştı mı?)" : r2.error ? "Giriş/ağ kuralı kaydedilemedi (vip_4 SQL çalıştı mı?)" : "Deneme ayarları kaydedildi."); if (!error && !r2.error) setSec(null); load();
+  };
+  const resetTrial = async (t) => {
+    if (!(await ask(`${t.name || "Bu kullanıcı"} için deneme sıfırlansın mı? Yeniden ${pk.trial_minutes ?? 60} dakika deneyebilir.`))) return;
+    const { error } = await sb.rpc("admin_vip_trial_reset", { p_pkg: pk.id, p_user: t.user_id });
+    setToast(error ? "Sıfırlanamadı." : "Deneme sıfırlandı."); load();
   };
   const resetDev = async (m) => {
     if (!(await ask(`${m.name} kullanıcısının kayıtlı cihazı silinsin mi? Bir sonraki girişte kullandığı cihaz kaydolur.`))) return;
@@ -4215,11 +4251,14 @@ function VipAdmin({ setToast }) {
         )}
       </div>
       <div>
-        <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Deneme ve cihaz kilidi</div><button type="button" onClick={() => setSec(sec ? null : { trial: pk.trial_minutes ?? 60, dev: pk.max_devices ?? 1 })} className="text-xs text-teal-300">{sec ? "Kapat" : "Düzenle"}</button></div>
-        <div className="mt-1 text-xs text-slate-400">Deneme: {pk.trial_minutes ?? 60} dk · Cihaz sınırı: {pk.max_devices ?? 1}</div>
+        <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Deneme ve cihaz kilidi</div><button type="button" onClick={() => setSec(sec ? null : { trial: pk.trial_minutes ?? 60, dev: pk.max_devices ?? 1, login: pk.trial_requires_login ?? true, ip: pk.trial_ip_limit ?? 2 })} className="text-xs text-teal-300">{sec ? "Kapat" : "Düzenle"}</button></div>
+        <div className="mt-1 text-xs text-slate-400">Deneme: {pk.trial_minutes ?? 60} dk · {pk.trial_requires_login === false ? "girişsiz de açılır" : "giriş zorunlu"} · aynı internet: {pk.trial_ip_limit ? `24 saatte en fazla ${pk.trial_ip_limit}` : "sınırsız"} · Cihaz sınırı: {pk.max_devices ?? 1}</div>
         {sec && (
           <div className="mt-2 space-y-2">
             <label className="block text-xs text-slate-300">Ücretsiz deneme (dakika, 0 = kapalı)<input value={sec.trial} onChange={(e) => setSec({ ...sec, trial: e.target.value.replace(/\D/g, "").slice(0, 4) })} className={inp + " mt-1"} /></label>
+            <label className="flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={!!sec.login} onChange={(e) => setSec({ ...sec, login: e.target.checked })} /> Deneme için giriş zorunlu</label>
+            <label className="block text-xs text-slate-300">Aynı internetten 24 saatte en fazla kaç deneme (0 = sınırsız)<input value={sec.ip} onChange={(e) => setSec({ ...sec, ip: e.target.value.replace(/\D/g, "").slice(0, 2) })} className={inp + " mt-1"} /></label>
+            <p className="text-[11px] text-slate-500">Yurt ve kampüs Wi-Fi'ında birçok öğrenci aynı internetten girer. Sınıfça deneyecekleri bir gün bu sayıyı geçici olarak artırabilirsin.</p>
             <label className="block text-xs text-slate-300">Bir hesabın kullanabileceği cihaz sayısı (1-5)<input value={sec.dev} onChange={(e) => setSec({ ...sec, dev: e.target.value.replace(/\D/g, "").slice(0, 1) })} className={inp + " mt-1"} /></label>
             <button type="button" onClick={saveSec} className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white">Kaydet</button>
           </div>
@@ -4229,6 +4268,33 @@ function VipAdmin({ setToast }) {
         <div className="text-xs font-semibold text-slate-300">Elle paket ver</div>
         <div className="mt-1 flex gap-2"><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Kullanıcının e-postası" className={inp} /><input value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, ""))} placeholder="Gün" className={inp + " !w-20"} /></div>
         <button type="button" onClick={grant} className="mt-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white">Ver</button>
+      </div>
+      <div>
+        <div className="text-xs font-semibold text-slate-300">Deneme kullananlar{trials ? ` (${trials.length}${trials.length >= 300 ? "+" : ""})` : ""}</div>
+        {trials === null && <div className="mt-1 text-[11px] text-slate-500">Liste için vip_4 SQL dosyasını çalıştır.</div>}
+        {trials && trials.length > 0 && (() => {
+          const nowMs = Date.now();
+          const act = trials.filter((t) => new Date(t.ends_at).getTime() > nowMs).length;
+          const day = trials.filter((t) => nowMs - new Date(t.started_at).getTime() < 864e5).length;
+          return <div className="mt-1 text-[11px] text-slate-400">Şu an denemede: <b className="text-teal-300">{act}</b> · son 24 saatte başlayan: <b className="text-white">{day}</b> · paket alan: <b className="text-amber-300">{trials.filter((t) => t.has_vip).length}</b></div>;
+        })()}
+        {(trials || []).slice(0, allTr ? 300 : 12).map((t) => {
+          const live = new Date(t.ends_at).getTime() > Date.now();
+          const leftM = Math.max(0, Math.ceil((new Date(t.ends_at).getTime() - Date.now()) / 60000));
+          return (
+            <div key={t.id} className="mt-1 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-200">
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate">{t.name ? `${t.name} · ${t.email}` : <span className="text-slate-400">Giriş yapmamış · cihaz {t.device || "?"}</span>}</span>
+                <span className={"shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold " + (t.has_vip ? "bg-amber-400/20 text-amber-200" : live ? "bg-teal-500/20 text-teal-200" : "bg-white/10 text-slate-400")}>{t.has_vip ? "Paket aldı" : live ? `Aktif · ${leftM} dk` : "Bitti"}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                <span>{new Date(t.started_at).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}{t.net ? <> · ağ {t.net}{t.net24 > 1 && <b className={t.net24 >= (pk.trial_ip_limit || 99) ? " text-amber-300" : " text-slate-300"}> · bu ağdan 24 saatte {t.net24}. deneme</b>}</> : ""}</span>
+                {t.user_id && !t.has_vip && <button type="button" onClick={() => resetTrial(t)} className="shrink-0 rounded-md border border-sky-300/20 px-2 py-1 text-[11px] text-sky-200">Denemeyi sıfırla</button>}
+              </div>
+            </div>
+          );
+        })}
+        {trials && trials.length > 12 && <button type="button" onClick={() => setAllTr(!allTr)} className="mt-2 text-xs text-teal-300">{allTr ? "Daha az göster" : `Tümünü göster (${trials.length})`}</button>}
       </div>
       <div>
         <div className="text-xs font-semibold text-slate-300">Paketi olanlar ({mem.length})</div>
