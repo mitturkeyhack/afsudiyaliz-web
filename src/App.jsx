@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Trophy, Activity, ArrowUpRight, Check, ChevronDown, ClipboardList, Download, Droplets, Eye,
   GraduationCap, HeartPulse, Link2, Mail, MessageCircle, Plus, Presentation, RotateCw,
-  Search, Send, Upload, X, FileText, Lightbulb, Play, Users, LogOut, Shield, Trash2, Bell, Megaphone, Lock, Archive, CalendarDays,
+  Search, Send, Upload, X, FileText, Lightbulb, Play, Users, LogOut, Shield, Trash2, Bell, Megaphone, Lock, Archive, CalendarDays, Crown, Copy, Sparkles, Smartphone, Clock,
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -3813,21 +3813,13 @@ function VipCards({ list, topics, prog, onKnow, onExit }) {
   );
 }
 
-function VipStudy({ pkg, user, profile, setToast }) {
-  const isAdminUser = profile?.role === "admin";
-  const [content, setContent] = useState(undefined);
-  const key = `vip_${pkg.id}_${user.id}`;
+function VipStudy({ pkg, user, profile, setToast, content }) {
+  const key = `vip_${pkg.id}_${user?.id || "misafir"}`;
   const [prog, setProg] = useState(() => { try { return JSON.parse(localStorage.getItem(key) || "null") || { a: {}, c: {} }; } catch (e) { return { a: {}, c: {} }; } });
   const [mode, setMode] = useState({ name: "home" });
-  useEffect(() => {
-    let off = false;
-    sb.rpc("vip_content_get", { p_pkg: pkg.id, p_draft: isAdminUser }).then(({ data, error }) => { if (!off) setContent(error ? null : data || null); });
-    return () => { off = true; };
-  }, [pkg.id, isAdminUser]);
   const saveProg = (p) => { setProg(p); try { localStorage.setItem(key, JSON.stringify(p)); } catch (e) { /* kayıt yoksa sorun değil */ } };
   const record = (qid, ok) => saveProg({ ...prog, a: { ...prog.a, [qid]: { ok, t: Date.now() } } });
   const know = (cid, yes) => saveProg({ ...prog, c: { ...prog.c, [cid]: yes ? Math.min(3, (prog.c[cid] || 0) + 1) : 0 } });
-  if (content === undefined) return <div className="py-10 text-center text-sm text-slate-400">Yükleniyor…</div>;
   if (!content) return <div className={STAFF_CARD + " text-center text-sm text-slate-300"}>Paket içeriği hazırlanıyor. Çok yakında burada olacak.</div>;
   const D = content.data;
   const topics = D.topics || [];
@@ -3854,7 +3846,7 @@ function VipStudy({ pkg, user, profile, setToast }) {
     const iq = pickN(imgQs, 8); const tq = pickN(D.questions.filter((q) => !q.img), 27);
     setMode({ name: "quiz", list: vipShuffle([...tq, ...iq]), title: "Sınav provası", exam: true, secs: 40 * 60, n: Math.random() });
   };
-  const wm = `${profile?.full_name || ""} ${user.email || ""}`.trim();
+  const wm = user ? `${profile?.full_name || ""} ${user.email || ""}`.trim() : "Deneme sürümü · AFSÜ Diyaliz Team";
   const exit = () => { setMode({ name: "home" }); window.scrollTo(0, 0); };
   return (
     <div className="relative select-none" onContextMenu={(e) => e.preventDefault()}>
@@ -3901,9 +3893,9 @@ function VipStudy({ pkg, user, profile, setToast }) {
   );
 }
 
-function VipRunner({ pkg, user, profile, setToast }) {
+function VipRunner({ pkg, user, profile, setToast, content }) {
   const [tab, setTab] = useState("iskelet");
-  const wm = `${profile?.full_name || ""} ${user.email || ""}`.trim();
+  const wm = user ? `${profile?.full_name || ""} ${user.email || ""}`.trim() : "Deneme sürümü · AFSÜ Diyaliz Team";
   return (
     <div>
       <div className="mb-4 grid grid-cols-2 gap-1.5 rounded-xl bg-white/5 p-1 text-sm font-semibold">
@@ -3914,10 +3906,10 @@ function VipRunner({ pkg, user, profile, setToast }) {
       {tab === "iskelet" ? (
         <div className="relative select-none" onContextMenu={(e) => e.preventDefault()}>
           <VipWatermark text={wm} />
-          <VipSkeleton uid={user.id} />
+          <VipSkeleton uid={user?.id || "misafir"} />
         </div>
       ) : (
-        <VipStudy pkg={pkg} user={user} profile={profile} setToast={setToast} />
+        <VipStudy pkg={pkg} user={user} profile={profile} setToast={setToast} content={content} />
       )}
     </div>
   );
@@ -3940,7 +3932,7 @@ function VipSales({ pkg, status, user, onLogin, reload, setToast }) {
       <div className="flex items-center gap-2"><Lock className="h-5 w-5 text-amber-300" /><div className="font-display text-xl font-bold text-white">{pkg.title}</div></div>
       <p className="text-sm leading-relaxed text-slate-300">{pkg.description}</p>
       <ul className="space-y-1 text-sm text-slate-200">
-        {["Çıkmış sorulara göre bilgi kartları", "Geniş soru havuzu, anında açıklama", "Yanlışlarından otomatik deneme", "Karıştırılan yerler ve sınav tuzakları"].map((x) => <li key={x} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-none text-teal-300" />{x}</li>)}
+        {["Etkileşimli 3D iskelet ve sesli anlatım", "Gerçek atlas görselleriyle \"şurası neresi?\" soruları", "Çıkmış sorulara göre bilgi kartları ve geniş soru havuzu", "Yanlışlarından otomatik deneme ve 40 dakikalık sınav provası"].map((x) => <li key={x} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-none text-teal-300" />{x}</li>)}
       </ul>
       <div className="rounded-xl bg-white/5 p-3">
         <div className="text-xs text-slate-400">Fiyat</div>
@@ -3953,13 +3945,144 @@ function VipSales({ pkg, status, user, onLogin, reload, setToast }) {
         <div className="rounded-xl bg-sky-500/15 p-3 text-sm text-sky-100">Talebin alındı. Ödemen kontrol edilince paketin açılır.</div>
       ) : (
         <>
-          {pkg.pay_info && <div className="whitespace-pre-wrap rounded-xl border border-dashed border-sky-300/25 p-3 text-sm text-slate-100"><div className="mb-1 text-xs text-slate-400">Ödeme bilgisi</div>{pkg.pay_info}</div>}
+          {pkg.pay_info && <VipPayInfo text={pkg.pay_info} setToast={setToast} />}
           {req === "reddedildi" && <div className="rounded-xl bg-rose-500/15 p-3 text-sm text-rose-100">Önceki talebin onaylanmadı. Ödemeyi kontrol edip tekrar talep gönderebilirsin.</div>}
           <input value={note} onChange={(e) => setNote(e.target.value.slice(0, 200))} placeholder="Ödeme yaparken yazdığın ad soyad ya da açıklama" className={inp} />
           <button type="button" disabled={busy} onClick={send} className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950 disabled:opacity-50">Ödemeyi yaptım</button>
           <p className="text-xs text-slate-400">Ödemeyi yaptıktan sonra bu düğmeye bas. Yönetici ödemeyi kontrol edip paketi açar.</p>
         </>
       )}
+    </div>
+  );
+}
+
+const VIP_DEV_KEY = "afsu_cihaz";
+const vipDevice = () => {
+  try {
+    let d = localStorage.getItem(VIP_DEV_KEY);
+    if (!d || !/^[A-Za-z0-9-]{16,64}$/.test(d)) {
+      d = (window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`).replace(/[^A-Za-z0-9-]/g, "");
+      localStorage.setItem(VIP_DEV_KEY, d);
+    }
+    return d;
+  } catch (e) { return "gecici-" + Math.random().toString(36).slice(2, 14) + Math.random().toString(36).slice(2, 10); }
+};
+const fmtLeft = (sec) => { const s = Math.max(0, Math.floor(sec)); return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
+
+// Ödeme bilgisi: her satır ayrı, yanında Kopyala düğmesi. "IBAN: TR.." gibi satırlarda yalnızca değer kopyalanır.
+function VipPayInfo({ text, setToast }) {
+  const rows = String(text || "").split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
+    const k = l.indexOf(":");
+    const label = k > 0 && k < 25 ? l.slice(0, k).trim() : "";
+    let val = k > 0 && k < 25 ? l.slice(k + 1).trim() : l;
+    const isIban = /iban/i.test(label) || /^TR\s?\d{2}/i.test(val);
+    return { label, val, copy: isIban ? val.replace(/\s+/g, "").toUpperCase() : val, isIban };
+  });
+  const copy = async (v) => {
+    try { await navigator.clipboard.writeText(v); setToast("Kopyalandı."); }
+    catch (e) {
+      try { const t = document.createElement("textarea"); t.value = v; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); setToast("Kopyalandı."); }
+      catch (e2) { setToast("Kopyalanamadı, elle seç."); }
+    }
+  };
+  return (
+    <div className="rounded-xl border border-dashed border-amber-300/30 bg-amber-500/5 p-3">
+      <div className="mb-2 text-xs font-semibold text-amber-200">Ödeme bilgisi · dokun, kopyala</div>
+      <div className="space-y-2">
+        {rows.map((r, i) => (
+          <button key={i} type="button" onClick={() => copy(r.copy)} className="flex w-full items-center justify-between gap-3 rounded-lg bg-white/5 px-3 py-2.5 text-left active:scale-[0.99]">
+            <span className="min-w-0">
+              {r.label && <span className="block text-[11px] text-slate-400">{r.label}</span>}
+              <span className={"block break-all text-sm text-white " + (r.isIban ? "font-mono tracking-wide" : "font-semibold")}>{r.val}</span>
+            </span>
+            <span className="flex shrink-0 items-center gap-1 rounded-md bg-teal-500/20 px-2 py-1 text-[11px] font-semibold text-teal-200"><Copy className="h-3.5 w-3.5" /> Kopyala</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Tek paket için kapı: satın alan / deneme / deneme bitti / başka cihaz
+function VipGate({ pkg, user, profile, onLogin, status, reload, setToast }) {
+  const isAdminUser = profile?.role === "admin";
+  const [st, setSt] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const skew = useRef(0);
+  const open = useCallback(async (start) => {
+    const { data, error } = await sb.rpc("vip_open", { p_pkg: pkg.id, p_device: vipDevice(), p_start: !!start, p_draft: isAdminUser });
+    if (error || !data) { setSt({ mode: "error", code: "baglanti" }); return; }
+    if (data.server_now) skew.current = new Date(data.server_now).getTime() - Date.now();
+    setSt(data);
+  }, [pkg.id, isAdminUser]);
+  useEffect(() => { open(false); }, [open, user?.id]);
+  useEffect(() => {
+    if (st?.mode !== "trial") return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [st?.mode]);
+  const left = st?.mode === "trial" && st.ends_at ? (new Date(st.ends_at).getTime() - (now + skew.current)) / 1000 : 0;
+  useEffect(() => { if (st?.mode === "trial" && left <= 0) setSt({ mode: "expired" }); }, [st?.mode, left]);
+  // Sekmeye dönünce sunucudan tekrar kontrol et (saat oynatmaya karşı)
+  useEffect(() => {
+    const f = () => { if (document.visibilityState === "visible" && st?.mode === "trial") open(false); };
+    document.addEventListener("visibilitychange", f);
+    return () => document.removeEventListener("visibilitychange", f);
+  }, [st?.mode, open]);
+  const startTrial = async () => { setBusy(true); await open(true); setBusy(false); };
+  const moveHere = async () => {
+    if (!(await ask("Paket bu cihaza taşınsın mı? Önceki cihazda paket kapanır. Bu işlem 7 günde bir yapılabilir."))) return;
+    setBusy(true);
+    const { data, error } = await sb.rpc("vip_device_switch", { p_device: vipDevice() });
+    setBusy(false);
+    if (error || !data?.ok) return setToast(data?.switch_at ? `Cihaz değişikliği ${new Date(data.switch_at).toLocaleDateString("tr-TR")} tarihinden sonra yapılabilir.` : "Taşınamadı.");
+    setToast("Paket bu cihaza taşındı."); open(false);
+  };
+  const title = <div className="mb-3 flex items-center justify-between gap-2"><div className="font-display text-xl font-bold text-white">{pkg.title}</div>{st?.mode === "full" && st.ends_at && <div className="text-xs text-slate-400">{new Date(st.ends_at).toLocaleDateString("tr-TR")} tarihine kadar</div>}</div>;
+  if (!st) return <div className="py-10 text-center text-sm text-slate-400">Yükleniyor…</div>;
+  if (st.mode === "full") return <div>{title}<VipRunner pkg={pkg} user={user} profile={profile} setToast={setToast} content={st.content} /></div>;
+  if (st.mode === "trial") return (
+    <div>
+      <div className="sticky top-[64px] z-30 mb-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-300/40 bg-gradient-to-r from-amber-500/25 to-fuchsia-600/25 px-4 py-3 backdrop-blur-xl">
+        <div className="flex items-center gap-2 text-sm text-amber-100"><Clock className="h-4 w-4" /> Ücretsiz deneme</div>
+        <div className="font-display text-xl font-bold tabular-nums text-white">{fmtLeft(left)}</div>
+      </div>
+      {title}
+      <VipRunner pkg={pkg} user={user} profile={profile} setToast={setToast} content={st.content} />
+    </div>
+  );
+  if (st.mode === "device") return (
+    <div className={STAFF_CARD + " space-y-3"}>
+      <div className="flex items-center gap-2"><Smartphone className="h-5 w-5 text-amber-300" /><div className="font-display text-lg font-bold text-white">Bu paket başka bir cihaza kayıtlı</div></div>
+      <p className="text-sm leading-relaxed text-slate-300">Paket hesabına özeldir ve tek cihazda kullanılır. Telefonunu değiştirdiysen paketi bu cihaza taşıyabilirsin. Taşıma 7 günde bir yapılabilir.</p>
+      {st.can_switch
+        ? <button type="button" disabled={busy} onClick={moveHere} className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950 disabled:opacity-50">Paketi bu cihaza taşı</button>
+        : <div className="rounded-xl bg-white/5 p-3 text-sm text-slate-200">Bir sonraki taşıma: <b>{st.switch_at ? new Date(st.switch_at).toLocaleDateString("tr-TR") : "-"}</b>. Acil durumda Instagram'dan yöneticiye yaz.</div>}
+    </div>
+  );
+  if (st.mode === "error") return <div className={STAFF_CARD + " text-center text-sm text-slate-300"}>{st.code === "askida" ? "Hesabın askıda olduğu için paket açılamıyor." : "Paket şu an açılamadı. Bağlantını kontrol edip sayfayı yenile."}</div>;
+  // none / expired
+  const expired = st.mode === "expired";
+  const mins = pkg.trial_minutes || st.trial_minutes || 60;
+  return (
+    <div className="space-y-4">
+      {expired ? (
+        <div className="rounded-2xl border border-rose-300/30 bg-rose-500/10 p-4 text-center">
+          <Lock className="mx-auto h-7 w-7 text-rose-200" />
+          <div className="font-display mt-2 text-lg font-bold text-white">Deneme süren bitti</div>
+          <p className="mt-1 text-sm text-rose-100">{user ? "Çalışmaya devam etmek için paketi satın al." : "Devam etmek için giriş yap ve paketi satın al."}</p>
+          {!user && <button type="button" onClick={onLogin} className="mt-3 w-full rounded-xl bg-white py-3 text-sm font-semibold text-slate-950">Giriş yap</button>}
+        </div>
+      ) : mins > 0 && (
+        <div className="relative overflow-hidden rounded-2xl border border-amber-300/50 bg-gradient-to-br from-amber-500/30 via-fuchsia-600/20 to-indigo-700/30 p-4 text-center vip-glow">
+          <Sparkles className="mx-auto h-7 w-7 text-amber-200" />
+          <div className="font-display mt-2 text-lg font-bold text-white">{mins >= 60 && mins % 60 === 0 ? `${mins / 60} saat` : `${mins} dakika`} ücretsiz dene</div>
+          <p className="mt-1 text-sm text-amber-50/90">{user ? "Tüm paket açılır: 3D iskelet, sesli anlatım, kartlar ve sorular." : "Giriş yapmadan da deneyebilirsin. Tüm paket açılır."} Süre başladıktan sonra durdurulamaz.</p>
+          <button type="button" disabled={busy} onClick={startTrial} className="mt-3 w-full rounded-xl bg-amber-400 py-3 text-sm font-bold text-slate-950 disabled:opacity-50">{busy ? "Açılıyor…" : "Denemeyi başlat"}</button>
+        </div>
+      )}
+      <VipSales pkg={pkg} status={status} user={user} onLogin={onLogin} reload={reload} setToast={setToast} />
     </div>
   );
 }
@@ -3979,12 +4102,9 @@ function VipPage({ user, profile, onLogin, setToast }) {
       {!pkgs && <div className="py-10 text-center text-sm text-slate-400">Yükleniyor…</div>}
       {pkgs && pkgs.length === 0 && <div className={STAFF_CARD + " text-center text-sm text-slate-300"}>Şu an açık paket yok.</div>}
       <div className="space-y-4">
-        {(pkgs || []).map((p) => {
-          const st = status.find((x) => x.package_id === p.id);
-          return (st?.has || profile?.role === "admin") && user
-            ? <div key={p.id}><div className="mb-3 flex items-center justify-between"><div className="font-display text-xl font-bold text-white">{p.title}</div>{st.expires_at && <div className="text-xs text-slate-400">{new Date(st.expires_at).toLocaleDateString("tr-TR")} tarihine kadar</div>}</div><VipRunner pkg={p} user={user} profile={profile} setToast={setToast} /></div>
-            : <VipSales key={p.id} pkg={p} status={st} user={user} onLogin={onLogin} reload={load} setToast={setToast} />;
-        })}
+        {(pkgs || []).map((p) => (
+          <VipGate key={p.id + (user?.id || "-")} pkg={p} user={user} profile={profile} onLogin={onLogin} status={status.find((x) => x.package_id === p.id)} reload={load} setToast={setToast} />
+        ))}
       </div>
     </section>
   );
@@ -3998,6 +4118,7 @@ function VipAdmin({ setToast }) {
   const [days, setDays] = useState("");
   const [publish, setPublish] = useState(false);
   const [edit, setEdit] = useState(null);
+  const [sec, setSec] = useState(null);
   const pk = pkgs[0];
   const load = useCallback(async () => {
     const a = await sb.rpc("vip_packages_list");
@@ -4017,6 +4138,15 @@ function VipAdmin({ setToast }) {
     if (!email.trim() || !pk) return;
     const { error } = await sb.rpc("admin_vip_grant", { p_email: email.trim(), p_pkg: pk.id, p_days: days ? Number(days) : null });
     setToast(error ? (vipErr(error).includes("kullanici") ? "Bu e-postayla kullanıcı yok." : "Verilemedi.") : "Paket verildi."); if (!error) { setEmail(""); setDays(""); } load();
+  };
+  const saveSec = async () => {
+    const { error } = await sb.rpc("admin_vip_security_set", { p_pkg: pk.id, p_trial: Number(sec.trial || 0), p_max_devices: Number(sec.dev || 1) });
+    setToast(error ? "Kaydedilemedi (vip_3 SQL çalıştı mı?)" : "Deneme ve cihaz ayarı kaydedildi."); if (!error) setSec(null); load();
+  };
+  const resetDev = async (m) => {
+    if (!(await ask(`${m.name} kullanıcısının kayıtlı cihazı silinsin mi? Bir sonraki girişte kullandığı cihaz kaydolur.`))) return;
+    const { error } = await sb.rpc("admin_vip_device_reset", { p_user: m.user_id });
+    setToast(error ? "Sıfırlanamadı." : "Cihaz sıfırlandı."); load();
   };
   const revoke = async (m) => {
     if (!(await ask(`${m.name} kullanıcısının erişimi kapatılsın mı?`))) return;
@@ -4077,9 +4207,21 @@ function VipAdmin({ setToast }) {
             <input value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} placeholder="Paket adı" className={inp} />
             <textarea value={edit.description || ""} onChange={(e) => setEdit({ ...edit, description: e.target.value })} rows={2} placeholder="Açıklama" className={inp} />
             <input value={edit.price_text || ""} onChange={(e) => setEdit({ ...edit, price_text: e.target.value })} placeholder="Fiyat (örn. 200 TL)" className={inp} />
-            <textarea value={edit.pay_info || ""} onChange={(e) => setEdit({ ...edit, pay_info: e.target.value })} rows={3} placeholder="Ödeme bilgisi (ad soyad, IBAN, açıklama kodu)" className={inp} />
+            <textarea value={edit.pay_info || ""} onChange={(e) => setEdit({ ...edit, pay_info: e.target.value })} rows={4} placeholder={"Her bilgiyi ayrı satıra yaz:\nAd Soyad: ...\nIBAN: TR...\nAçıklama: VIP Anatomi + adın"} className={inp} />
+            <p className="text-[11px] text-slate-500">Her satır öğrencide ayrı kopyalanır. "IBAN:" satırı boşluksuz kopyalanır.</p>
             <input value={edit.valid_days || ""} onChange={(e) => setEdit({ ...edit, valid_days: e.target.value.replace(/\D/g, "") })} placeholder="Erişim süresi (gün, boşsa sınırsız)" className={inp} />
             <button type="button" onClick={saveEdit} className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white">Kaydet</button>
+          </div>
+        )}
+      </div>
+      <div>
+        <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Deneme ve cihaz kilidi</div><button type="button" onClick={() => setSec(sec ? null : { trial: pk.trial_minutes ?? 60, dev: pk.max_devices ?? 1 })} className="text-xs text-teal-300">{sec ? "Kapat" : "Düzenle"}</button></div>
+        <div className="mt-1 text-xs text-slate-400">Deneme: {pk.trial_minutes ?? 60} dk · Cihaz sınırı: {pk.max_devices ?? 1}</div>
+        {sec && (
+          <div className="mt-2 space-y-2">
+            <label className="block text-xs text-slate-300">Ücretsiz deneme (dakika, 0 = kapalı)<input value={sec.trial} onChange={(e) => setSec({ ...sec, trial: e.target.value.replace(/\D/g, "").slice(0, 4) })} className={inp + " mt-1"} /></label>
+            <label className="block text-xs text-slate-300">Bir hesabın kullanabileceği cihaz sayısı (1-5)<input value={sec.dev} onChange={(e) => setSec({ ...sec, dev: e.target.value.replace(/\D/g, "").slice(0, 1) })} className={inp + " mt-1"} /></label>
+            <button type="button" onClick={saveSec} className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white">Kaydet</button>
           </div>
         )}
       </div>
@@ -4091,9 +4233,17 @@ function VipAdmin({ setToast }) {
       <div>
         <div className="text-xs font-semibold text-slate-300">Paketi olanlar ({mem.length})</div>
         {mem.map((m) => (
-          <div key={m.user_id} className="mt-1 flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-200">
-            <span className="min-w-0 truncate">{m.name} · {m.email}{m.expires_at ? ` · ${new Date(m.expires_at).toLocaleDateString("tr-TR")}` : ""}</span>
-            <button type="button" onClick={() => revoke(m)} className="shrink-0 text-rose-300"><X className="h-4 w-4" /></button>
+          <div key={m.user_id} className="mt-1 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-200">
+            <div className="flex items-center justify-between gap-2">
+              <span className="min-w-0 truncate">{m.name} · {m.email}{m.expires_at ? ` · ${new Date(m.expires_at).toLocaleDateString("tr-TR")}` : ""}</span>
+              <button type="button" onClick={() => revoke(m)} className="shrink-0 text-rose-300" aria-label="Erişimi kapat"><X className="h-4 w-4" /></button>
+            </div>
+            {m.devices !== undefined && (
+              <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                <span>{m.devices} cihaz · son 7 günde <b className={m.nets7 >= 4 ? "text-amber-300" : ""}>{m.nets7} farklı ağ</b>{m.last_seen ? ` · son giriş ${new Date(m.last_seen).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}</span>
+                {m.devices > 0 && <button type="button" onClick={() => resetDev(m)} className="shrink-0 rounded-md border border-sky-300/20 px-2 py-1 text-[11px] text-sky-200">Cihazı sıfırla</button>}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -5151,7 +5301,7 @@ export default function App() {
     { id: "arsiv", Icon: Archive, title: "Çıkmış sorular", sub: "Ders ders arşiv", cls: "border-violet-400/40 from-violet-600/40 to-violet-950/70", ic: "text-violet-200" },
     { id: "duello", Icon: Trophy, title: "Düello", sub: "Haftalık yarışma", cls: "border-amber-400/40 from-amber-600/40 to-amber-950/70", ic: "text-amber-200" },
     { id: "mitler", Icon: Lightbulb, title: "Doğru mu, yanlış mı?", sub: `${QUESTIONS.length} soru · 3 seviye`, cls: "border-indigo-400/40 from-indigo-600/40 to-indigo-950/70", ic: "text-indigo-200" },
-    { id: "instagram", Icon: Insta, title: "Instagram", sub: "Duyuru ve anketler", cls: "border-rose-400/40 from-rose-600/40 to-rose-950/70", ic: "text-rose-200" },
+    { id: "vip", Icon: Crown, title: "VIP Anatomi", sub: "3D iskelet · 600+ soru · 1 saat ücretsiz dene", cls: "vip-tile border-amber-300/70 from-amber-500/60 via-fuchsia-600/45 to-indigo-900/80", ic: "text-amber-200", vip: true },
     { id: "hakkimizda", Icon: Play, title: "Bizi tanı", sub: "Video ve amacımız", cls: "border-sky-400/40 from-sky-600/40 to-sky-950/70", ic: "text-sky-200" },
   ];
 
@@ -5185,7 +5335,11 @@ export default function App() {
         .beat{animation:beat 1.6s ease-in-out infinite}
         @keyframes pop{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
         .pop{animation:pop .22s ease-out}
-        @media (prefers-reduced-motion:reduce){.ecg,.pop,.beat{animation:none}}
+        @keyframes vipglow{0%,100%{box-shadow:0 0 0 1px rgba(252,211,77,.35),0 0 18px 2px rgba(245,158,11,.35)}50%{box-shadow:0 0 0 1px rgba(252,211,77,.8),0 0 32px 8px rgba(217,70,239,.45)}}
+        .vip-tile,.vip-glow{animation:vipglow 2.4s ease-in-out infinite}
+        @keyframes vipshine{0%{transform:translateX(-120%) skewX(-20deg)}55%,100%{transform:translateX(220%) skewX(-20deg)}}
+        .vip-shine::after{content:"";position:absolute;top:0;bottom:0;width:45%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:vipshine 3.2s ease-in-out infinite}
+        @media (prefers-reduced-motion:reduce){.ecg,.pop,.beat,.vip-tile,.vip-glow{animation:none}.vip-shine::after{animation:none;display:none}}
       `}</style>
 
       <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
@@ -5237,10 +5391,12 @@ export default function App() {
               <DuelBanner duels={duels} go={go} />
               <ExamCountdown exams={exams} classNo={classOf(profile?.entry_year)} />
               <div className="mt-6 grid w-full max-w-xl grid-cols-2 gap-3 text-left">
-                {tiles.map(({ id, Icon, title, sub, cls, ic }, ti) => (
-                  <button key={id} onClick={() => go(id)} className={`flex flex-col justify-between rounded-3xl border bg-gradient-to-br p-4 transition active:scale-[0.97] ${cls} ${ti === tiles.length - 1 && tiles.length % 2 ? "col-span-2" : ""}`} style={{ minHeight: "7.5rem" }}>
-                    <Icon className={`h-6 w-6 ${ic}`} />
-                    <span><span className="block font-display text-base font-bold leading-tight text-white">{title}</span><span className="mt-0.5 block text-xs text-slate-300">{sub}</span></span>
+                {tiles.map(({ id, Icon, title, sub, cls, ic, vip }, ti) => (
+                  <button key={id} onClick={() => go(id)} className={`relative flex flex-col justify-between overflow-hidden rounded-3xl border bg-gradient-to-br p-4 transition active:scale-[0.97] ${cls} ${ti === tiles.length - 1 && tiles.length % 2 ? "col-span-2" : ""}`} style={{ minHeight: "7.5rem" }}>
+                    {vip && <span className="vip-shine pointer-events-none absolute inset-0" aria-hidden="true" />}
+                    {vip && <span className="absolute right-3 top-3 rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-extrabold tracking-wider text-slate-950">VIP</span>}
+                    <Icon className={`relative h-6 w-6 ${ic}`} />
+                    <span className="relative"><span className="block font-display text-base font-bold leading-tight text-white">{title}</span><span className={`mt-0.5 block text-xs ${vip ? "text-amber-50" : "text-slate-300"}`}>{sub}</span></span>
                   </button>
                 ))}
               </div>
