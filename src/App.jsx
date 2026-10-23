@@ -1,10 +1,32 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Trophy, Activity, ArrowUpRight, Check, ChevronDown, ClipboardList, Download, Droplets, Eye,
   GraduationCap, HeartPulse, Link2, Mail, MessageCircle, Plus, Presentation, RotateCw,
   Search, Send, Upload, X, FileText, Lightbulb, Play, Users, LogOut, Shield, Trash2, Bell, Megaphone, Lock, Archive, CalendarDays, Crown, Copy, Sparkles, Smartphone, Clock,
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
+
+// Hata ekranı: bir telefonda site boş/siyah kalırsa hatayı ekrana yazar (bize ekran görüntüsü atılabilsin diye).
+const afsuErrHtml = (msg) => `<div style="min-height:100vh;background:#060a1a;color:#e2e8f0;font:15px/1.5 system-ui,-apple-system,sans-serif;padding:28px 20px">
+<div style="font-size:20px;font-weight:700;margin-bottom:8px">Sayfa açılırken bir sorun oldu 😕</div>
+<div>Önce aşağıdaki <b>Yenile</b> düğmesine bas. Düzelmezse bu ekranın görüntüsünü bize gönder, hemen çözelim.</div>
+<button onclick="location.reload()" style="margin:16px 0;padding:12px 20px;border-radius:12px;border:0;background:#14b8a6;color:#04261b;font-weight:700;font-size:15px">Yenile</button>
+<pre style="white-space:pre-wrap;word-break:break-word;background:#0f172a;border-radius:10px;padding:12px;color:#fca5a5;font-size:12px">${String(msg).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])).slice(0, 900)}</pre>
+<div style="margin-top:8px;font-size:11px;color:#64748b">${String(navigator.userAgent || "").replace(/[<>&]/g, "")}</div></div>`;
+if (typeof window !== "undefined" && !window.__afsuErr) {
+  window.__afsuErr = true;
+  const show = (msg) => { try { const r = document.getElementById("root"); if (r && !r.textContent.trim()) r.innerHTML = afsuErrHtml(msg); } catch (e) { /* yok say */ } };
+  window.addEventListener("error", (e) => setTimeout(() => show(`${e.message || "Hata"}\n${e.filename || ""}:${e.lineno || ""}:${e.colno || ""}\n${(e.error && e.error.stack) || ""}`), 300));
+  window.addEventListener("unhandledrejection", (e) => setTimeout(() => show(`Promise: ${(e.reason && (e.reason.stack || e.reason.message)) || e.reason}`), 300));
+}
+class AfsuBoundary extends Component {
+  constructor(p) { super(p); this.state = { err: null }; }
+  static getDerivedStateFromError(err) { return { err }; }
+  render() {
+    if (this.state.err) { const e = this.state.err; return <div dangerouslySetInnerHTML={{ __html: afsuErrHtml(`${e && e.message}\n${(e && e.stack) || ""}`) }} />; }
+    return this.props.children;
+  }
+}
 
 const IG_URL = "https://instagram.com/afsudiyalizteam";
 const IG_DM = "https://ig.me/m/afsudiyalizteam";
@@ -5375,7 +5397,7 @@ function TrueFalse() {
 }
 
 /* ---------- Ana uygulama ---------- */
-export default function App() {
+function AppInner() {
   const [page, setPage] = useState(pageFromHash);
   const [authOpen, setAuthOpen] = useState(false);
   const [user, setUser] = useState(null);
@@ -6138,3 +6160,5 @@ export default function App() {
     </div>
   );
 }
+
+export default function App() { return <AfsuBoundary><AppInner /></AfsuBoundary>; }
