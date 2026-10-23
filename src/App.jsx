@@ -478,20 +478,27 @@ function AuthModal({ open, onClose, user, profile, onAdmin, onStaff, onDone, onP
 
 // NOT: Aşağıdaki metin taslaktır. Yayından önce topluluk/üniversite yetkilileri gözden geçirmelidir.
 const PRIVACY = [
+  ["Son güncelleme", "23 Ekim 2026. Metin değiştiğinde bu tarih güncellenir."],
+  ["Biz kimiz?", "AFSÜ Diyaliz Team, öğrencilerin kendi aralarında kurduğu bağımsız bir öğrenci topluluğudur. Üniversitenin, fakültenin ya da herhangi bir öğretim elemanının resmi sitesi değildir; onlar adına konuşmaz ve onlarla bir bağı yoktur. İletişim: afsudiyalizteam@gmail.com"],
   ["Veri sorumlusu", "AFSÜ Diyaliz Team öğrenci topluluğu. İletişim: afsudiyalizteam@gmail.com"],
   ["Hangi verileri topluyoruz?", "Kayıtta ad soyad ve e-posta adresin; şifren (yalnızca şifrelenmiş olarak); paylaştığın PDF notlar ve not bilgileri; çözdüğün test sorularının sonuçları. Geri bildirim gönderirsen mesajın, adın, e-postan, baktığın sayfa ve cihaz bilgin. Ayrıca günlük ziyaretçi sayısını göstermek için IP adresin geri döndürülemez biçimde şifrelenip (hash) sayılır; IP adresin açık haliyle saklanmaz."],
-  ["Ne için kullanıyoruz?", "Hesabını oluşturmak ve doğrulamak, not paylaşımını yönetmek ve denetlemek, geri bildirimlerine yanıt vermek ve siteyi güvenli tutmak için."],
-  ["Hukuki sebep", "Kayıt sırasında verdiğin açık rıza ve hizmetin sunulması için gerekli olması."],
-  ["Verilerin kimlerle paylaşılıyor?", "Hizmeti sunmak için Supabase (veritabanı ve dosya depolama), Vercel (site yayını), Google (doğrulama e-postaları) ve etkinse Web3Forms (geri bildirim iletimi) kullanılır. Bu sağlayıcıların sunucuları yurt dışında olabilir. Instagram gönderileri gömülü gösterildiğinde Meta kendi çerezlerini kullanabilir."],
-  ["Ne kadar saklıyoruz?", "Hesabın silinene kadar. Onaylanmayan ya da uygunsuz notlar yöneticiler tarafından silinebilir."],
-  ["Paylaştığın içerik", "Yüklediğin notları paylaşma hakkına sahip olduğunu kabul edersin. Telif hakkı ihlali içeren içerikler kaldırılır. Bildirim için geri bildirim formunu kullanabilirsin."],
+  ["VIP paketlerde ek olarak", "Paket satın alma talebin ve talebe yazdığın açıklama, paketin açılış ve bitiş tarihleri, paketi kullandığın cihaz için rastgele üretilmiş bir cihaz kimliği ve tarayıcı bilgisi, ücretsiz deneme kayıtları ve kötüye kullanımı önlemek için şifrelenmiş (hash) IP bilgisi tutulur. Banka ve kart bilgilerin sitede toplanmaz; ödeme, sitenin dışında havale/EFT ile yapılır. Paket içeriğinde adın ve hesabına özel bir kod filigran olarak görünür; bu, içeriğin izinsiz paylaşılmasını önlemek içindir. Çözdüğün soruların sonuçları ve yanlış analizin yalnızca kendi cihazında saklanır."],
+  ["Instagram mesajları", "Instagram hesabımıza yazdığın mesajlar, sık sorulan sorulara hızlı cevap verebilmek için otomatik bir yapay zekâ asistanı tarafından okunup yanıtlanabilir. Fiyat, ödeme ve kişisel konular ekibimize yönlendirilir. Bu mesajlara Instagram'ın (Meta) ve asistan hizmet sağlayıcısının kendi koşulları da uygulanır."],
+  ["Ne için kullanıyoruz?", "Hesabını oluşturmak ve doğrulamak, not paylaşımını yönetmek ve denetlemek, VIP paketleri açmak ve korumak, deneme hakkının ve cihaz sınırının kötüye kullanılmasını önlemek, geri bildirimlerine ve mesajlarına yanıt vermek ve siteyi güvenli tutmak için."],
+  ["Hukuki sebep", "Kayıt sırasında verdiğin açık rıza, satın aldığın hizmetin sunulması için gerekli olması ve sitenin güvenliğini sağlamaya yönelik meşru menfaat."],
+  ["Verilerin kimlerle paylaşılıyor?", "Hizmeti sunmak için Supabase (veritabanı ve dosya depolama), Vercel (site yayını), Google (doğrulama e-postaları), etkinse Web3Forms (geri bildirim iletimi) ve Instagram mesajları için otomatik asistan hizmet sağlayıcısı kullanılır. Bu sağlayıcıların sunucuları yurt dışında olabilir. Instagram gönderileri gömülü gösterildiğinde Meta kendi çerezlerini kullanabilir. Verilerin satılmaz ve reklam amacıyla kullanılmaz."],
+  ["Ne kadar saklıyoruz?", "Hesabın silinene kadar. VIP cihaz ve deneme kayıtları paket süresi boyunca ve kötüye kullanım incelemesi gerektiğinde makul bir süre daha saklanır. Onaylanmayan ya da uygunsuz notlar yöneticiler tarafından silinebilir."],
+  ["VIP içerikler hakkında", "VIP paketlerdeki sorular, açıklamalar ve analizler; öğrencilerin kendi notları, hatırladıkları ve ders konuları esas alınarak ekibimiz tarafından yeniden yazılmış çalışma materyalleridir. Resmi sınav soruları, cevap anahtarı ya da öğretim elemanlarına ait materyaller değildir; derslerin sunum ve ders notları sitede paylaşılmaz. \"Geçmiş yıllar analizi\" ifadesi, önceki dönem öğrencilerinin deneyimlerine dayalı bir çalışma rehberini anlatır. İçerikler bilgi ve tekrar amaçlıdır; doğruluk için özen gösterilir ama hata olabilir. Bir sınavda aynı soruların çıkacağı ya da belli bir not alınacağı garanti edilmez. Asıl kaynak her zaman dersin kendisi ve öğretim elemanının anlattıklarıdır."],
+  ["Kullanım kuralları", "VIP içerik yalnızca satın alan kişinin kişisel kullanımı içindir. İçeriğin ekran görüntüsünün, kopyasının ya da hesabın başkalarıyla paylaşılması, satılması veya çoğaltılması yasaktır; tespit edilirse erişim kapatılır ve ücret iadesi yapılmaz. Bir hesap belirlenen sayıda cihazda kullanılabilir."],
+  ["Ödeme ve iade", "Paket, ödemen kontrol edildikten sonra hesabında açılır. Paket açılmadan önce vazgeçersen ödemenin iadesini isteyebilirsin. İçerik hesabında açıldıktan sonra anında kullanılabilen dijital içerik olduğu için iade yapılmaz. Teknik bir sorun yaşarsan bize yaz, çözmeye çalışırız."],
+  ["Paylaştığın içerik", "Yüklediğin notları paylaşma hakkına sahip olduğunu kabul edersin. Telif hakkı ihlali içeren içerikler kaldırılır. Bir içeriğin size ait olduğunu ya da kaldırılması gerektiğini düşünüyorsan afsudiyalizteam@gmail.com adresine yaz; inceleyip en kısa sürede kaldırırız."],
   ["Haklarının", "6698 sayılı KVKK'nın 11. maddesi uyarınca verilerine erişme, düzeltme ve silinmesini isteme hakkın vardır. Başvuru için afsudiyalizteam@gmail.com adresine yazabilirsin."],
 ];
 
 function PrivacyModal({ open, onClose }) {
   return (
     <Modal open={open} onClose={onClose} title="Gizlilik ve KVKK">
-      <h3 className="pr-8 font-display text-xl font-bold text-white">Gizlilik ve KVKK aydınlatma metni</h3>
+      <h3 className="pr-8 font-display text-xl font-bold text-white">Gizlilik, KVKK ve kullanım koşulları</h3>
       <div className="mt-4 space-y-4 text-sm leading-relaxed text-slate-300">
         {PRIVACY.map(([h, t]) => (<div key={h}><h4 className="font-semibold text-white">{h}</h4><p className="mt-1">{t}</p></div>))}
       </div>
@@ -3757,7 +3764,7 @@ function VipQuiz({ list, title, topics, onRecord, onExit, onAgain, exam, secs })
       <div className={STAFF_CARD}>
         <div className="flex flex-wrap gap-1.5">
           <span className="rounded-full bg-teal-500/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-teal-200">{tt(q.topic)}</span>
-          {q.exam && <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-200">Çıkmış soru</span>}
+          {q.exam && <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-200">Geçmiş yıl</span>}
           {q.kind === "degildir" && <span className="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-200">Değildir tipi</span>}
           {q.img && <span className="rounded-full bg-sky-500/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-sky-200">Görselli</span>}
         </div>
@@ -3898,8 +3905,8 @@ function VipStudy({ pkg, user, profile, setToast, content, status, reload, onLog
                   <FileText className="h-6 w-6 text-amber-200" />
                   {(() => { const has = (status && status.addon_has) || false; return has ? <span className="rounded-full bg-teal-500/25 px-2.5 py-1 text-[11px] font-bold text-teal-100">Açık</span> : <span className="flex items-center gap-1 rounded-full bg-black/30 px-2.5 py-1 text-[11px] font-bold text-amber-100"><Lock className="h-3 w-3" />{trial ? "Denemeye dahil değil" : `+${pkg.addon.price_text}`}</span>; })()}
                 </div>
-                <div className="font-display mt-2 text-lg font-bold text-white">Çıkmış sınav soruları</div>
-                <div className="text-xs text-amber-50/80">Vize ve final çıkmışları · cevap anahtarı · şık analizi · hoca nasıl soruyor? · ilk sayfa ücretsiz</div>
+                <div className="font-display mt-2 text-lg font-bold text-white">Geçmiş Yıllar Öğrenci Analizi</div>
+                <div className="text-xs text-amber-50/80">Geçmiş yıllardan sınav tarzı sorular · cevap anahtarı · şık analizi · soru tarzı · ilk sayfa ücretsiz</div>
               </button>
             )}
           </div>
@@ -3971,19 +3978,19 @@ function VipSales({ pkg, status, user, onLogin, reload, setToast, preferAddon, c
       <div className="flex items-center gap-2"><Lock className="h-5 w-5 text-amber-300" /><div className="font-display text-xl font-bold text-white">{pkg.title}</div></div>
       <p className="text-sm leading-relaxed text-slate-300">{pkg.description}</p>
       <ul className="space-y-1 text-sm text-slate-200">
-        {(pkg.kind === "ders" ? VIP_DERS_FEATURES : ["Etkileşimli 3D iskelet ve sesli anlatım", "Gerçek atlas görselleriyle \"şurası neresi?\" soruları", "Çıkmış sorulara göre bilgi kartları ve geniş soru havuzu", "Yanlışlarından otomatik deneme ve 40 dakikalık sınav provası"]).map((x) => <li key={x} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-none text-teal-300" />{x}</li>)}
+        {(pkg.kind === "ders" ? VIP_DERS_FEATURES : ["Etkileşimli 3D iskelet ve sesli anlatım", "Gerçek atlas görselleriyle \"şurası neresi?\" soruları", "Geçmiş yıl sınav tarzına göre bilgi kartları ve geniş soru havuzu", "Yanlışlarından otomatik deneme ve 40 dakikalık sınav provası"]).map((x) => <li key={x} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-none text-teal-300" />{x}</li>)}
       </ul>
       </>}
       {pkg.addon ? (
         <div className="space-y-2">
-          {[[false, pkg.title, "3D iskelet + sesli anlatım + sorular ve kartlar", pkg.price_text], [true, `${pkg.title} + Çıkmışlar`, `Üstüne: ${pkg.addon.title.toLowerCase()} (${pkg.addon.price_text})`, total]].map(([v, t, d, pr]) => (
+          {[[false, pkg.title, "3D iskelet + sesli anlatım + sorular ve kartlar", pkg.price_text], [true, `${pkg.title} + Geçmiş Yıllar Analizi`, `Üstüne: ${pkg.addon.title.toLowerCase()} (${pkg.addon.price_text})`, total]].map(([v, t, d, pr]) => (
             <button key={String(v)} type="button" onClick={() => setWithAddon(v)} className={"flex w-full items-center gap-3 rounded-xl border p-3 text-left " + (withAddon === v ? "border-amber-300/70 bg-amber-500/15" : "border-white/10 bg-white/5")}>
               <span className={"flex h-5 w-5 flex-none items-center justify-center rounded-full border-2 " + (withAddon === v ? "border-amber-300" : "border-slate-500")}>{withAddon === v && <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />}</span>
               <span className="min-w-0 flex-1"><b className="block text-sm text-white">{t}</b><span className="block text-xs text-slate-400">{d}</span></span>
               <b className="font-display shrink-0 text-lg text-white">{pr}</b>
             </button>
           ))}
-          <div className="text-[11px] text-slate-400">Çıkmış sorular tek başına satılmaz, paketle birlikte alınır. {pkg.valid_days ? `Erişim süresi: ${pkg.valid_days} gün.` : ""}</div>
+          <div className="text-[11px] text-slate-400">Geçmiş yıllar analizi tek başına satılmaz, paketle birlikte alınır. {pkg.valid_days ? `Erişim süresi: ${pkg.valid_days} gün.` : ""}</div>
         </div>
       ) : (
       <div className="rounded-xl bg-white/5 p-3">
@@ -4038,7 +4045,7 @@ function CikWatermark({ text }) {
 function CikQuestion({ q, ex, topics, exams, showAll }) {
   const [openSim, setOpenSim] = useState(showAll);
   const t = topics?.[q.topic];
-  const exTitle = (id) => { const [e, n] = id.split("-"); const x = exams.find((z) => z.id === e); return `${x ? (x.kind === "vize" ? "Vize" : x.title.replace("Final Sınavı · ", "Final ")) : e} · Soru ${n}`; };
+  const exTitle = (id) => { const [e, n] = id.split("-"); const x = exams.find((z) => z.id === e); return `${x ? x.title.replace("Geçmiş Yıllar · ", "").replace("Final Sınavı · ", "Final ") : e} · Soru ${n}`; };
   return (
     <div className="border-b border-slate-200 pb-4 pt-4 first:pt-0 last:border-0">
       <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide">
@@ -4065,12 +4072,12 @@ function CikQuestion({ q, ex, topics, exams, showAll }) {
       </div>
       <div className="mt-2 grid gap-2 text-[13px] leading-relaxed">
         <div className="rounded-lg bg-slate-100 px-3 py-2"><b className="text-slate-900">Şık analizi: </b><span className="text-slate-700">{q.sik}</span></div>
-        <div className="rounded-lg bg-amber-50 px-3 py-2"><b className="text-amber-900">Hoca nasıl soruyor? </b><span className="text-slate-700">{q.hoca}</span></div>
-        {q.repeat?.length > 0 && <div className="text-[12px] font-semibold text-amber-800">Bu soru şuralarda da çıktı: {q.repeat.map(exTitle).join(", ")}</div>}
+        <div className="rounded-lg bg-amber-50 px-3 py-2"><b className="text-amber-900">Soru nasıl soruluyor? </b><span className="text-slate-700">{q.hoca}</span></div>
+        {q.repeat?.length > 0 && <div className="text-[12px] font-semibold text-amber-800">Bu soru şuralarda da var: {q.repeat.map(exTitle).join(", ")}</div>}
       </div>
       {q.similar?.length > 0 && (
         <div className="mt-2">
-          <button type="button" onClick={() => setOpenSim(!openSim)} className="text-[12px] font-bold text-indigo-700">{openSim ? "▾" : "▸"} Hoca şöyle de sorabilir ({q.similar.length} benzer soru)</button>
+          <button type="button" onClick={() => setOpenSim(!openSim)} className="text-[12px] font-bold text-indigo-700">{openSim ? "▾" : "▸"} Şöyle de sorulabilir ({q.similar.length} benzer soru)</button>
           {openSim && q.similar.map((s, k) => (
             <div key={k} className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2 text-[13px]">
               <div className="font-semibold text-slate-900">{s.stem}</div>
@@ -4106,7 +4113,7 @@ function CikAnalysis({ A, topics, preview }) {
   return (
     <div className="text-[13px] text-slate-800">
       <div className="mb-3 grid grid-cols-3 gap-2 text-center">
-        {[[A.total, "çıkmış soru"], [A.exams, "sınav"], [preview ? A.repeats_n : A.repeats.length, "tekrar eden"]].map(([n, l]) => <div key={l} className="rounded-lg bg-slate-100 py-2"><div className="text-xl font-extrabold text-slate-900">{n}</div><div className="text-[11px] text-slate-500">{l}</div></div>)}
+        {[[A.total, "soru"], [A.exams, "sınav"], [preview ? A.repeats_n : A.repeats.length, "tekrar eden"]].map(([n, l]) => <div key={l} className="rounded-lg bg-slate-100 py-2"><div className="text-xl font-extrabold text-slate-900">{n}</div><div className="text-[11px] text-slate-500">{l}</div></div>)}
       </div>
       <div className="mb-1 text-[12px] font-bold uppercase tracking-wide text-slate-500">Konulara göre soru sayısı</div>
       <div className="space-y-1">
@@ -4119,11 +4126,11 @@ function CikAnalysis({ A, topics, preview }) {
         ))}
       </div>
       <div className="mt-1 flex gap-3 text-[11px] text-slate-500"><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-teal-500" />Vize konusu</span><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-violet-400" />Final konusu</span></div>
-      <div className="mb-1 mt-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Hocanın soru kalıpları</div>
+      <div className="mb-1 mt-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Soru kalıpları</div>
       {A.patterns.map((p) => <div key={p.k} className="flex justify-between border-b border-slate-100 py-1"><span>{p.k}</span><b>%{p.pct}</b></div>)}
       {!preview && (
         <>
-          <div className="mb-1 mt-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Hoca analizi</div>
+          <div className="mb-1 mt-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Sınav analizi</div>
           <ul className="list-disc space-y-1 pl-4">{A.notes.map((n) => <li key={n}>{n}</li>)}</ul>
           <div className="mb-1 mt-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Bu vizede en olası konular</div>
           <ol className="list-decimal space-y-0.5 pl-5 font-semibold">{A.predict.map((n) => <li key={n}>{n}</li>)}</ol>
@@ -4157,7 +4164,7 @@ function VipCikmis({ pkg, user, profile, setToast, status, reload, onLogin, onEx
   const name = (profile?.full_name || "").trim() || "Kullanıcı";
   const wm = st?.full ? `${name} · ${vipMaskEmail(user?.email)} · #${code} · ${stamp}` : "ÖNİZLEME · AFSÜ Diyaliz Team · ÖNİZLEME";
   const owner = st?.full ? `${name} · #${code} için hazırlanmıştır. Paylaşılması yasaktır.` : "Ücretsiz önizleme · AFSÜ Diyaliz Team";
-  const back = <button type="button" onClick={view.name === "home" ? onExit : () => { setView({ name: "home" }); window.scrollTo(0, 0); }} className="mb-3 text-sm font-semibold text-teal-300">← {view.name === "home" ? "Pakete dön" : "Çıkmışlara dön"}</button>;
+  const back = <button type="button" onClick={view.name === "home" ? onExit : () => { setView({ name: "home" }); window.scrollTo(0, 0); }} className="mb-3 text-sm font-semibold text-teal-300">← {view.name === "home" ? "Pakete dön" : "Geçmiş yıllar analizine dön"}</button>;
   if (!st) return <div>{back}<div className="py-10 text-center text-sm text-slate-400">Yükleniyor…</div></div>;
   if (st.device) return <div>{back}<div className={STAFF_CARD + " text-sm text-slate-300"}>Paketin başka bir cihaza kayıtlı. Bu cihazdan açmak için paketi önce bu cihaza taşı.</div></div>;
   const D = st.data;
@@ -4184,13 +4191,13 @@ function VipCikmis({ pkg, user, profile, setToast, status, reload, onLogin, onEx
   const baseHas = !!status?.has;
   const lockCard = !st.full && (
     <div className="mt-2 space-y-3">
-      {!D && <div className={STAFF_CARD + " text-center text-sm text-slate-300"}>Çıkmış sorular hazırlanıyor. Çok yakında burada.</div>}
+      {!D && <div className={STAFF_CARD + " text-center text-sm text-slate-300"}>Geçmiş yıllar analizi hazırlanıyor. Çok yakında burada.</div>}
       {baseHas ? <CikUpgrade pkg={pkg} addon={addon} setToast={setToast} reload={reload} pending={status?.addon_request === "bekliyor"} />
         : (
           <div className="rounded-2xl border border-amber-300/40 bg-gradient-to-br from-amber-500/20 to-fuchsia-600/15 p-4">
             <div className="flex items-center gap-2"><Lock className="h-5 w-5 text-amber-200" /><div className="font-display text-lg font-bold text-white">Tamamı pakette</div></div>
-            <p className="mt-1 text-sm text-amber-50/90">Çıkmış sorular ve hoca analizi ücretsiz denemeye dahil değildir ve tek başına satılmaz. VIP Anatomi ile birlikte alınır.</p>
-            <div className="mt-3 rounded-xl bg-black/20 p-3 text-sm text-white"><div className="flex justify-between"><span>VIP Anatomi (3D iskelet + sorular)</span><b>{pkg.price_text}</b></div><div className="flex justify-between"><span>+ Çıkmış sorular ve analiz</span><b>{addon?.price_text}</b></div>
+            <p className="mt-1 text-sm text-amber-50/90">Geçmiş yıllar analizi ücretsiz denemeye dahil değildir ve tek başına satılmaz. VIP Anatomi ile birlikte alınır.</p>
+            <div className="mt-3 rounded-xl bg-black/20 p-3 text-sm text-white"><div className="flex justify-between"><span>VIP Anatomi (3D iskelet + sorular)</span><b>{pkg.price_text}</b></div><div className="flex justify-between"><span>+ Geçmiş yıllar analizi</span><b>{addon?.price_text}</b></div>
               {vipPriceNum(pkg.price_text) && vipPriceNum(addon?.price_text) ? <div className="mt-1 flex justify-between border-t border-white/15 pt-1 text-base"><span>Toplam</span><b className="text-amber-200">{vipPriceNum(pkg.price_text) + vipPriceNum(addon?.price_text)} TL</b></div> : null}
             </div>
             <div className="mt-3"><VipSales pkg={pkg} status={status} user={user} onLogin={onLogin} reload={reload} setToast={setToast} preferAddon compact /></div>
@@ -4216,7 +4223,7 @@ function VipCikmis({ pkg, user, profile, setToast, status, reload, onLogin, onEx
   }
   if (view.name === "analiz" && D) return shell(
     <div>{back}
-      <CikPage head="Hoca analizi" page={1} pages={1} wm={wm} owner={owner}><CikAnalysis A={D.analysis} topics={D.topics} preview={!st.full} /></CikPage>
+      <CikPage head="Sınav analizi" page={1} pages={1} wm={wm} owner={owner}><CikAnalysis A={D.analysis} topics={D.topics} preview={!st.full} /></CikPage>
       {!st.full && lockCard}
     </div>
   );
@@ -4225,14 +4232,14 @@ function VipCikmis({ pkg, user, profile, setToast, status, reload, onLogin, onEx
       {st.draft && <div className="mb-3 rounded-xl bg-amber-500/15 p-3 text-xs text-amber-100">Taslak: bu içerik henüz öğrencilere açık değil, sadece sen görüyorsun.</div>}
       <div className="mb-3 rounded-2xl border border-amber-300/40 bg-gradient-to-br from-amber-500/25 via-fuchsia-600/15 to-indigo-700/25 p-4">
         <div className="text-[11px] font-bold uppercase tracking-[3px] text-amber-200">{st.full ? "Paketinde açık" : "Ücretsiz önizleme"}</div>
-        <div className="font-display mt-1 text-xl font-bold text-white">Çıkmış sınav soruları</div>
-        <p className="mt-1 text-sm text-amber-50/90">Soru soru cevap anahtarı, açıklama, şık analizi, “hoca şöyle de sorabilir” benzer soruları ve hocanın soru tarzı.</p>
+        <div className="font-display mt-1 text-xl font-bold text-white">Geçmiş Yıllar Öğrenci Analizi</div>
+        <p className="mt-1 text-sm text-amber-50/90">Öğrenci notlarından derlenen sınav tarzı sorular: cevap anahtarı, açıklama, şık analizi, benzer sorular ve soru tarzı.</p>
         {D && <div className="mt-2 text-xs text-amber-100/90">{D.analysis.total} soru · {D.exams.length} sınav · {st.full ? D.analysis.repeats.length : D.analysis.repeats_n} tekrar eden soru</div>}
       </div>
       {D && (
         <div className="space-y-2">
           <button type="button" onClick={() => { setView({ name: "analiz" }); window.scrollTo(0, 0); }} className={STAFF_CARD + " flex w-full items-center gap-3 text-left"}>
-            <Sparkles className="h-6 w-6 flex-none text-amber-300" /><span><b className="font-display block text-white">Hoca analizi</b><span className="text-xs text-slate-400">En çok çıkan konular, soru kalıpları{st.full ? ", bu vizenin en olası konuları" : ""}</span></span>
+            <Sparkles className="h-6 w-6 flex-none text-amber-300" /><span><b className="font-display block text-white">Sınav analizi</b><span className="text-xs text-slate-400">En çok çıkan konular, soru kalıpları{st.full ? ", bu vizenin en olası konuları" : ""}</span></span>
           </button>
           {exams.map((e) => {
             const n = qsOf(e.id).length;
@@ -4261,17 +4268,17 @@ function CikUpgrade({ pkg, addon, setToast, reload, pending }) {
     const { error } = await sb.rpc("vip_request_create2", { p_pkg: addon.id, p_note: note.trim() || null, p_addon: false });
     setBusy(false);
     if (error) return setToast(vipErr(error).includes("bekleyen") ? "Talebin zaten alındı." : "Talep gönderilemedi.");
-    setSent(true); setToast("Talebin alındı. Ödemen kontrol edilince çıkmışlar açılır."); reload && reload();
+    setSent(true); setToast("Talebin alındı. Ödemen kontrol edilince geçmiş yıllar analizi açılır."); reload && reload();
   };
   return (
     <div className="rounded-2xl border border-amber-300/40 bg-gradient-to-br from-amber-500/20 to-fuchsia-600/15 p-4 space-y-3">
       <div className="flex items-center gap-2"><Crown className="h-5 w-5 text-amber-200" /><div className="font-display text-lg font-bold text-white">Paketine ekle · {addon?.price_text}</div></div>
-      <p className="text-sm text-amber-50/90">VIP Anatomi paketin var. Çıkmış soruları ve hoca analizini {addon?.price_text} ödeyerek paketine ekleyebilirsin. Paketinin süresi boyunca açık kalır.</p>
-      {sent ? <div className="rounded-xl bg-sky-500/15 p-3 text-sm text-sky-100">Talebin alındı. Ödemen kontrol edilince çıkmışlar açılır.</div> : (
+      <p className="text-sm text-amber-50/90">VIP Anatomi paketin var. Geçmiş yıllar analizini {addon?.price_text} ödeyerek paketine ekleyebilirsin. Paketinin süresi boyunca açık kalır.</p>
+      {sent ? <div className="rounded-xl bg-sky-500/15 p-3 text-sm text-sky-100">Talebin alındı. Ödemen kontrol edilince geçmiş yıllar analizi açılır.</div> : (
         <>
           {pkg.pay_info && <VipPayInfo text={pkg.pay_info} setToast={setToast} />}
           <input value={note} onChange={(e) => setNote(e.target.value.slice(0, 200))} placeholder="Ödeme yaparken yazdığın ad soyad ya da açıklama" className={inp} />
-          <button type="button" disabled={busy} onClick={send} className="w-full rounded-xl bg-amber-400 py-3 text-sm font-bold text-slate-950 disabled:opacity-50">{addon?.price_text} ödedim, çıkmışları aç</button>
+          <button type="button" disabled={busy} onClick={send} className="w-full rounded-xl bg-amber-400 py-3 text-sm font-bold text-slate-950 disabled:opacity-50">{addon?.price_text} ödedim, analizi aç</button>
         </>
       )}
     </div>
@@ -4359,8 +4366,8 @@ function VipCampaign({ pkg, onEnd, compact }) {
           <div className="flex items-center gap-2 text-sm font-bold text-rose-100"><Clock className="h-4 w-4" /> İndirimli fiyatın bitmesine</div>
           <div className="font-display mt-1 text-2xl font-bold tabular-nums text-white">{vipFmtLeft(priceLeft)}</div>
           {!compact && <div className="mt-2 rounded-xl bg-black/25 p-3 text-sm text-white">
-            <div className="flex justify-between gap-2"><span className="shrink-0">Şimdi</span><b className="text-right text-amber-200">{pkg.price_text}{add != null && cur != null ? ` · çıkmışlarla ${cur + add} TL` : ""}</b></div>
-            <div className="mt-1 flex justify-between gap-2 text-slate-300"><span className="shrink-0">{vipFmtWhen(pkg.price_change_at)} sonrası</span><b className="text-right text-rose-200">{pkg.price_next}{add != null && nxt != null ? ` · çıkmışlarla ${nxt + add} TL` : ""}</b></div>
+            <div className="flex justify-between gap-2"><span className="shrink-0">Şimdi</span><b className="text-right text-amber-200">{pkg.price_text}{add != null && cur != null ? ` · analizle ${cur + add} TL` : ""}</b></div>
+            <div className="mt-1 flex justify-between gap-2 text-slate-300"><span className="shrink-0">{vipFmtWhen(pkg.price_change_at)} sonrası</span><b className="text-right text-rose-200">{pkg.price_next}{add != null && nxt != null ? ` · analizle ${nxt + add} TL` : ""}</b></div>
           </div>}
           <p className="mt-2 text-xs text-rose-50/90">{vipFmtWhen(pkg.price_change_at)}'da fiyat {pkg.price_next}'ye çıkıyor. Şimdi alan bu fiyattan yararlanır.</p>
         </div>
@@ -4493,7 +4500,7 @@ const vipStatusOf = (status, p) => {
   return b || a ? { ...(b || {}), addon_has: !!a?.has, addon_request: a?.request || null } : undefined;
 };
 /* ---------- Ders paketleri (Hematoloji vb.): çıkmışlar + hoca analizi + soru havuzu + yanlış analizi ---------- */
-const VIP_DERS_FEATURES = ["Çıkmış sınav soruları: cevap anahtarı, açıklama ve şık analizi", "Hoca analizi: soru kalıpları, tuzaklar ve en olası konular", "Her çıkmışa \"hoca şöyle de sorabilir\" benzer sorular", "Soru havuzu ve yanlışlarına göre konu konu analiz"];
+const VIP_DERS_FEATURES = ["Geçmiş yıllardan öğrenci analizi: sınav tarzı sorular, cevap anahtarı ve şık analizi", "Sınav analizi: soru kalıpları, tuzaklar ve en olası konular", "Her soruya \"şöyle de sorulabilir\" benzer sorular", "Soru havuzu ve yanlışlarına göre konu konu analiz"];
 const vipKind = (p) => p?.kind || "anatomi";
 const VIP_NEG = /değildir|yanlıştır|artmaz|beklenmez|çalışılmaz|sayılmayan|değil\b/i;
 
@@ -4616,7 +4623,7 @@ function VipCourse({ pkg, user, profile, onLogin, status, reload, setToast }) {
       <VipCampaign pkg={pkg} onEnd={() => { reload && reload(); }} />
       <div className="rounded-2xl border border-amber-300/40 bg-gradient-to-br from-amber-500/20 to-fuchsia-600/15 p-4">
         <div className="flex items-center gap-2"><Lock className="h-5 w-5 text-amber-200" /><div className="font-display text-lg font-bold text-white">Tamamı pakette</div></div>
-        <p className="mt-1 text-sm text-amber-50/90">{D ? `${D.analysis?.total || 0} çıkmış soru, hocanın tam analizi, benzer sorular${D.pool_n ? ` ve ${D.pool_n} soruluk havuz` : ""} paketle açılır.` : "İçerik hazırlanıyor. Şimdi alırsan hazır olduğu an açılır."}</p>
+        <p className="mt-1 text-sm text-amber-50/90">{D ? `${D.analysis?.total || 0} sınav tarzı soru, tam sınav analizi, benzer sorular${D.pool_n ? ` ve ${D.pool_n} soruluk havuz` : ""} paketle açılır.` : "İçerik hazırlanıyor. Şimdi alırsan hazır olduğu an açılır."}</p>
         <div className="mt-3"><VipSales pkg={pkg} status={status} user={user} onLogin={onLogin} reload={reload} setToast={setToast} compact /></div>
       </div>
     </div>
@@ -4640,20 +4647,20 @@ function VipCourse({ pkg, user, profile, onLogin, status, reload, setToast }) {
             {list.slice(p * CIK_PER_PAGE, (p + 1) * CIK_PER_PAGE).map((q) => <CikQuestion key={q.id} q={q} topics={D.topics} exams={exams} />)}
           </CikPage>
         ))}
-        {st.full && list.length > 0 && <button type="button" onClick={() => quiz(vipShuffle(examQs.filter((q) => q.src === "cikmis" && q.exam === view.id)), `${ex?.title || "Çıkmışlar"} · test`)} className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950">Bu sınavı şıkları kapalı test gibi çöz</button>}
+        {st.full && list.length > 0 && <button type="button" onClick={() => quiz(vipShuffle(examQs.filter((q) => q.src === "cikmis" && q.exam === view.id)), `${ex?.title || "Geçmiş yıllar"} · test`)} className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950">Bu sınavı şıkları kapalı test gibi çöz</button>}
         {lockCard}
       </div>
     );
   }
   if (view.name === "analiz" && D) return shell(
     <div>{back}
-      <CikPage brand={brand} head="Hoca analizi" page={1} pages={1} wm={wm} owner={owner}><CikAnalysis A={D.analysis} topics={D.topics} preview={!st.full} /></CikPage>
+      <CikPage brand={brand} head="Sınav analizi" page={1} pages={1} wm={wm} owner={owner}><CikAnalysis A={D.analysis} topics={D.topics} preview={!st.full} /></CikPage>
       {lockCard}
     </div>
   );
   if (view.name === "havuz" && D) return (
     <div>{back}
-      <div className="mb-3"><div className="font-display text-lg font-bold text-white">Soru havuzu</div><div className="text-xs text-slate-400">{st.full ? `${poolQs.length} soru · hocanın slayt cümlelerinden, onun tarzında` : `Önizleme: ${poolQs.length} soru açık · tamamı ${D.pool_n || 0} soru`}</div></div>
+      <div className="mb-3"><div className="font-display text-lg font-bold text-white">Soru havuzu</div><div className="text-xs text-slate-400">{st.full ? `${poolQs.length} soru · ders konularına göre, sınav tarzında` : `Önizleme: ${poolQs.length} soru açık · tamamı ${D.pool_n || 0} soru`}</div></div>
       <button type="button" onClick={() => startTopic("all", "havuz")} className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-teal-500 p-4 text-left text-slate-950"><ClipboardList className="h-6 w-6 flex-none" /><span><b className="font-display block text-lg">{st.full ? "Tüm havuzu karışık çöz" : "Önizleme sorularını çöz"}</b><span className="text-sm opacity-80">Her sorudan sonra açıklama</span></span></button>
       {st.full && topicsArr.map((t) => {
         const qs = poolQs.filter((q) => q.topic === t.id); if (!qs.length) return null;
@@ -4690,7 +4697,7 @@ function VipCourse({ pkg, user, profile, onLogin, status, reload, setToast }) {
                 {weak.map((r) => (
                   <div key={r.id} className="mt-3">
                     <div className="flex items-center justify-between gap-2"><b className="text-sm text-rose-100">{r.title}</b><span className="text-xs text-rose-200">%{r.pct} doğru · {r.no} yanlış</span></div>
-                    {tips(r.id).map((q) => <div key={q.id} className="mt-1 rounded-lg bg-black/20 px-3 py-2 text-xs leading-relaxed text-slate-200"><b className="text-amber-200">Hoca bu konuda: </b>{q.hoca}</div>)}
+                    {tips(r.id).map((q) => <div key={q.id} className="mt-1 rounded-lg bg-black/20 px-3 py-2 text-xs leading-relaxed text-slate-200"><b className="text-amber-200">Bu konuda dikkat: </b>{q.hoca}</div>)}
                     <button type="button" onClick={() => startTopic(r.id)} className="mt-2 rounded-lg bg-rose-400 px-3 py-2 text-xs font-bold text-slate-950">Bu konudan çöz</button>
                   </div>
                 ))}
@@ -4713,7 +4720,7 @@ function VipCourse({ pkg, user, profile, onLogin, status, reload, setToast }) {
             {wrong.length > 0 && <div className="font-display mb-2 text-base font-bold text-white">Yanlış yaptığın sorular ({wrong.length})</div>}
             {wrong.slice(0, 40).map((q) => (
               <div key={q.id} className={STAFF_CARD + " mb-2"}>
-                <div className="mb-1 flex flex-wrap gap-1.5 text-[10px] font-bold uppercase tracking-wide"><span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-300">{topicsArr.find((t) => t.id === q.topic)?.title}</span>{q.src === "cikmis" && <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-amber-200">Çıkmış soru</span>}{(prog.a[q.id].w || 0) > 1 && <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-rose-200">{prog.a[q.id].w} kez yanlış</span>}</div>
+                <div className="mb-1 flex flex-wrap gap-1.5 text-[10px] font-bold uppercase tracking-wide"><span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-300">{topicsArr.find((t) => t.id === q.topic)?.title}</span>{q.src === "cikmis" && <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-amber-200">Geçmiş yıl</span>}{(prog.a[q.id].w || 0) > 1 && <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-rose-200">{prog.a[q.id].w} kez yanlış</span>}</div>
                 <div className="text-sm font-semibold text-white">{q.stem}</div>
                 <div className="mt-2 rounded-xl bg-emerald-500/15 p-3 text-sm text-emerald-100"><b>{VIP_LETTERS[q.answer]}) {q.options[q.answer]}</b><div className="mt-1 text-emerald-50/90">{q.explain}</div></div>
               </div>
@@ -4738,9 +4745,9 @@ function VipCourse({ pkg, user, profile, onLogin, status, reload, setToast }) {
       {!st.full && <VipCampaign pkg={pkg} onEnd={() => { reload && reload(); }} />}
       <div className="mb-3 rounded-2xl border border-amber-300/40 bg-gradient-to-br from-amber-500/25 via-fuchsia-600/15 to-indigo-700/25 p-4">
         <div className="text-[11px] font-bold uppercase tracking-[3px] text-amber-200">{st.full ? "Paketinde açık" : "Ücretsiz önizleme"}</div>
-        <div className="font-display mt-1 text-xl font-bold text-white">{D?.title || "Çıkmışlar ve hoca analizi"}</div>
-        <p className="mt-1 text-sm text-amber-50/90">{pkg.description || "Çıkmış sorular, hocanın soru tarzı, benzer sorular ve soru havuzu."}</p>
-        {D && <div className="mt-2 text-xs text-amber-100/90">{D.analysis?.total || 0} çıkmış soru · {exams.length} sınav{(st.full ? poolQs.length : D.pool_n) ? ` · ${st.full ? poolQs.length : D.pool_n} soruluk havuz` : ""}</div>}
+        <div className="font-display mt-1 text-xl font-bold text-white">{D?.title || "Geçmiş Yıllar Öğrenci Analizi"}</div>
+        <p className="mt-1 text-sm text-amber-50/90">{pkg.description || "Geçmiş yıllardan öğrenci analizi, sınav tarzı sorular, benzer sorular ve soru havuzu."}</p>
+        {D && <div className="mt-2 text-xs text-amber-100/90">{D.analysis?.total || 0} sınav tarzı soru · {exams.length} dönem{(st.full ? poolQs.length : D.pool_n) ? ` · ${st.full ? poolQs.length : D.pool_n} soruluk havuz` : ""}</div>}
       </div>
       {!D && <div className={STAFF_CARD + " text-center text-sm text-slate-300"}>İçerik hazırlanıyor. Çok yakında burada.</div>}
       {D && st.full && (
@@ -4755,7 +4762,7 @@ function VipCourse({ pkg, user, profile, onLogin, status, reload, setToast }) {
       )}
       {D && (
         <div className="space-y-2">
-          {card(Sparkles, "text-amber-300", "Hoca analizi", st.full ? "Soru kalıpları, tuzaklar, en olası konular" : "Konu dağılımı ve soru kalıpları", () => go({ name: "analiz" }))}
+          {card(Sparkles, "text-amber-300", "Sınav analizi", st.full ? "Soru kalıpları, tuzaklar, en olası konular" : "Konu dağılımı ve soru kalıpları", () => go({ name: "analiz" }))}
           {exams.map((e) => {
             const n = qsOf(e.id).length;
             return <div key={e.id}>{card(FileText, e.kind === "vize" ? "text-teal-300" : "text-violet-300", e.title, e.sub, () => go({ name: "exam", id: e.id }),
@@ -4763,7 +4770,7 @@ function VipCourse({ pkg, user, profile, onLogin, status, reload, setToast }) {
           })}
           {(st.full ? poolQs.length : D.pool_n) > 0 && card(ClipboardList, "text-cyan-300", "Soru havuzu", st.full ? `${poolQs.length} soru · konu konu çöz` : `${poolQs.length} soru açık · tamamı ${D.pool_n} soru`, () => go({ name: "havuz" }),
             st.full ? null : <span className="shrink-0 rounded-md bg-white/10 px-2 py-1 text-[11px] font-bold text-slate-200">Önizleme</span>)}
-          {st.full && card(Clock, "text-rose-300", "Sınav provası", "25 soru · 30 dakika · çıkmış ağırlıklı", startProva)}
+          {st.full && card(Clock, "text-rose-300", "Sınav provası", "25 soru · 30 dakika · geçmiş yıl ağırlıklı", startProva)}
           {st.full && card(Activity, "text-emerald-300", "Yanlış analizim", answered.length ? `%${pct} doğru · ${answered.length - okN} yanlış · zayıf konuların` : "Soru çözdükçe konu konu analiz", () => go({ name: "rapor" }))}
         </div>
       )}
@@ -4791,7 +4798,7 @@ function VipCourseList({ pkgs, status, onPick }) {
                 <button key={p.id} type="button" onClick={() => onPick(p.id)} className="vip-tile relative overflow-hidden rounded-2xl border border-amber-300/50 bg-gradient-to-br from-amber-500/30 via-fuchsia-600/20 to-indigo-900/70 p-4 text-left">
                   <div className="flex items-start justify-between gap-2">{an ? <Crown className="h-6 w-6 text-amber-200" /> : <FileText className="h-6 w-6 text-amber-200" />}{badge}</div>
                   <div className="font-display mt-2 text-lg font-bold leading-tight text-white">{an ? "Anatomi" : p.title}</div>
-                  <div className="mt-0.5 text-xs text-amber-50/80">{an ? "3D iskelet · 600+ soru · çıkmışlar" : "Çıkmışlar · hoca analizi · soru havuzu"}</div>
+                  <div className="mt-0.5 text-xs text-amber-50/80">{an ? "3D iskelet · 600+ soru · geçmiş yıllar analizi" : "Geçmiş yıllar analizi · soru havuzu"}</div>
                   {!s?.has && (p.trial_minutes > 0 || p.price_change_at) && <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">{p.trial_minutes > 0 && <span className="rounded-md bg-amber-400/25 px-2 py-0.5 text-amber-100">Ücretsiz dene</span>}{p.price_change_at && <span className="rounded-md bg-rose-500/25 px-2 py-0.5 text-rose-100">İndirim bitiyor</span>}</div>}
                 </button>
               );
@@ -4955,7 +4962,7 @@ function VipAdmin({ setToast }) {
   return (
     <div className={STAFF_CARD + " mb-4 space-y-4"}>
       <div>
-        <div className="flex items-center justify-between gap-2"><div className="font-display text-base font-bold text-white">VIP dersler</div><button type="button" onClick={() => setNewC(newC ? null : { title: "", id: "", grade: 1, description: "Hocanın çıkmış soruları, soru soru analiz, benzer sorular ve soru havuzu.", price_text: "", pay_info: anaPk?.pay_info || pkgs[0]?.pay_info || "", valid_days: "120", active: false })} className="flex items-center gap-1 rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-bold text-slate-950"><Plus className="h-3.5 w-3.5" />{newC ? "Kapat" : "Yeni ders"}</button></div>
+        <div className="flex items-center justify-between gap-2"><div className="font-display text-base font-bold text-white">VIP dersler</div><button type="button" onClick={() => setNewC(newC ? null : { title: "", id: "", grade: 1, description: "Geçmiş yıllardan öğrenci analizi, sınav tarzı sorular, benzer sorular ve soru havuzu.", price_text: "", pay_info: anaPk?.pay_info || pkgs[0]?.pay_info || "", valid_days: "120", active: false })} className="flex items-center gap-1 rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-bold text-slate-950"><Plus className="h-3.5 w-3.5" />{newC ? "Kapat" : "Yeni ders"}</button></div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {pkgs.map((x) => <button key={x.id} type="button" onClick={() => { setSelId(x.id); setCEdit(null); setEdit(null); setCamp(null); setSec(null); }} className={"rounded-lg px-3 py-1.5 text-xs font-semibold " + (x.id === pk.id ? "bg-teal-500 text-slate-950" : "border border-sky-300/20 text-slate-200")}>{(x.grade || 1)}. sınıf · {vipKind(x) === "anatomi" ? "Anatomi" : x.title}{x.active === false ? " (gizli)" : ""}</button>)}
         </div>
@@ -6192,7 +6199,7 @@ function AppInner() {
     { id: "arsiv", Icon: Archive, title: "Çıkmış sorular", sub: "Ders ders arşiv", cls: "border-violet-400/40 from-violet-600/40 to-violet-950/70", ic: "text-violet-200" },
     { id: "duello", Icon: Trophy, title: "Düello", sub: "Haftalık yarışma", cls: "border-amber-400/40 from-amber-600/40 to-amber-950/70", ic: "text-amber-200" },
     { id: "mitler", Icon: Lightbulb, title: "Doğru mu, yanlış mı?", sub: `${QUESTIONS.length} soru · 3 seviye`, cls: "border-indigo-400/40 from-indigo-600/40 to-indigo-950/70", ic: "text-indigo-200" },
-    { id: "vip", Icon: Crown, title: "VIP", sub: "Ders paketleri · çıkmışlar · hoca analizi", cls: "vip-tile border-amber-300/70 from-amber-500/60 via-fuchsia-600/45 to-indigo-900/80", ic: "text-amber-200", vip: true },
+    { id: "vip", Icon: Crown, title: "VIP", sub: "Ders paketleri · geçmiş yıllar analizi · soru havuzu", cls: "vip-tile border-amber-300/70 from-amber-500/60 via-fuchsia-600/45 to-indigo-900/80", ic: "text-amber-200", vip: true },
     { id: "hakkimizda", Icon: Play, title: "Bizi tanı", sub: "Video ve amacımız", cls: "border-sky-400/40 from-sky-600/40 to-sky-950/70", ic: "text-sky-200" },
   ];
 
