@@ -4326,6 +4326,55 @@ function VipPayInfo({ text, setToast }) {
 }
 
 // Tek paket için kapı: satın alan / deneme / deneme bitti / başka cihaz
+// Kampanya sayacı: indirimli fiyatın ve ücretsiz denemenin bitmesine kalan süre (sunucu saatine göre)
+const vipFmtWhen = (iso) => new Date(iso).toLocaleString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" });
+const vipFmtLeft = (ms) => {
+  const s = Math.max(0, Math.floor(ms / 1000)); const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  const p = (n) => String(n).padStart(2, "0");
+  return d > 0 ? `${d} gün ${p(h)} sa ${p(m)} dk ${p(x)} sn` : `${p(h)} sa ${p(m)} dk ${p(x)} sn`;
+};
+function VipCampaign({ pkg, onEnd, compact }) {
+  const skew = useRef(pkg.server_now ? new Date(pkg.server_now).getTime() - Date.now() : 0);
+  const [now, setNow] = useState(Date.now());
+  const fired = useRef(false);
+  const priceAt = pkg.price_change_at ? new Date(pkg.price_change_at).getTime() : null;
+  const trialAt = pkg.trial_ends_at ? new Date(pkg.trial_ends_at).getTime() : null;
+  useEffect(() => {
+    if (!priceAt && !trialAt) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [priceAt, trialAt]);
+  const tnow = now + skew.current;
+  const priceLeft = priceAt ? priceAt - tnow : 0, trialLeft = trialAt ? trialAt - tnow : 0;
+  useEffect(() => {
+    if (fired.current) return;
+    if ((priceAt && priceLeft <= 0) || (trialAt && trialLeft <= 0)) { fired.current = true; setTimeout(() => onEnd && onEnd(), 1500); }
+  }, [priceAt, trialAt, priceLeft, trialLeft, onEnd]);
+  if (!(priceAt && priceLeft > 0) && !(trialAt && trialLeft > 0)) return null;
+  const add = vipPriceNum(pkg.addon?.price_text), cur = vipPriceNum(pkg.price_text), nxt = vipPriceNum(pkg.price_next);
+  return (
+    <div className="relative mb-3 overflow-hidden rounded-2xl border border-rose-300/50 bg-gradient-to-br from-rose-600/30 via-amber-500/20 to-fuchsia-700/30 p-4 vip-glow">
+      {priceAt && priceLeft > 0 && (
+        <div>
+          <div className="flex items-center gap-2 text-sm font-bold text-rose-100"><Clock className="h-4 w-4" /> İndirimli fiyatın bitmesine</div>
+          <div className="font-display mt-1 text-2xl font-bold tabular-nums text-white">{vipFmtLeft(priceLeft)}</div>
+          {!compact && <div className="mt-2 rounded-xl bg-black/25 p-3 text-sm text-white">
+            <div className="flex justify-between gap-2"><span className="shrink-0">Şimdi</span><b className="text-right text-amber-200">{pkg.price_text}{add != null && cur != null ? ` · çıkmışlarla ${cur + add} TL` : ""}</b></div>
+            <div className="mt-1 flex justify-between gap-2 text-slate-300"><span className="shrink-0">{vipFmtWhen(pkg.price_change_at)} sonrası</span><b className="text-right text-rose-200">{pkg.price_next}{add != null && nxt != null ? ` · çıkmışlarla ${nxt + add} TL` : ""}</b></div>
+          </div>}
+          <p className="mt-2 text-xs text-rose-50/90">{vipFmtWhen(pkg.price_change_at)}'da fiyat {pkg.price_next}'ye çıkıyor. Şimdi alan bu fiyattan yararlanır.</p>
+        </div>
+      )}
+      {trialAt && trialLeft > 0 && (
+        <div className={priceAt && priceLeft > 0 ? "mt-3 border-t border-white/15 pt-3" : ""}>
+          <div className="flex items-center justify-between gap-2 text-sm text-amber-100"><span className="flex items-center gap-2 font-semibold"><Sparkles className="h-4 w-4" /> Ücretsiz deneme {vipFmtWhen(pkg.trial_ends_at)}'da kapanıyor</span></div>
+          <div className="mt-1 text-sm tabular-nums text-white">Kalan: <b>{vipFmtLeft(trialLeft)}</b></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VipGate({ pkg, user, profile, onLogin, status, reload, setToast }) {
   const isAdminUser = profile?.role === "admin";
   const [st, setSt] = useState(null);
@@ -4362,10 +4411,12 @@ function VipGate({ pkg, user, profile, onLogin, status, reload, setToast }) {
     setToast("Paket bu cihaza taşındı."); open(false);
   };
   const title = <div className="mb-3 flex items-center justify-between gap-2"><div className="font-display text-xl font-bold text-white">{pkg.title}</div>{st?.mode === "full" && st.ends_at && <div className="text-xs text-slate-400">{new Date(st.ends_at).toLocaleDateString("tr-TR")} tarihine kadar</div>}</div>;
+  const camp = <VipCampaign pkg={pkg} onEnd={() => { reload && reload(); open(false); }} />;
   if (!st) return <div className="py-10 text-center text-sm text-slate-400">Yükleniyor…</div>;
   if (st.mode === "full") return <div>{title}<VipRunner pkg={pkg} user={user} profile={profile} setToast={setToast} content={st.content} status={status} reload={reload} onLogin={onLogin} /></div>;
   if (st.mode === "trial") return (
     <div>
+      {camp}
       <div className="sticky top-[64px] z-30 mb-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-300/40 bg-gradient-to-r from-amber-500/25 to-fuchsia-600/25 px-4 py-3 backdrop-blur-xl">
         <div className="flex items-center gap-2 text-sm text-amber-100"><Clock className="h-4 w-4" /> Ücretsiz deneme</div>
         <div className="font-display text-xl font-bold tabular-nums text-white">{fmtLeft(left)}</div>
@@ -4388,6 +4439,7 @@ function VipGate({ pkg, user, profile, onLogin, status, reload, setToast }) {
     const dur = m0 >= 60 && m0 % 60 === 0 ? `${m0 / 60} saat` : `${m0} dakika`;
     return (
       <div className="space-y-4">
+        {camp}
         {st.mode === "login" ? (
           <div className="relative overflow-hidden rounded-2xl border border-amber-300/50 bg-gradient-to-br from-amber-500/30 via-fuchsia-600/20 to-indigo-700/30 p-4 text-center vip-glow">
             <Sparkles className="mx-auto h-7 w-7 text-amber-200" />
@@ -4411,12 +4463,14 @@ function VipGate({ pkg, user, profile, onLogin, status, reload, setToast }) {
   // none / expired
   const expired = st.mode === "expired";
   const mins = pkg.trial_minutes || st.trial_minutes || 60;
+  const closed = st.code === "deneme_kapandi";
   return (
     <div className="space-y-4">
+      {camp}
       {expired ? (
         <div className="rounded-2xl border border-rose-300/30 bg-rose-500/10 p-4 text-center">
           <Lock className="mx-auto h-7 w-7 text-rose-200" />
-          <div className="font-display mt-2 text-lg font-bold text-white">Deneme süren bitti</div>
+          <div className="font-display mt-2 text-lg font-bold text-white">{closed ? "Ücretsiz deneme dönemi sona erdi" : st.code === "deneme_yok" ? "Bu pakette ücretsiz deneme yok" : "Deneme süren bitti"}</div>
           <p className="mt-1 text-sm text-rose-100">{user ? "Çalışmaya devam etmek için paketi satın al." : "Devam etmek için giriş yap ve paketi satın al."}</p>
           {!user && <button type="button" onClick={onLogin} className="mt-3 w-full rounded-xl bg-white py-3 text-sm font-semibold text-slate-950">Giriş yap</button>}
         </div>
@@ -4474,6 +4528,7 @@ function VipAdmin({ setToast }) {
   const [aEdit, setAEdit] = useState(null);
   const [edit, setEdit] = useState(null);
   const [sec, setSec] = useState(null);
+  const [camp, setCamp] = useState(null);
   const [trials, setTrials] = useState(null);
   const [allTr, setAllTr] = useState(false);
   const pk = pkgs[0];
@@ -4499,6 +4554,10 @@ function VipAdmin({ setToast }) {
     if (!email.trim() || !pk) return;
     const { error } = await sb.rpc("admin_vip_grant", { p_email: email.trim(), p_pkg: grantAddon && pk.addon ? pk.addon.id : pk.id, p_days: days ? Number(days) : null });
     setToast(error ? (vipErr(error).includes("kullanici") ? "Bu e-postayla kullanıcı yok." : "Verilemedi.") : "Paket verildi."); if (!error) { setEmail(""); setDays(""); } load();
+  };
+  const saveCamp = async () => {
+    const { error } = await sb.rpc("admin_vip_campaign_set", { p_pkg: pk.id, p_trial_ends: camp.trial ? new Date(camp.trial).toISOString() : null, p_price_next: camp.next || "", p_price_at: camp.at ? new Date(camp.at).toISOString() : null });
+    setToast(error ? "Kaydedilemedi (vip_6 SQL çalıştı mı?)" : "Kampanya kaydedildi."); if (!error) setCamp(null); load();
   };
   const saveSec = async () => {
     const { error } = await sb.rpc("admin_vip_security_set", { p_pkg: pk.id, p_trial: Number(sec.trial || 0), p_max_devices: Number(sec.dev || 1) });
@@ -4595,7 +4654,7 @@ function VipAdmin({ setToast }) {
         </div>
       )}
       <div>
-        <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Fiyat ve ödeme bilgisi</div><button type="button" onClick={() => setEdit(edit ? null : { ...pk })} className="text-xs text-teal-300">{edit ? "Kapat" : "Düzenle"}</button></div>
+        <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Fiyat ve ödeme bilgisi</div><button type="button" onClick={() => setEdit(edit ? null : { ...pk, price_text: pk.price_base ?? pk.price_text })} className="text-xs text-teal-300">{edit ? "Kapat" : "Düzenle"}</button></div>
         {edit && (
           <div className="mt-2 space-y-2">
             <input value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} placeholder="Paket adı" className={inp} />
@@ -4609,8 +4668,21 @@ function VipAdmin({ setToast }) {
         )}
       </div>
       <div>
-        <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Deneme ve cihaz kilidi</div><button type="button" onClick={() => setSec(sec ? null : { trial: pk.trial_minutes ?? 60, dev: pk.max_devices ?? 1, login: pk.trial_requires_login ?? true, ip: pk.trial_ip_limit ?? 2 })} className="text-xs text-teal-300">{sec ? "Kapat" : "Düzenle"}</button></div>
-        <div className="mt-1 text-xs text-slate-400">Deneme: {pk.trial_minutes ?? 60} dk · {pk.trial_requires_login === false ? "girişsiz de açılır" : "giriş zorunlu"} · aynı internet: {pk.trial_ip_limit ? `24 saatte en fazla ${pk.trial_ip_limit}` : "sınırsız"} · Cihaz sınırı: {pk.max_devices ?? 1}</div>
+        <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Kampanya zamanlayıcı</div><button type="button" onClick={() => setCamp(camp ? null : { trial: pk.campaign?.trial_ends_at ? toLocalInput(pk.campaign.trial_ends_at) : "", next: pk.campaign?.price_next || "", at: pk.campaign?.price_change_at ? toLocalInput(pk.campaign.price_change_at) : "" })} className="text-xs text-teal-300">{camp ? "Kapat" : "Düzenle"}</button></div>
+        <div className="mt-1 text-xs text-slate-400">{pk.campaign?.trial_ends_at ? `Deneme kapanışı: ${vipFmtWhen(pk.campaign.trial_ends_at)}` : "Deneme kapanışı yok"} · {pk.campaign?.price_change_at && pk.campaign?.price_next ? `Fiyat ${vipFmtWhen(pk.campaign.price_change_at)}'da ${pk.campaign.price_next} olur` : "Zamanlı fiyat yok"} · Şu an geçerli: {pk.price_text}</div>
+        {camp && (
+          <div className="mt-2 space-y-2">
+            <label className="block text-xs text-slate-300">Ücretsiz deneme şu anda kapansın (boş = kapanmasın)<input type="datetime-local" value={camp.trial} onChange={(e) => setCamp({ ...camp, trial: e.target.value })} className={inp + " mt-1"} /></label>
+            <label className="block text-xs text-slate-300">Yeni fiyat (örn. 200 TL)<input value={camp.next} onChange={(e) => setCamp({ ...camp, next: e.target.value })} className={inp + " mt-1"} /></label>
+            <label className="block text-xs text-slate-300">Yeni fiyat şu anda başlasın (boş = zam yok)<input type="datetime-local" value={camp.at} onChange={(e) => setCamp({ ...camp, at: e.target.value })} className={inp + " mt-1"} /></label>
+            <p className="text-[11px] text-slate-500">Saatler Türkiye saatidir. Zaman gelince site kendisi uygular, senin bir şey yapmana gerek yok. VIP sayfasında geri sayım görünür.</p>
+            <button type="button" onClick={saveCamp} className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white">Kaydet</button>
+          </div>
+        )}
+      </div>
+      <div>
+        <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Deneme ve cihaz kilidi</div><button type="button" onClick={() => setSec(sec ? null : { trial: pk.trial_minutes_set ?? pk.trial_minutes ?? 60, dev: pk.max_devices ?? 1, login: pk.trial_requires_login ?? true, ip: pk.trial_ip_limit ?? 2 })} className="text-xs text-teal-300">{sec ? "Kapat" : "Düzenle"}</button></div>
+        <div className="mt-1 text-xs text-slate-400">Deneme: {pk.trial_minutes_set ?? pk.trial_minutes ?? 60} dk{pk.trial_minutes === 0 && (pk.trial_minutes_set ?? 0) > 0 ? " (kampanya bitti, şu an kapalı)" : ""} · {pk.trial_requires_login === false ? "girişsiz de açılır" : "giriş zorunlu"} · aynı internet: {pk.trial_ip_limit ? `24 saatte en fazla ${pk.trial_ip_limit}` : "sınırsız"} · Cihaz sınırı: {pk.max_devices ?? 1}</div>
         {sec && (
           <div className="mt-2 space-y-2">
             <label className="block text-xs text-slate-300">Ücretsiz deneme (dakika, 0 = kapalı)<input value={sec.trial} onChange={(e) => setSec({ ...sec, trial: e.target.value.replace(/\D/g, "").slice(0, 4) })} className={inp + " mt-1"} /></label>
