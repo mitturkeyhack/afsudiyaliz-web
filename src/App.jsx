@@ -3971,7 +3971,7 @@ function VipSales({ pkg, status, user, onLogin, reload, setToast, preferAddon, c
       <div className="flex items-center gap-2"><Lock className="h-5 w-5 text-amber-300" /><div className="font-display text-xl font-bold text-white">{pkg.title}</div></div>
       <p className="text-sm leading-relaxed text-slate-300">{pkg.description}</p>
       <ul className="space-y-1 text-sm text-slate-200">
-        {["Etkileşimli 3D iskelet ve sesli anlatım", "Gerçek atlas görselleriyle \"şurası neresi?\" soruları", "Çıkmış sorulara göre bilgi kartları ve geniş soru havuzu", "Yanlışlarından otomatik deneme ve 40 dakikalık sınav provası"].map((x) => <li key={x} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-none text-teal-300" />{x}</li>)}
+        {(pkg.kind === "ders" ? VIP_DERS_FEATURES : ["Etkileşimli 3D iskelet ve sesli anlatım", "Gerçek atlas görselleriyle \"şurası neresi?\" soruları", "Çıkmış sorulara göre bilgi kartları ve geniş soru havuzu", "Yanlışlarından otomatik deneme ve 40 dakikalık sınav provası"]).map((x) => <li key={x} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-none text-teal-300" />{x}</li>)}
       </ul>
       </>}
       {pkg.addon ? (
@@ -4085,12 +4085,12 @@ function CikQuestion({ q, ex, topics, exams, showAll }) {
 }
 
 // PDF görünümlü sayfa: beyaz kâğıt, üst bilgi, kişiye özel filigran, alt şerit
-function CikPage({ head, page, pages, wm, owner, children }) {
+function CikPage({ head, page, pages, wm, owner, children, brand = "VIP Anatomi" }) {
   return (
     <div className="relative mb-4 overflow-hidden rounded-md bg-white px-4 pb-10 pt-4 text-slate-900 shadow-[0_10px_40px_rgba(0,0,0,.45)]">
       <CikWatermark text={wm} />
       <div className="relative mb-3 flex items-center justify-between gap-2 border-b-2 border-slate-900 pb-2">
-        <div className="min-w-0"><div className="truncate text-[11px] font-bold uppercase tracking-wider text-slate-500">AFSÜ Diyaliz Team · VIP Anatomi</div><div className="text-[14px] font-bold leading-tight">{head}</div></div>
+        <div className="min-w-0"><div className="truncate text-[11px] font-bold uppercase tracking-wider text-slate-500">AFSÜ Diyaliz Team · {brand}</div><div className="text-[14px] font-bold leading-tight">{head}</div></div>
         <div className="flex-none text-[11px] font-semibold text-slate-500">{page}/{pages}</div>
       </div>
       <div className="relative">{children}</div>
@@ -4492,25 +4492,343 @@ const vipStatusOf = (status, p) => {
   const a = p.addon && status.find((x) => x.package_id === p.addon.id);
   return b || a ? { ...(b || {}), addon_has: !!a?.has, addon_request: a?.request || null } : undefined;
 };
+/* ---------- Ders paketleri (Hematoloji vb.): çıkmışlar + hoca analizi + soru havuzu + yanlış analizi ---------- */
+const VIP_DERS_FEATURES = ["Çıkmış sınav soruları: cevap anahtarı, açıklama ve şık analizi", "Hoca analizi: soru kalıpları, tuzaklar ve en olası konular", "Her çıkmışa \"hoca şöyle de sorabilir\" benzer sorular", "Soru havuzu ve yanlışlarına göre konu konu analiz"];
+const vipKind = (p) => p?.kind || "anatomi";
+const VIP_NEG = /değildir|yanlıştır|artmaz|beklenmez|çalışılmaz|sayılmayan|değil\b/i;
+
+function VipCourse({ pkg, user, profile, onLogin, status, reload, setToast }) {
+  const isAdminUser = profile?.role === "admin";
+  const [st, setSt] = useState(null);
+  const [view, setView] = useState({ name: "home" });
+  const [busy, setBusy] = useState(false);
+  const [agree, setAgree] = useState(false);
+  const okKey = `cikmis_ok_${user?.id || "-"}`;
+  const [accepted, setAccepted] = useState(() => { try { return localStorage.getItem(okKey) === "1"; } catch (e) { return false; } });
+  const pkey = `vipders_${pkg.id}_${user?.id || "misafir"}`;
+  const [prog, setProg] = useState(() => { try { return JSON.parse(localStorage.getItem(pkey) || "null") || { a: {} }; } catch (e) { return { a: {} }; } });
+  const saveProg = (p) => { setProg(p); try { localStorage.setItem(pkey, JSON.stringify(p)); } catch (e) { /* kayıt yoksa sorun değil */ } };
+  const record = (qid, ok) => setProg((cur) => {
+    const prev = cur.a[qid] || {};
+    const p = { ...cur, a: { ...cur.a, [qid]: { ok, t: Date.now(), n: (prev.n || 0) + 1, w: (prev.w || 0) + (ok ? 0 : 1) } } };
+    try { localStorage.setItem(pkey, JSON.stringify(p)); } catch (e) { /* önemli değil */ }
+    return p;
+  });
+  const load = useCallback(async () => {
+    if (user) {
+      const { data } = await sb.rpc("vip_open", { p_pkg: pkg.id, p_device: vipDevice(), p_start: false, p_draft: isAdminUser });
+      if (data?.mode === "full") return setSt({ full: true, data: data.content?.data || null, draft: data.content ? !data.content.published : false, ends: data.ends_at });
+      if (data?.mode === "device") return setSt({ full: false, device: true, can_switch: data.can_switch, switch_at: data.switch_at });
+      if (data?.mode === "error" && data.code === "askida") return setSt({ full: false, suspended: true });
+    }
+    const p = await sb.rpc("vip_course_preview", { p_pkg: pkg.id });
+    setSt({ full: false, data: p.data || null });
+  }, [pkg.id, user, isAdminUser]);
+  useEffect(() => { load(); }, [load]);
+  const go = (v) => { setView(v); window.scrollTo(0, 0); };
+  const home = () => go({ name: "home" });
+  const moveHere = async () => {
+    if (!(await ask("Paket bu cihaza taşınsın mı? Önceki cihazda paket kapanır. Bu işlem 7 günde bir yapılabilir."))) return;
+    setBusy(true);
+    const { data, error } = await sb.rpc("vip_device_switch", { p_device: vipDevice() });
+    setBusy(false);
+    if (error || !data?.ok) return setToast(data?.switch_at ? `Cihaz değişikliği ${new Date(data.switch_at).toLocaleDateString("tr-TR")} tarihinden sonra yapılabilir.` : "Taşınamadı.");
+    setToast("Paket bu cihaza taşındı."); load();
+  };
+
+  const D = st?.data;
+  const topicsArr = useMemo(() => Object.entries(D?.topics || {}).map(([id, t]) => ({ id, title: t.title, scope: t.scope })), [D]);
+  // Çıkmışlar + ikizleri + havuz: hepsi tek bir çözülebilir liste
+  const all = useMemo(() => {
+    if (!D) return [];
+    const L = [];
+    (D.questions || []).forEach((q) => {
+      L.push({ id: q.id, topic: q.topic, stem: q.stem, options: q.options, answer: q.answer, explain: q.explain, exam: q.exam, src: "cikmis", kind: VIP_NEG.test(q.stem) ? "degildir" : "" });
+      (q.similar || []).forEach((s, k) => L.push({ id: `${q.id}-b${k + 1}`, topic: q.topic, stem: s.stem, options: s.options, answer: s.answer, explain: s.explain, src: "ikiz", kind: VIP_NEG.test(s.stem) ? "degildir" : "" }));
+    });
+    (D.pool || []).forEach((q) => L.push({ ...q, src: "havuz", kind: VIP_NEG.test(q.stem) ? "degildir" : "" }));
+    return L.filter((q) => Array.isArray(q.options) && q.answer >= 0 && q.answer < q.options.length);
+  }, [D]);
+  const poolQs = all.filter((q) => q.src === "havuz");
+  const examQs = all.filter((q) => q.src !== "havuz");
+  const tStat = (tid) => { const qs = all.filter((q) => tid === "all" || q.topic === tid); let ok = 0, no = 0; qs.forEach((q) => { const a = prog.a[q.id]; if (a) { if (a.ok) ok++; else no++; } }); return { total: qs.length, ok, no, done: ok + no, pct: ok + no ? Math.round((ok * 100) / (ok + no)) : null }; };
+  const answered = all.filter((q) => prog.a[q.id]);
+  const okN = answered.filter((q) => prog.a[q.id].ok).length;
+  const pct = answered.length ? Math.round((okN * 100) / answered.length) : 0;
+  const quiz = (list, title, extra = {}) => go({ name: "quiz", list, title, n: Math.random(), ...extra });
+  const startWrong = () => {
+    const tw = {};
+    topicsArr.forEach((t) => { const s = tStat(t.id); tw[t.id] = s.done ? 1 + (1.5 * s.no) / s.done : 1.2; });
+    const w = all.map((q) => { const a = prog.a[q.id]; return { q, w: (a ? (a.ok ? 0.3 : 3 + (a.w || 0)) : 1) * (tw[q.topic] || 1) * (0.6 + Math.random() * 0.8) }; });
+    w.sort((x, y) => y.w - x.w);
+    quiz(vipShuffle(w.slice(0, 15).map((x) => x.q)), answered.length ? "Yanlışlarımdan deneme" : "Karışık deneme");
+  };
+  const startTopic = (tid, src) => quiz(vipShuffle(all.filter((q) => (tid === "all" || q.topic === tid) && (!src || q.src === src))), tid === "all" ? (src === "havuz" ? "Soru havuzu · tümü" : "Tüm sorular") : topicsArr.find((t) => t.id === tid)?.title || "");
+  const startProva = () => {
+    const pick = (arr, k) => vipShuffle(arr).slice(0, k);
+    quiz(vipShuffle([...pick(examQs, 8), ...pick(poolQs, 17)]), "Sınav provası", { exam: true, secs: 30 * 60 });
+  };
+  const startWrongOnly = () => { const l = all.filter((q) => prog.a[q.id] && !prog.a[q.id].ok); if (!l.length) return setToast("Şu an yanlışın yok."); quiz(vipShuffle(l), "Yanlışlarımı tekrar çöz"); };
+
+  const code = user ? vipCode(user.id) : "";
+  const name = (profile?.full_name || "").trim() || "Kullanıcı";
+  const stamp = useMemo(() => new Date().toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }), []);
+  const wm = st?.full ? `${name} · ${vipMaskEmail(user?.email)} · #${code} · ${stamp}` : "ÖNİZLEME · AFSÜ Diyaliz Team · ÖNİZLEME";
+  const owner = st?.full ? `${name} · #${code} için hazırlanmıştır. Paylaşılması yasaktır.` : "Ücretsiz önizleme · AFSÜ Diyaliz Team";
+  const brand = `VIP ${pkg.title}`;
+  const shell = (children) => (
+    <div className="cik-protect relative select-none" onContextMenu={(e) => e.preventDefault()} onCopy={(e) => e.preventDefault()} onDragStart={(e) => e.preventDefault()} style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}>
+      <style>{"@media print{.cik-protect{display:none!important}}"}</style>
+      {children}
+    </div>
+  );
+  const back = view.name !== "home" && <button type="button" onClick={home} className="mb-3 text-sm font-semibold text-teal-300">← {pkg.title} ana sayfası</button>;
+  const title = <div className="mb-3 flex items-center justify-between gap-2"><div className="font-display text-xl font-bold text-white">{pkg.title}</div>{st?.full && st.ends && <div className="text-xs text-slate-400">{new Date(st.ends).toLocaleDateString("tr-TR")} tarihine kadar</div>}</div>;
+
+  if (!st) return <div className="py-10 text-center text-sm text-slate-400">Yükleniyor…</div>;
+  if (st.suspended) return <div className={STAFF_CARD + " text-center text-sm text-slate-300"}>Hesabın askıda olduğu için paket açılamıyor.</div>;
+  if (st.device) return (
+    <div className={STAFF_CARD + " space-y-3"}>
+      <div className="flex items-center gap-2"><Smartphone className="h-5 w-5 text-amber-300" /><div className="font-display text-lg font-bold text-white">Paketin başka cihazlara kayıtlı</div></div>
+      <p className="text-sm leading-relaxed text-slate-300">Paketin hesabına özeldir ve sınırlı sayıda cihazda açılır. Telefonunu değiştirdiysen paketi bu cihaza taşıyabilirsin. Taşıma 7 günde bir yapılabilir.</p>
+      {st.can_switch
+        ? <button type="button" disabled={busy} onClick={moveHere} className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950 disabled:opacity-50">Paketi bu cihaza taşı</button>
+        : <div className="rounded-xl bg-white/5 p-3 text-sm text-slate-200">Bir sonraki taşıma: <b>{st.switch_at ? new Date(st.switch_at).toLocaleDateString("tr-TR") : "-"}</b>. Acil durumda Instagram'dan yöneticiye yaz.</div>}
+    </div>
+  );
+  if (st.full && !D) return <div>{title}<div className={STAFF_CARD + " text-center text-sm text-slate-300"}>Paketin açık. İçerik hazırlanıyor, çok yakında burada olacak.</div></div>;
+  if (st.full && !accepted) return (
+    <div>{title}
+      <div className={STAFF_CARD + " space-y-3"}>
+        <div className="flex items-center gap-2"><Lock className="h-5 w-5 text-amber-300" /><div className="font-display text-lg font-bold text-white">Bu içerik sana özeldir</div></div>
+        <p className="text-sm leading-relaxed text-slate-300">Her sayfada <b className="text-white">adın</b> ve hesabına özel <b className="text-white">#{code}</b> kodun görünür. Ekran görüntüsü alıp paylaşırsan, görüntüde kim olduğun yazar.</p>
+        <p className="text-sm leading-relaxed text-slate-300">Paylaşım tespit edilirse hesabın <b className="text-rose-200">kalıcı olarak kapatılır</b> ve ücret iadesi yapılmaz.</p>
+        <label className="flex items-center gap-2 text-sm text-slate-200"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> Okudum, içeriği paylaşmayacağım.</label>
+        <button type="button" disabled={!agree} onClick={() => { try { localStorage.setItem(okKey, "1"); } catch (e) { /* önemli değil */ } setAccepted(true); }} className="w-full rounded-xl bg-amber-400 py-3 text-sm font-bold text-slate-950 disabled:opacity-40">Anladım, devam et</button>
+      </div>
+    </div>
+  );
+
+  const exams = D?.exams || [];
+  const qsOf = (eid) => (D?.questions || []).filter((q) => q.exam === eid);
+  const lockCard = !st.full && (
+    <div className="mt-3 space-y-3">
+      <VipCampaign pkg={pkg} onEnd={() => { reload && reload(); }} />
+      <div className="rounded-2xl border border-amber-300/40 bg-gradient-to-br from-amber-500/20 to-fuchsia-600/15 p-4">
+        <div className="flex items-center gap-2"><Lock className="h-5 w-5 text-amber-200" /><div className="font-display text-lg font-bold text-white">Tamamı pakette</div></div>
+        <p className="mt-1 text-sm text-amber-50/90">{D ? `${D.analysis?.total || 0} çıkmış soru, hocanın tam analizi, benzer sorular${D.pool_n ? ` ve ${D.pool_n} soruluk havuz` : ""} paketle açılır.` : "İçerik hazırlanıyor. Şimdi alırsan hazır olduğu an açılır."}</p>
+        <div className="mt-3"><VipSales pkg={pkg} status={status} user={user} onLogin={onLogin} reload={reload} setToast={setToast} compact /></div>
+      </div>
+    </div>
+  );
+
+  if (view.name === "quiz") return (
+    <div className="relative select-none" onContextMenu={(e) => e.preventDefault()}>
+      <VipWatermark text={st.full ? wm : "ÖNİZLEME · AFSÜ Diyaliz Team"} />
+      <VipQuiz key={view.n} list={view.list} title={view.title} topics={topicsArr} onRecord={record} onExit={() => { home(); if (!st.full) setToast("Önizleme soruları bitti. Tamamı pakette."); }} onAgain={st.full ? startWrong : home} exam={view.exam} secs={view.secs} />
+    </div>
+  );
+  if (view.name === "exam" && D) {
+    const ex = exams.find((e) => e.id === view.id);
+    const list = qsOf(view.id);
+    const pages = Math.max(1, Math.ceil(list.length / CIK_PER_PAGE));
+    return shell(
+      <div>{back}
+        <div className="mb-3"><div className="font-display text-lg font-bold text-white">{ex?.title}</div><div className="text-xs text-slate-400">{ex?.sub}</div></div>
+        {Array.from({ length: pages }, (_, p) => (
+          <CikPage key={p} brand={brand} head={ex?.title} page={p + 1} pages={pages} wm={wm} owner={owner}>
+            {list.slice(p * CIK_PER_PAGE, (p + 1) * CIK_PER_PAGE).map((q) => <CikQuestion key={q.id} q={q} topics={D.topics} exams={exams} />)}
+          </CikPage>
+        ))}
+        {st.full && list.length > 0 && <button type="button" onClick={() => quiz(vipShuffle(examQs.filter((q) => q.src === "cikmis" && q.exam === view.id)), `${ex?.title || "Çıkmışlar"} · test`)} className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950">Bu sınavı şıkları kapalı test gibi çöz</button>}
+        {lockCard}
+      </div>
+    );
+  }
+  if (view.name === "analiz" && D) return shell(
+    <div>{back}
+      <CikPage brand={brand} head="Hoca analizi" page={1} pages={1} wm={wm} owner={owner}><CikAnalysis A={D.analysis} topics={D.topics} preview={!st.full} /></CikPage>
+      {lockCard}
+    </div>
+  );
+  if (view.name === "havuz" && D) return (
+    <div>{back}
+      <div className="mb-3"><div className="font-display text-lg font-bold text-white">Soru havuzu</div><div className="text-xs text-slate-400">{st.full ? `${poolQs.length} soru · hocanın slayt cümlelerinden, onun tarzında` : `Önizleme: ${poolQs.length} soru açık · tamamı ${D.pool_n || 0} soru`}</div></div>
+      <button type="button" onClick={() => startTopic("all", "havuz")} className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-teal-500 p-4 text-left text-slate-950"><ClipboardList className="h-6 w-6 flex-none" /><span><b className="font-display block text-lg">{st.full ? "Tüm havuzu karışık çöz" : "Önizleme sorularını çöz"}</b><span className="text-sm opacity-80">Her sorudan sonra açıklama</span></span></button>
+      {st.full && topicsArr.map((t) => {
+        const qs = poolQs.filter((q) => q.topic === t.id); if (!qs.length) return null;
+        let ok = 0, no = 0; qs.forEach((q) => { const a = prog.a[q.id]; if (a) { if (a.ok) ok++; else no++; } });
+        return (
+          <div key={t.id} className={STAFF_CARD + " mb-2 space-y-2"}>
+            <div className="flex items-center justify-between gap-2"><div className="min-w-0 font-semibold text-white">{t.title}</div><span className="shrink-0 text-xs text-slate-400">{qs.length} soru</span></div>
+            <div className="flex h-2 overflow-hidden rounded-full bg-white/10"><div className="bg-emerald-400" style={{ width: `${(ok * 100) / qs.length}%` }} /><div className="bg-rose-400" style={{ width: `${(no * 100) / qs.length}%` }} /></div>
+            <div className="flex items-center justify-between gap-2"><span className="text-xs text-slate-400">{ok + no}/{qs.length} çözüldü{no ? ` · ${no} yanlış` : ""}</span><button type="button" onClick={() => startTopic(t.id, "havuz")} className="rounded-lg bg-teal-500 px-3 py-2 text-xs font-semibold text-slate-950">Çöz</button></div>
+          </div>
+        );
+      })}
+      {lockCard}
+    </div>
+  );
+  if (view.name === "rapor" && D) {
+    const rows = topicsArr.map((t) => ({ ...t, ...tStat(t.id) })).filter((r) => r.total > 0);
+    const weak = rows.filter((r) => r.done >= 3).sort((a, b) => a.pct - b.pct).filter((r) => r.pct < 70).slice(0, 2);
+    const wrong = all.filter((q) => prog.a[q.id] && !prog.a[q.id].ok).sort((a, b) => (prog.a[b.id].w || 0) - (prog.a[a.id].w || 0));
+    const tips = (tid) => (D.questions || []).filter((q) => q.topic === tid && q.hoca).slice(0, 2);
+    return (
+      <div className="relative select-none" onContextMenu={(e) => e.preventDefault()}>
+        <VipWatermark text={wm} />
+        {back}
+        <div className="mb-3"><div className="font-display text-lg font-bold text-white">Yanlış analizim</div><div className="text-xs text-slate-400">Çözdüğün her soru bu cihazda kaydedilir; analiz yanlışlarına göre güncellenir.</div></div>
+        <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+          {[[answered.length, "çözülen"], [`%${pct}`, "doğru"], [wrong.length, "yanlışta kalan"]].map(([n, l]) => <div key={l} className={STAFF_CARD + " !p-3"}><div className="font-display text-2xl font-bold text-white">{n}</div><div className="text-[11px] text-slate-400">{l}</div></div>)}
+        </div>
+        {answered.length === 0 ? <div className={STAFF_CARD + " text-sm text-slate-300"}>Henüz soru çözmedin. Birkaç soru çözünce konu konu nerede eksik olduğunu burada göreceksin.</div> : (
+          <>
+            {weak.length > 0 && (
+              <div className="mb-3 rounded-2xl border border-rose-300/30 bg-rose-500/10 p-4">
+                <div className="font-display text-base font-bold text-white">Önce bu konulara çalış</div>
+                {weak.map((r) => (
+                  <div key={r.id} className="mt-3">
+                    <div className="flex items-center justify-between gap-2"><b className="text-sm text-rose-100">{r.title}</b><span className="text-xs text-rose-200">%{r.pct} doğru · {r.no} yanlış</span></div>
+                    {tips(r.id).map((q) => <div key={q.id} className="mt-1 rounded-lg bg-black/20 px-3 py-2 text-xs leading-relaxed text-slate-200"><b className="text-amber-200">Hoca bu konuda: </b>{q.hoca}</div>)}
+                    <button type="button" onClick={() => startTopic(r.id)} className="mt-2 rounded-lg bg-rose-400 px-3 py-2 text-xs font-bold text-slate-950">Bu konudan çöz</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className={STAFF_CARD + " mb-3 space-y-2"}>
+              <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Konu konu durumun</div>
+              {rows.map((r) => (
+                <div key={r.id}>
+                  <div className="flex items-center justify-between gap-2 text-sm"><span className="min-w-0 truncate text-white">{r.title}</span><span className={"shrink-0 text-xs font-bold " + (r.pct === null ? "text-slate-500" : r.pct >= 80 ? "text-emerald-300" : r.pct >= 60 ? "text-amber-300" : "text-rose-300")}>{r.pct === null ? "çözülmedi" : `%${r.pct}`}</span></div>
+                  <div className="mt-1 flex h-2 overflow-hidden rounded-full bg-white/10"><div className="bg-emerald-400" style={{ width: `${(r.ok * 100) / r.total}%` }} /><div className="bg-rose-400" style={{ width: `${(r.no * 100) / r.total}%` }} /></div>
+                  <div className="mt-0.5 text-[11px] text-slate-500">{r.done}/{r.total} soru çözüldü</div>
+                </div>
+              ))}
+            </div>
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              <button type="button" onClick={startWrongOnly} className="rounded-xl bg-rose-400 py-3 text-sm font-bold text-slate-950">Yanlışlarımı tekrar çöz</button>
+              <button type="button" onClick={startWrong} className="rounded-xl bg-teal-500 py-3 text-sm font-bold text-slate-950">Eksiklerimden 15 soru</button>
+            </div>
+            {wrong.length > 0 && <div className="font-display mb-2 text-base font-bold text-white">Yanlış yaptığın sorular ({wrong.length})</div>}
+            {wrong.slice(0, 40).map((q) => (
+              <div key={q.id} className={STAFF_CARD + " mb-2"}>
+                <div className="mb-1 flex flex-wrap gap-1.5 text-[10px] font-bold uppercase tracking-wide"><span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-300">{topicsArr.find((t) => t.id === q.topic)?.title}</span>{q.src === "cikmis" && <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-amber-200">Çıkmış soru</span>}{(prog.a[q.id].w || 0) > 1 && <span className="rounded bg-rose-500/20 px-1.5 py-0.5 text-rose-200">{prog.a[q.id].w} kez yanlış</span>}</div>
+                <div className="text-sm font-semibold text-white">{q.stem}</div>
+                <div className="mt-2 rounded-xl bg-emerald-500/15 p-3 text-sm text-emerald-100"><b>{VIP_LETTERS[q.answer]}) {q.options[q.answer]}</b><div className="mt-1 text-emerald-50/90">{q.explain}</div></div>
+              </div>
+            ))}
+            <button type="button" onClick={async () => { if (await ask("Bu dersteki tüm çözüm geçmişin silinsin mi?")) { saveProg({ a: {} }); setToast("Sıfırlandı."); } }} className="mt-2 text-xs text-slate-500 underline">Çözüm geçmişimi sıfırla</button>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // Ana sayfa
+  const card = (Icon, color, head, sub, onClick, right) => (
+    <button type="button" onClick={onClick} className={STAFF_CARD + " flex w-full items-center gap-3 text-left"}>
+      <Icon className={"h-6 w-6 flex-none " + color} /><span className="min-w-0 flex-1"><b className="font-display block text-white">{head}</b><span className="block text-xs text-slate-400">{sub}</span></span>{right}
+    </button>
+  );
+  return shell(
+    <div>
+      {title}
+      {st.draft && <div className="mb-3 rounded-xl bg-amber-500/15 p-3 text-xs text-amber-100">Taslak: bu içerik henüz öğrencilere açık değil, sadece sen görüyorsun.</div>}
+      {!st.full && <VipCampaign pkg={pkg} onEnd={() => { reload && reload(); }} />}
+      <div className="mb-3 rounded-2xl border border-amber-300/40 bg-gradient-to-br from-amber-500/25 via-fuchsia-600/15 to-indigo-700/25 p-4">
+        <div className="text-[11px] font-bold uppercase tracking-[3px] text-amber-200">{st.full ? "Paketinde açık" : "Ücretsiz önizleme"}</div>
+        <div className="font-display mt-1 text-xl font-bold text-white">{D?.title || "Çıkmışlar ve hoca analizi"}</div>
+        <p className="mt-1 text-sm text-amber-50/90">{pkg.description || "Çıkmış sorular, hocanın soru tarzı, benzer sorular ve soru havuzu."}</p>
+        {D && <div className="mt-2 text-xs text-amber-100/90">{D.analysis?.total || 0} çıkmış soru · {exams.length} sınav{(st.full ? poolQs.length : D.pool_n) ? ` · ${st.full ? poolQs.length : D.pool_n} soruluk havuz` : ""}</div>}
+      </div>
+      {!D && <div className={STAFF_CARD + " text-center text-sm text-slate-300"}>İçerik hazırlanıyor. Çok yakında burada.</div>}
+      {D && st.full && (
+        <>
+          <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+            {[[answered.length, "çözülen"], [`%${pct}`, "doğru oranı"], [all.length, "toplam soru"]].map(([n, l]) => <div key={l} className={STAFF_CARD + " !p-3"}><div className="font-display text-2xl font-bold text-white">{n}</div><div className="text-[11px] text-slate-400">{l}</div></div>)}
+          </div>
+          <button type="button" onClick={startWrong} className="mb-2 flex w-full items-center gap-3 rounded-2xl bg-teal-500 p-4 text-left text-slate-950">
+            <RotateCw className="h-6 w-6 flex-none" /><span><b className="font-display block text-lg">{answered.length ? "Yanlışlarımdan deneme" : "Karışık deneme"}</b><span className="text-sm opacity-80">{answered.length ? "Eksik olduğun konulardan 15 soru" : "Tüm konulardan 15 soru"}</span></span>
+          </button>
+        </>
+      )}
+      {D && (
+        <div className="space-y-2">
+          {card(Sparkles, "text-amber-300", "Hoca analizi", st.full ? "Soru kalıpları, tuzaklar, en olası konular" : "Konu dağılımı ve soru kalıpları", () => go({ name: "analiz" }))}
+          {exams.map((e) => {
+            const n = qsOf(e.id).length;
+            return <div key={e.id}>{card(FileText, e.kind === "vize" ? "text-teal-300" : "text-violet-300", e.title, e.sub, () => go({ name: "exam", id: e.id }),
+              <span className={"shrink-0 rounded-md px-2 py-1 text-[11px] font-bold " + (st.full ? "bg-teal-500/20 text-teal-200" : n ? "bg-white/10 text-slate-200" : "bg-white/5 text-slate-400")}>{st.full ? `${e.count} soru` : n ? `${n} soru açık` : <span className="flex items-center gap-1"><Lock className="h-3 w-3" />{e.count}</span>}</span>)}</div>;
+          })}
+          {(st.full ? poolQs.length : D.pool_n) > 0 && card(ClipboardList, "text-cyan-300", "Soru havuzu", st.full ? `${poolQs.length} soru · konu konu çöz` : `${poolQs.length} soru açık · tamamı ${D.pool_n} soru`, () => go({ name: "havuz" }),
+            st.full ? null : <span className="shrink-0 rounded-md bg-white/10 px-2 py-1 text-[11px] font-bold text-slate-200">Önizleme</span>)}
+          {st.full && card(Clock, "text-rose-300", "Sınav provası", "25 soru · 30 dakika · çıkmış ağırlıklı", startProva)}
+          {st.full && card(Activity, "text-emerald-300", "Yanlış analizim", answered.length ? `%${pct} doğru · ${answered.length - okN} yanlış · zayıf konuların` : "Soru çözdükçe konu konu analiz", () => go({ name: "rapor" }))}
+        </div>
+      )}
+      {lockCard}
+    </div>
+  );
+}
+
+function VipCourseList({ pkgs, status, onPick }) {
+  const groups = [1, 2].map((g) => ({ g, list: pkgs.filter((p) => (p.grade || 1) === g) }));
+  return (
+    <div className="space-y-5">
+      {groups.map(({ g, list }) => (
+        <div key={g}>
+          <div className="mb-2 flex items-center gap-2"><GraduationCap className="h-5 w-5 text-teal-300" /><div className="font-display text-lg font-bold text-white">{g}. Sınıf</div></div>
+          {list.length === 0 && <div className={STAFF_CARD + " text-sm text-slate-400"}>{g}. sınıf dersleri yakında burada.</div>}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {list.map((p) => {
+              const s = vipStatusOf(status, p);
+              const an = vipKind(p) === "anatomi";
+              const badge = s?.has ? <span className="rounded-full bg-teal-500/25 px-2.5 py-1 text-[11px] font-bold text-teal-100">Paketinde</span>
+                : s?.request === "bekliyor" ? <span className="rounded-full bg-sky-500/20 px-2.5 py-1 text-[11px] font-bold text-sky-100">Ödeme kontrolde</span>
+                : <span className="rounded-full bg-black/30 px-2.5 py-1 text-[11px] font-bold text-amber-100">{p.price_text}</span>;
+              return (
+                <button key={p.id} type="button" onClick={() => onPick(p.id)} className="vip-tile relative overflow-hidden rounded-2xl border border-amber-300/50 bg-gradient-to-br from-amber-500/30 via-fuchsia-600/20 to-indigo-900/70 p-4 text-left">
+                  <div className="flex items-start justify-between gap-2">{an ? <Crown className="h-6 w-6 text-amber-200" /> : <FileText className="h-6 w-6 text-amber-200" />}{badge}</div>
+                  <div className="font-display mt-2 text-lg font-bold leading-tight text-white">{an ? "Anatomi" : p.title}</div>
+                  <div className="mt-0.5 text-xs text-amber-50/80">{an ? "3D iskelet · 600+ soru · çıkmışlar" : "Çıkmışlar · hoca analizi · soru havuzu"}</div>
+                  {!s?.has && (p.trial_minutes > 0 || p.price_change_at) && <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">{p.trial_minutes > 0 && <span className="rounded-md bg-amber-400/25 px-2 py-0.5 text-amber-100">Ücretsiz dene</span>}{p.price_change_at && <span className="rounded-md bg-rose-500/25 px-2 py-0.5 text-rose-100">İndirim bitiyor</span>}</div>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function VipPage({ user, profile, onLogin, setToast }) {
   const [pkgs, setPkgs] = useState(null);
   const [status, setStatus] = useState([]);
+  const [sel, setSel] = useState(() => { try { return sessionStorage.getItem("vip_sel") || null; } catch (e) { return null; } });
   const load = useCallback(async () => {
     const [a, b] = await Promise.all([sb.rpc("vip_packages_list"), user ? sb.rpc("vip_status") : Promise.resolve({ data: [] })]);
     setPkgs(Array.isArray(a.data) ? a.data : []);
     setStatus(Array.isArray(b.data) ? b.data : []);
   }, [user]);
   useEffect(() => { load(); }, [load]);
+  const pick = (id) => { setSel(id); try { if (id) sessionStorage.setItem("vip_sel", id); else sessionStorage.removeItem("vip_sel"); } catch (e) { /* önemli değil */ } window.scrollTo(0, 0); };
+  const cur = sel && (pkgs || []).find((p) => p.id === sel);
+  if (cur) return (
+    <section>
+      <button type="button" onClick={() => pick(null)} className="mb-3 text-sm font-semibold text-teal-300">← Tüm VIP dersler</button>
+      {vipKind(cur) === "anatomi"
+        ? <VipGate key={cur.id + (user?.id || "-")} pkg={cur} user={user} profile={profile} onLogin={onLogin} status={vipStatusOf(status, cur)} reload={load} setToast={setToast} />
+        : <VipCourse key={cur.id + (user?.id || "-")} pkg={cur} user={user} profile={profile} onLogin={onLogin} status={vipStatusOf(status, cur)} reload={load} setToast={setToast} />}
+    </section>
+  );
   return (
     <section>
-      <SectionHead title="VIP paketler" desc="Sınavlara özel hazırlanmış çalışma paketleri." />
+      <SectionHead title="VIP dersler" desc="Sınavlara özel hazırlanmış ders paketleri. Dersini seç." />
       {!pkgs && <div className="py-10 text-center text-sm text-slate-400">Yükleniyor…</div>}
       {pkgs && pkgs.length === 0 && <div className={STAFF_CARD + " text-center text-sm text-slate-300"}>Şu an açık paket yok.</div>}
-      <div className="space-y-4">
-        {(pkgs || []).map((p) => (
-          <VipGate key={p.id + (user?.id || "-")} pkg={p} user={user} profile={profile} onLogin={onLogin} status={vipStatusOf(status, p)} reload={load} setToast={setToast} />
-        ))}
-      </div>
+      {pkgs && pkgs.length > 0 && <VipCourseList pkgs={pkgs} status={status} onPick={pick} />}
     </section>
   );
 }
@@ -4531,29 +4849,54 @@ function VipAdmin({ setToast }) {
   const [camp, setCamp] = useState(null);
   const [trials, setTrials] = useState(null);
   const [allTr, setAllTr] = useState(false);
-  const pk = pkgs[0];
+  const [selId, setSelId] = useState(null);
+  const [newC, setNewC] = useState(null);
+  const [cEdit, setCEdit] = useState(null);
+  const pk = pkgs.find((x) => x.id === selId) || pkgs[0];
+  const isDers = vipKind(pk) === "ders";
   const load = useCallback(async () => {
-    const a = await sb.rpc("vip_packages_list");
-    const list = Array.isArray(a.data) ? a.data : [];
+    const [a, b] = await Promise.all([sb.rpc("vip_packages_list"), sb.rpc("admin_vip_packages_all")]);
+    const pub = Array.isArray(a.data) ? a.data : [];
+    // Yönetici listesi (vip_7): gizli dersler ve içerik durumu da gelir. Yoksa eski liste kullanılır.
+    const list = Array.isArray(b.data) ? b.data.map((x) => ({ ...x, ...(pub.find((y) => y.id === x.id) || {}), active: x.active, content: x.content, members: x.members })) : pub;
     setPkgs(list);
     const r = await sb.rpc("admin_vip_requests");
     setReqs(Array.isArray(r.data) ? r.data : []);
-    if (list[0]) {
-      const [m, tr] = await Promise.all([sb.rpc("admin_vip_members", { p_pkg: list[0].id }), sb.rpc("admin_vip_trials", { p_pkg: list[0].id })]);
-      setMem(Array.isArray(m.data) ? m.data : []);
-      setTrials(Array.isArray(tr.data) ? tr.data : null);
-    }
   }, []);
   useEffect(() => { load(); }, [load]);
+  const pkId = pk?.id;
+  const loadMembers = useCallback(async () => {
+    if (!pkId) return;
+    const [m, tr] = await Promise.all([sb.rpc("admin_vip_members", { p_pkg: pkId }), sb.rpc("admin_vip_trials", { p_pkg: pkId })]);
+    setMem(Array.isArray(m.data) ? m.data : []);
+    setTrials(Array.isArray(tr.data) ? tr.data : null);
+  }, [pkId]);
+  useEffect(() => { loadMembers(); }, [loadMembers]);
+  const anaPk = pkgs.find((x) => x.addon);
+  const reqLabel = (r) => {
+    if (r.is_addon) return `${r.package_title || "Eklenti"} · ekleme (+${anaPk?.addon?.price_text || ""})`;
+    const k = pkgs.find((x) => x.id === r.package_id);
+    if (k?.addon && r.with_addon) return `${k.title} + çıkmışlar (${(vipPriceNum(k.price_text) || 0) + (vipPriceNum(k.addon.price_text) || 0)} TL)`;
+    return `${r.package_title || k?.title || r.package_id} (${k?.price_text || ""})`;
+  };
+  const trSlug = (t) => String(t || "").toLocaleLowerCase("tr-TR").replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i").replace(/ö/g, "o").replace(/ş/g, "s").replace(/ü/g, "u").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
+  const saveCourse = async (c, isNew) => {
+    const id = isNew ? (c.id || trSlug(c.title)) : c.id;
+    if (!c.title?.trim() || !/^[a-z0-9_]{2,40}$/.test(id)) return setToast("Ders adı ve kısa kodu (küçük harf, rakam, alt çizgi) gerekli.");
+    if (isNew && pkgs.some((x) => x.id === id)) return setToast("Bu kodla bir paket zaten var.");
+    const { error } = await sb.rpc("admin_vip_course_set", { p_id: id, p_title: c.title.trim(), p_desc: c.description || "", p_price: c.price_text || "", p_pay: c.pay_info || "", p_days: c.valid_days ? Number(c.valid_days) : null, p_grade: Number(c.grade || 1), p_active: !!c.active });
+    if (error) return setToast(vipErr(error).includes("function") ? "Önce vip_7 SQL dosyalarını çalıştır." : "Kaydedilemedi.");
+    setToast(isNew ? "Ders açıldı. Şimdi içerik dosyasını yükle." : "Ders güncellendi."); setNewC(null); setCEdit(null); setSelId(id); load();
+  };
   const decide = async (r, yes) => {
     if (!(await ask(`${r.name} için talep ${yes ? "onaylansın" : "reddedilsin"} mı?`))) return;
     const { error } = await sb.rpc("admin_vip_decide", { p_id: r.id, p_approve: yes });
-    setToast(error ? "İşlem yapılamadı." : yes ? "Paket açıldı." : "Talep reddedildi."); load();
+    setToast(error ? "İşlem yapılamadı." : yes ? "Paket açıldı." : "Talep reddedildi."); load(); loadMembers();
   };
   const grant = async () => {
     if (!email.trim() || !pk) return;
     const { error } = await sb.rpc("admin_vip_grant", { p_email: email.trim(), p_pkg: grantAddon && pk.addon ? pk.addon.id : pk.id, p_days: days ? Number(days) : null });
-    setToast(error ? (vipErr(error).includes("kullanici") ? "Bu e-postayla kullanıcı yok." : "Verilemedi.") : "Paket verildi."); if (!error) { setEmail(""); setDays(""); } load();
+    setToast(error ? (vipErr(error).includes("kullanici") ? "Bu e-postayla kullanıcı yok." : "Verilemedi.") : "Paket verildi."); if (!error) { setEmail(""); setDays(""); } load(); loadMembers();
   };
   const saveCamp = async () => {
     const { error } = await sb.rpc("admin_vip_campaign_set", { p_pkg: pk.id, p_trial_ends: camp.trial ? new Date(camp.trial).toISOString() : null, p_price_next: camp.next || "", p_price_at: camp.at ? new Date(camp.at).toISOString() : null });
@@ -4567,17 +4910,17 @@ function VipAdmin({ setToast }) {
   const resetTrial = async (t) => {
     if (!(await ask(`${t.name || "Bu kullanıcı"} için deneme sıfırlansın mı? Yeniden ${pk.trial_minutes ?? 60} dakika deneyebilir.`))) return;
     const { error } = await sb.rpc("admin_vip_trial_reset", { p_pkg: pk.id, p_user: t.user_id });
-    setToast(error ? "Sıfırlanamadı." : "Deneme sıfırlandı."); load();
+    setToast(error ? "Sıfırlanamadı." : "Deneme sıfırlandı."); loadMembers();
   };
   const resetDev = async (m) => {
     if (!(await ask(`${m.name} kullanıcısının kayıtlı cihazı silinsin mi? Bir sonraki girişte kullandığı cihaz kaydolur.`))) return;
     const { error } = await sb.rpc("admin_vip_device_reset", { p_user: m.user_id });
-    setToast(error ? "Sıfırlanamadı." : "Cihaz sıfırlandı."); load();
+    setToast(error ? "Sıfırlanamadı." : "Cihaz sıfırlandı."); loadMembers();
   };
   const revoke = async (m) => {
     if (!(await ask(`${m.name} kullanıcısının erişimi kapatılsın mı?`))) return;
     const { error } = await sb.rpc("admin_vip_revoke", { p_user: m.user_id, p_pkg: pk.id });
-    setToast(error ? "Kapatılamadı." : "Erişim kapatıldı."); load();
+    setToast(error ? "Kapatılamadı." : "Erişim kapatıldı."); load(); loadMembers();
   };
   const upload = async (e) => {
     const f = e.target.files?.[0]; e.target.value = "";
@@ -4589,9 +4932,20 @@ function VipAdmin({ setToast }) {
     const { error } = await sb.rpc("admin_vip_content_set", { p_pkg: pk.id, p_data: data, p_publish: publish });
     setToast(error ? "Yüklenemedi." : publish ? "Yüklendi ve yayında." : "Taslak olarak yüklendi.");
   };
+  const uploadDers = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = "";
+    if (!f || !pk) return;
+    let data;
+    try { data = JSON.parse(await f.text()); } catch (err) { return setToast("Dosya okunamadı (JSON değil)."); }
+    if (!Array.isArray(data.exams) || !Array.isArray(data.questions)) return setToast("Bu bir ders dosyası değil (exams, questions olmalı).");
+    if (data.course && !String(pk.title).toLocaleLowerCase("tr-TR").includes(String(data.course).toLocaleLowerCase("tr-TR")) && !(await ask(`Dosya "${data.course}" dersine ait görünüyor, sen "${pk.title}" dersine yüklüyorsun. Devam edilsin mi?`))) return;
+    if (!(await ask(`${pk.title}: ${data.questions.length} çıkmış soru${Array.isArray(data.pool) ? `, ${data.pool.length} havuz sorusu` : ""} yüklensin mi? ${publish ? "Hemen yayına girer." : "Taslak olarak kaydedilir."}`))) return;
+    const { error } = await sb.rpc("admin_vip_content_set", { p_pkg: pk.id, p_data: data, p_publish: publish });
+    setToast(error ? "Yüklenemedi (vip_7 SQL çalıştı mı?)" : publish ? "Yüklendi ve yayında." : "Taslak olarak yüklendi."); load();
+  };
   const setPub = async (on) => {
     const { error } = await sb.rpc("admin_vip_publish", { p_pkg: pk.id, p_on: on });
-    setToast(error ? "Değişmedi." : on ? "İçerik yayında." : "Yayın kapatıldı.");
+    setToast(error ? "Değişmedi." : on ? "İçerik yayında." : "Yayın kapatıldı."); load();
   };
   const saveEdit = async () => {
     const { error } = await sb.rpc("admin_vip_package_set", { p_id: pk.id, p_title: edit.title, p_desc: edit.description || "", p_price: edit.price_text || "", p_pay: edit.pay_info || "", p_days: edit.valid_days ? Number(edit.valid_days) : null, p_active: true });
@@ -4600,14 +4954,34 @@ function VipAdmin({ setToast }) {
   if (!pk) return null;
   return (
     <div className={STAFF_CARD + " mb-4 space-y-4"}>
-      <div className="font-display text-base font-bold text-white">VIP paket: {pk.title}</div>
+      <div>
+        <div className="flex items-center justify-between gap-2"><div className="font-display text-base font-bold text-white">VIP dersler</div><button type="button" onClick={() => setNewC(newC ? null : { title: "", id: "", grade: 1, description: "Hocanın çıkmış soruları, soru soru analiz, benzer sorular ve soru havuzu.", price_text: "", pay_info: anaPk?.pay_info || pkgs[0]?.pay_info || "", valid_days: "120", active: false })} className="flex items-center gap-1 rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-bold text-slate-950"><Plus className="h-3.5 w-3.5" />{newC ? "Kapat" : "Yeni ders"}</button></div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {pkgs.map((x) => <button key={x.id} type="button" onClick={() => { setSelId(x.id); setCEdit(null); setEdit(null); setCamp(null); setSec(null); }} className={"rounded-lg px-3 py-1.5 text-xs font-semibold " + (x.id === pk.id ? "bg-teal-500 text-slate-950" : "border border-sky-300/20 text-slate-200")}>{(x.grade || 1)}. sınıf · {vipKind(x) === "anatomi" ? "Anatomi" : x.title}{x.active === false ? " (gizli)" : ""}</button>)}
+        </div>
+        {newC && (
+          <div className="mt-3 space-y-2 rounded-xl border border-amber-300/25 bg-amber-500/5 p-3">
+            <div className="text-xs font-semibold text-amber-200">Yeni ders paketi</div>
+            <input value={newC.title} onChange={(e) => setNewC({ ...newC, title: e.target.value, id: trSlug(e.target.value) })} placeholder="Ders adı (örn. Hematoloji)" className={inp} />
+            <input value={newC.id} onChange={(e) => setNewC({ ...newC, id: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 40) })} placeholder="Kısa kod (otomatik)" className={inp + " !py-2 font-mono text-xs"} />
+            <div className="grid grid-cols-2 gap-1.5">{[1, 2].map((g) => <button key={g} type="button" onClick={() => setNewC({ ...newC, grade: g })} className={"rounded-lg py-2 text-sm font-semibold " + (newC.grade === g ? "bg-teal-500 text-slate-950" : "border border-sky-300/20 text-slate-200")}>{g}. sınıf</button>)}</div>
+            <textarea value={newC.description} onChange={(e) => setNewC({ ...newC, description: e.target.value })} rows={2} placeholder="Açıklama" className={inp} />
+            <input value={newC.price_text} onChange={(e) => setNewC({ ...newC, price_text: e.target.value })} placeholder="Fiyat (örn. 150 TL)" className={inp} />
+            <textarea value={newC.pay_info} onChange={(e) => setNewC({ ...newC, pay_info: e.target.value })} rows={3} placeholder="Ödeme bilgisi (her bilgi ayrı satırda)" className={inp} />
+            <input value={newC.valid_days} onChange={(e) => setNewC({ ...newC, valid_days: e.target.value.replace(/\D/g, "") })} placeholder="Erişim süresi (gün, boşsa sınırsız)" className={inp} />
+            <label className="flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={newC.active} onChange={(e) => setNewC({ ...newC, active: e.target.checked })} /> Öğrencilere hemen göster (boşsa gizli kalır, içerik yükleyip sonra açarsın)</label>
+            <button type="button" onClick={() => saveCourse(newC, true)} className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white">Dersi aç</button>
+          </div>
+        )}
+      </div>
+      <div className="font-display text-base font-bold text-white">{vipKind(pk) === "anatomi" ? "Anatomi paketi" : `${pk.title} dersi`}{pk.active === false ? <span className="ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[11px] text-slate-300">öğrencilere gizli</span> : null}</div>
       {reqs.length > 0 && (
         <div>
           <div className="text-xs font-semibold text-amber-200">Bekleyen ödeme talepleri ({reqs.length})</div>
           {reqs.map((r) => (
             <div key={r.id} className="mt-2 rounded-xl bg-white/5 p-3">
               <div className="text-sm font-semibold text-white">{r.name} <span className="font-normal text-slate-400">{r.email}</span></div>
-              <div className="text-xs font-semibold text-amber-200">{r.is_addon ? `Çıkmışları ekleme (+${pk.addon?.price_text || ""})` : r.with_addon ? `Paket + çıkmışlar (${(vipPriceNum(pk.price_text) || 0) + (vipPriceNum(pk.addon?.price_text) || 0)} TL)` : `Sadece paket (${pk.price_text})`}</div>
+              <div className="text-xs font-semibold text-amber-200">{reqLabel(r)}</div>
               {r.note && <div className="text-xs text-slate-300">Not: {r.note}</div>}
               <div className="mt-2 flex gap-2">
                 <button type="button" onClick={() => decide(r, true)} className="rounded-lg bg-teal-500 px-3 py-2 text-xs font-semibold text-slate-950">Ödeme geldi, aç</button>
@@ -4618,9 +4992,10 @@ function VipAdmin({ setToast }) {
         </div>
       )}
       <div>
-        <div className="text-xs font-semibold text-slate-300">İçerik (soru havuzu dosyası)</div>
+        <div className="text-xs font-semibold text-slate-300">{isDers ? "İçerik (çıkmışlar + hoca analizi + soru havuzu dosyası)" : "İçerik (soru havuzu dosyası)"}</div>
+        {isDers && <div className="mt-1 text-[11px] text-slate-400">{pk.content ? `Yüklü: ${pk.content.questions} çıkmış soru · ${pk.content.pool} havuz sorusu · ${pk.content.published ? "yayında" : "taslak"}` : "Henüz içerik yüklenmedi."}</div>}
         <label className="mt-1 flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={publish} onChange={(e) => setPublish(e.target.checked)} /> Yüklerken öğrencilere hemen aç</label>
-        <input type="file" accept="application/json,.json" onChange={upload} className="mt-2 block w-full text-xs text-slate-300" />
+        <input type="file" accept="application/json,.json" onChange={isDers ? uploadDers : upload} className="mt-2 block w-full text-xs text-slate-300" />
         <div className="mt-2 flex gap-2">
           <button type="button" onClick={() => setPub(true)} className="rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white">Yayına al</button>
           <button type="button" onClick={() => setPub(false)} className="rounded-lg border border-sky-300/20 px-3 py-2 text-xs font-semibold text-white">Yayını kapat</button>
@@ -4653,7 +5028,25 @@ function VipAdmin({ setToast }) {
           </div>
         </div>
       )}
+      {isDers && (
       <div>
+        <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Ders bilgisi, fiyat ve görünürlük</div><button type="button" onClick={() => setCEdit(cEdit ? null : { id: pk.id, title: pk.title, description: pk.description || "", price_text: pk.price_base ?? pk.price_text ?? "", pay_info: pk.pay_info || "", valid_days: pk.valid_days ? String(pk.valid_days) : "", grade: pk.grade || 1, active: pk.active !== false })} className="text-xs text-teal-300">{cEdit ? "Kapat" : "Düzenle"}</button></div>
+        <div className="mt-1 text-xs text-slate-400">{pk.grade || 1}. sınıf · {pk.price_text || "fiyat yok"} · {pk.valid_days ? `${pk.valid_days} gün` : "süresiz"} · {pk.active === false ? "öğrencilere gizli" : "VIP sayfasında görünüyor"}{pk.members != null ? ` · ${pk.members} öğrencide açık` : ""}</div>
+        {cEdit && (
+          <div className="mt-2 space-y-2">
+            <input value={cEdit.title} onChange={(e) => setCEdit({ ...cEdit, title: e.target.value })} placeholder="Ders adı" className={inp} />
+            <div className="grid grid-cols-2 gap-1.5">{[1, 2].map((g) => <button key={g} type="button" onClick={() => setCEdit({ ...cEdit, grade: g })} className={"rounded-lg py-2 text-sm font-semibold " + (cEdit.grade === g ? "bg-teal-500 text-slate-950" : "border border-sky-300/20 text-slate-200")}>{g}. sınıf</button>)}</div>
+            <textarea value={cEdit.description} onChange={(e) => setCEdit({ ...cEdit, description: e.target.value })} rows={2} placeholder="Açıklama" className={inp} />
+            <input value={cEdit.price_text} onChange={(e) => setCEdit({ ...cEdit, price_text: e.target.value })} placeholder="Fiyat (örn. 150 TL)" className={inp} />
+            <textarea value={cEdit.pay_info} onChange={(e) => setCEdit({ ...cEdit, pay_info: e.target.value })} rows={3} placeholder="Ödeme bilgisi" className={inp} />
+            <input value={cEdit.valid_days} onChange={(e) => setCEdit({ ...cEdit, valid_days: e.target.value.replace(/\D/g, "") })} placeholder="Erişim süresi (gün, boşsa sınırsız)" className={inp} />
+            <label className="flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={cEdit.active} onChange={(e) => setCEdit({ ...cEdit, active: e.target.checked })} /> VIP sayfasında öğrencilere göster</label>
+            <button type="button" onClick={() => saveCourse(cEdit, false)} className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white">Kaydet</button>
+          </div>
+        )}
+      </div>
+      )}
+      {!isDers && <div>
         <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Fiyat ve ödeme bilgisi</div><button type="button" onClick={() => setEdit(edit ? null : { ...pk, price_text: pk.price_base ?? pk.price_text })} className="text-xs text-teal-300">{edit ? "Kapat" : "Düzenle"}</button></div>
         {edit && (
           <div className="mt-2 space-y-2">
@@ -4666,7 +5059,7 @@ function VipAdmin({ setToast }) {
             <button type="button" onClick={saveEdit} className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white">Kaydet</button>
           </div>
         )}
-      </div>
+      </div>}
       <div>
         <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Kampanya zamanlayıcı</div><button type="button" onClick={() => setCamp(camp ? null : { trial: pk.campaign?.trial_ends_at ? toLocalInput(pk.campaign.trial_ends_at) : "", next: pk.campaign?.price_next || "", at: pk.campaign?.price_change_at ? toLocalInput(pk.campaign.price_change_at) : "" })} className="text-xs text-teal-300">{camp ? "Kapat" : "Düzenle"}</button></div>
         <div className="mt-1 text-xs text-slate-400">{pk.campaign?.trial_ends_at ? `Deneme kapanışı: ${vipFmtWhen(pk.campaign.trial_ends_at)}` : "Deneme kapanışı yok"} · {pk.campaign?.price_change_at && pk.campaign?.price_next ? `Fiyat ${vipFmtWhen(pk.campaign.price_change_at)}'da ${pk.campaign.price_next} olur` : "Zamanlı fiyat yok"} · Şu an geçerli: {pk.price_text}</div>
@@ -4680,7 +5073,7 @@ function VipAdmin({ setToast }) {
           </div>
         )}
       </div>
-      <div>
+      {!isDers && <div>
         <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Deneme ve cihaz kilidi</div><button type="button" onClick={() => setSec(sec ? null : { trial: pk.trial_minutes_set ?? pk.trial_minutes ?? 60, dev: pk.max_devices ?? 1, login: pk.trial_requires_login ?? true, ip: pk.trial_ip_limit ?? 2 })} className="text-xs text-teal-300">{sec ? "Kapat" : "Düzenle"}</button></div>
         <div className="mt-1 text-xs text-slate-400">Deneme: {pk.trial_minutes_set ?? pk.trial_minutes ?? 60} dk{pk.trial_minutes === 0 && (pk.trial_minutes_set ?? 0) > 0 ? " (kampanya bitti, şu an kapalı)" : ""} · {pk.trial_requires_login === false ? "girişsiz de açılır" : "giriş zorunlu"} · aynı internet: {pk.trial_ip_limit ? `24 saatte en fazla ${pk.trial_ip_limit}` : "sınırsız"} · Cihaz sınırı: {pk.max_devices ?? 1}</div>
         {sec && (
@@ -4693,14 +5086,14 @@ function VipAdmin({ setToast }) {
             <button type="button" onClick={saveSec} className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white">Kaydet</button>
           </div>
         )}
-      </div>
+      </div>}
       <div>
         <div className="text-xs font-semibold text-slate-300">Elle paket ver</div>
         <div className="mt-1 flex gap-2"><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Kullanıcının e-postası" className={inp} /><input value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, ""))} placeholder="Gün" className={inp + " !w-20"} /></div>
         {pk.addon && <label className="mt-2 flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={grantAddon} onChange={(e) => setGrantAddon(e.target.checked)} /> Çıkmış sorular dahil</label>}
         <button type="button" onClick={grant} className="mt-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white">Ver</button>
       </div>
-      <div>
+      {!isDers && <div>
         <div className="text-xs font-semibold text-slate-300">Deneme kullananlar{trials ? ` (${trials.length}${trials.length >= 300 ? "+" : ""})` : ""}</div>
         {trials === null && <div className="mt-1 text-[11px] text-slate-500">Liste için vip_4 SQL dosyasını çalıştır.</div>}
         {trials && trials.length > 0 && (() => {
@@ -4726,7 +5119,7 @@ function VipAdmin({ setToast }) {
           );
         })}
         {trials && trials.length > 12 && <button type="button" onClick={() => setAllTr(!allTr)} className="mt-2 text-xs text-teal-300">{allTr ? "Daha az göster" : `Tümünü göster (${trials.length})`}</button>}
-      </div>
+      </div>}
       <div>
         <div className="text-xs font-semibold text-slate-300">Paketi olanlar ({mem.length})</div>
         <input value={codeQ} onChange={(e) => setCodeQ(e.target.value.replace(/[^A-Za-z0-9#]/g, "").toUpperCase().slice(0, 6))} placeholder="Paylaşılan görüntüdeki kodu ara (örn. #K7F2A)" className={inp + " mt-1 !py-2 text-xs"} />
@@ -5799,7 +6192,7 @@ function AppInner() {
     { id: "arsiv", Icon: Archive, title: "Çıkmış sorular", sub: "Ders ders arşiv", cls: "border-violet-400/40 from-violet-600/40 to-violet-950/70", ic: "text-violet-200" },
     { id: "duello", Icon: Trophy, title: "Düello", sub: "Haftalık yarışma", cls: "border-amber-400/40 from-amber-600/40 to-amber-950/70", ic: "text-amber-200" },
     { id: "mitler", Icon: Lightbulb, title: "Doğru mu, yanlış mı?", sub: `${QUESTIONS.length} soru · 3 seviye`, cls: "border-indigo-400/40 from-indigo-600/40 to-indigo-950/70", ic: "text-indigo-200" },
-    { id: "vip", Icon: Crown, title: "VIP Anatomi", sub: "3D iskelet · 600+ soru · 1 saat ücretsiz dene", cls: "vip-tile border-amber-300/70 from-amber-500/60 via-fuchsia-600/45 to-indigo-900/80", ic: "text-amber-200", vip: true },
+    { id: "vip", Icon: Crown, title: "VIP", sub: "Ders paketleri · çıkmışlar · hoca analizi", cls: "vip-tile border-amber-300/70 from-amber-500/60 via-fuchsia-600/45 to-indigo-900/80", ic: "text-amber-200", vip: true },
     { id: "hakkimizda", Icon: Play, title: "Bizi tanı", sub: "Video ve amacımız", cls: "border-sky-400/40 from-sky-600/40 to-sky-950/70", ic: "text-sky-200" },
   ];
 
