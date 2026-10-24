@@ -6014,6 +6014,17 @@ function AppInner() {
   const uid = user?.id;
   useEffect(() => { loadPoll(); }, [uid, loadPoll]);
   const isAdmin = profile?.role === "admin";
+  const [admTab, setAdmTabRaw] = useState(() => { try { return sessionStorage.getItem("adm_tab") || "home"; } catch (e) { return "home"; } });
+  const setAdmTab = (t) => { setAdmTabRaw(t); try { sessionStorage.setItem("adm_tab", t); } catch (e) { /* önemli değil */ } window.scrollTo(0, 0); };
+  const [uq, setUq] = useState("");
+  const [admBadge, setAdmBadge] = useState({ vip: 0, inbox: 0 });
+  useEffect(() => {
+    if (!isAdmin || page !== "yonetim") return;
+    Promise.all([sb.rpc("admin_vip_requests"), sb.rpc("admin_inbox")]).then(([a, b]) => setAdmBadge({
+      vip: Array.isArray(a.data) ? a.data.length : 0,
+      inbox: Array.isArray(b.data) ? b.data.filter((m) => !m.done).length : 0,
+    })).catch(() => {});
+  }, [isAdmin, page, admTab]);
   const isStaffMember = profile?.role === "moderator" || profile?.role === "elci";
   const [maint, setMaint] = useState({ on: false });
   const loadMaint = useCallback(async () => {
@@ -6536,27 +6547,75 @@ function AppInner() {
           {/* YÖNETİM */}
           {page === "yonetim" && (
             <section>
-              <SectionHead title="Yönetim paneli" desc="Kullanıcıları ve not paylaşımlarını buradan yönet." />
+              <SectionHead title="Yönetim paneli" desc="Bir bölüm seç. Üstteki şeritten bölümler arasında hızlıca geçebilirsin." />
               {!isAdmin ? (
                 <div className="rounded-3xl border border-dashed border-sky-300/20 p-8 text-center text-sm text-slate-300">{isStaffMember ? <>Bu sayfa yöneticiler içindir. <button onClick={() => go("ekip")} className="underline">Ekip paneline git</button></> : "Bu sayfa sadece yöneticiler içindir."}</div>
               ) : (
                 <>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[[users.length, "kullanıcı"], [dbNotes.filter((n) => n.status === "pending").length, "bekleyen not"], [dbNotes.filter((n) => n.status === "approved").length, "onaylı not"]].map(([n, l]) => (
-                      <div key={l} className="rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-4"><div className="font-display text-2xl font-bold text-white">{n}</div><div className="text-xs text-slate-400">{l}</div></div>
-                    ))}
-                  </div>
-                  <VipAdmin setToast={setToast} />
-                  <AdminInbox setToast={setToast} />
-                  <TeamAdmin users={users} setToast={setToast} reloadUsers={loadUsers} />
-                  <IdeaBoard setToast={setToast} isAdminUser />
-                  <ElciPanel setToast={setToast} />
-                  <MaintenanceAdmin maint={maint} reload={loadMaint} setToast={setToast} />
-                  <PollAdmin setToast={setToast} />
-                  <ExamAdmin setToast={setToast} reload={loadExams} />
-                  <ArchiveAdmin setToast={setToast} />
-                  <DuelAdmin setToast={setToast} />
-                  <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Duyurular</h3>
+                  {(() => {
+                    const pendingNotes = dbNotes.filter((n) => n.status === "pending").length;
+                    const S = [
+                      { g: "Satış ve öğrenciler", items: [
+                        { id: "vip", t: "VIP dersler ve ödemeler", d: "Ödeme onayı, paketler, içerik, kampanya", Icon: Crown, c: "text-amber-300", b: admBadge.vip },
+                        { id: "kullanicilar", t: "Kullanıcılar", d: `${users.length} üye · rol, sınıf, askı`, Icon: Users, c: "text-sky-300" },
+                        { id: "notlar", t: "Not paylaşımları", d: "Bekleyen notları onayla", Icon: FileText, c: "text-teal-300", b: pendingNotes },
+                      ] },
+                      { g: "İçerik ve etkinlik", items: [
+                        { id: "duyuru", t: "Duyurular", d: `${anns.length} duyuru`, Icon: Megaphone, c: "text-rose-300" },
+                        { id: "takvim", t: "Sınav takvimi", d: "Sınıfa göre geri sayım", Icon: CalendarDays, c: "text-amber-200" },
+                        { id: "duello", t: "Düello", d: "Haftalık yarışma, sorular", Icon: Trophy, c: "text-yellow-300" },
+                        { id: "anket", t: "Anketler", d: "Anket aç, kapat", Icon: ClipboardList, c: "text-cyan-300" },
+                        { id: "arsiv", t: "Arşiv", d: "Eski dosya arşivi", Icon: Archive, c: "text-violet-300" },
+                        { id: "instagram", t: "Instagram gönderileri", d: `${igPosts.length} gönderi`, Icon: Insta, c: "text-pink-300" },
+                      ] },
+                      { g: "Ekip", items: [
+                        { id: "gelen", t: "Ekipten gelen notlar", d: "Ekip üyelerinin iletileri", Icon: Bell, c: "text-teal-200", b: admBadge.inbox },
+                        { id: "ekip", t: "Ekip ve roller", d: "Ekip üyeleri, yetkiler", Icon: Shield, c: "text-sky-200" },
+                        { id: "elci", t: "Sınıf elçileri", d: "Elçi paneli", Icon: GraduationCap, c: "text-emerald-300" },
+                        { id: "fikir", t: "Fikir panosu", d: "Öneriler ve fikirler", Icon: Lightbulb, c: "text-yellow-200" },
+                      ] },
+                      { g: "Site", items: [
+                        { id: "bakim", t: "Bakım modu", d: maint.on ? "AÇIK · kullanıcılar siteyi göremiyor" : "Kapalı", Icon: Activity, c: maint.on ? "text-rose-300" : "text-slate-300", b: maint.on ? "!" : 0 },
+                      ] },
+                    ];
+                    const all = S.flatMap((x) => x.items);
+                    const cur = all.find((x) => x.id === admTab);
+                    if (!cur) return (
+                      <div className="space-y-5">
+                        <div className="grid grid-cols-3 gap-2">
+                          {[[users.length, "kullanıcı"], [admBadge.vip, "bekleyen ödeme"], [pendingNotes, "bekleyen not"]].map(([n, l]) => (
+                            <div key={l} className="rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3 text-center"><div className="font-display text-2xl font-bold text-white">{n}</div><div className="text-[11px] text-slate-400">{l}</div></div>
+                          ))}
+                        </div>
+                        {S.map((grp) => (
+                          <div key={grp.g}>
+                            <div className="mb-2 text-[11px] font-bold uppercase tracking-[2px] text-slate-500">{grp.g}</div>
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                              {grp.items.map((it) => (
+                                <button key={it.id} type="button" onClick={() => setAdmTab(it.id)} className="relative flex min-h-[88px] flex-col items-start justify-between rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3 text-left transition hover:border-sky-300/40 active:scale-[0.98]">
+                                  <it.Icon className={"h-5 w-5 " + it.c} />
+                                  <span className="mt-2 block min-w-0"><span className="block text-sm font-semibold leading-tight text-white">{it.t}</span><span className="mt-0.5 block text-[11px] leading-snug text-slate-400">{it.d}</span></span>
+                                  {it.b ? <span className="absolute right-2.5 top-2.5 min-w-[22px] rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-[11px] font-bold text-white">{it.b}</span> : null}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                    const body = {
+                      vip: <VipAdmin setToast={setToast} />,
+                      gelen: <AdminInbox setToast={setToast} />,
+                      ekip: <TeamAdmin users={users} setToast={setToast} reloadUsers={loadUsers} />,
+                      fikir: <IdeaBoard setToast={setToast} isAdminUser />,
+                      elci: <ElciPanel setToast={setToast} />,
+                      bakim: <MaintenanceAdmin maint={maint} reload={loadMaint} setToast={setToast} />,
+                      anket: <PollAdmin setToast={setToast} />,
+                      takvim: <ExamAdmin setToast={setToast} reload={loadExams} />,
+                      arsiv: <ArchiveAdmin setToast={setToast} />,
+                      duello: <DuelAdmin setToast={setToast} />,
+                      duyuru: (
+                        <>
                   <div className="space-y-2 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
                     <input value={annTitle} onChange={(e) => setAnnTitle(e.target.value)} maxLength={120} placeholder="Duyuru başlığı" className={inp} />
                     <textarea value={annBody} onChange={(e) => setAnnBody(e.target.value)} maxLength={1000} rows={3} placeholder="Ayrıntı (isteğe bağlı)" className={`${inp} resize-none`} />
@@ -6573,7 +6632,10 @@ function AppInner() {
                       </div>
                     ))}
                   </div>
-                  <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Instagram gönderileri</h3>
+                        </>
+                      ),
+                      instagram: (
+                        <>
                   <div className="flex gap-2">
                     <input value={igLink} onChange={(e) => setIgLink(e.target.value)} onPaste={(e) => { const t = e.clipboardData.getData("text"); if (parseIg(t)) { e.preventDefault(); addPost(t); } }} placeholder="Gönderi linkini yapıştır, otomatik eklenir" inputMode="url" className={inp} />
                     <button onClick={() => addPost()} className="shrink-0 rounded-xl bg-teal-500 px-4 text-sm font-semibold text-slate-950">Ekle</button>
@@ -6587,7 +6649,10 @@ function AppInner() {
                       </div>
                     ))}
                   </div>
-                  <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Notlar</h3>
+                        </>
+                      ),
+                      notlar: (
+                        <>
                   {dbNotes.length === 0 && <p className="text-sm text-slate-400">Henüz paylaşılan not yok.</p>}
                   <div className="space-y-2">
                     {[...dbNotes].sort((a, b) => (a.status === "pending" ? 0 : 1) - (b.status === "pending" ? 0 : 1)).map((n) => (
@@ -6603,9 +6668,14 @@ function AppInner() {
                       </div>
                     ))}
                   </div>
-                  <h3 className="mb-2 mt-6 font-display text-lg font-bold text-white">Kullanıcılar</h3>
+                        </>
+                      ),
+                      kullanicilar: (
+                        <>
+                          <div className="relative mb-3"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" /><input value={uq} onChange={(e) => setUq(e.target.value)} placeholder="İsim ya da e-posta ara" className={inp + " pl-9"} /></div>
+                          {!uq.trim() && users.length > 60 && <p className="mb-2 text-[11px] text-slate-500">Son 60 kullanıcı gösteriliyor. Diğerleri için ara.</p>}
                   <div className="space-y-2">
-                    {users.map((u) => (
+                    {users.filter((u) => { const q = uq.trim().toLocaleLowerCase("tr-TR"); return !q || `${u.full_name || ""} ${u.email || ""}`.toLocaleLowerCase("tr-TR").includes(q); }).slice(0, uq.trim() ? 200 : 60).map((u) => (
                       <div key={u.id} className="rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
                         <div className="flex items-center gap-3">
                           <div className="min-w-0 flex-1">
@@ -6634,6 +6704,22 @@ function AppInner() {
                       </div>
                     ))}
                   </div>
+                        </>
+                      ),
+                    }[cur.id];
+                    return (
+                      <div>
+                        <div className="sticky top-[64px] z-20 -mx-1 mb-3 flex items-center gap-2 overflow-x-auto rounded-2xl border border-sky-300/15 bg-[#040b17]/95 p-1.5 backdrop-blur-xl" style={{ scrollbarWidth: "none" }}>
+                          <button type="button" onClick={() => setAdmTab("home")} className="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white">← Panel</button>
+                          {all.map((it) => (
+                            <button key={it.id} type="button" onClick={() => setAdmTab(it.id)} className={"relative shrink-0 rounded-xl px-3 py-2 text-xs font-semibold " + (it.id === cur.id ? "bg-teal-500 text-slate-950" : "text-slate-300")}>{it.t}{it.b ? <span className="ml-1 rounded-full bg-rose-500 px-1.5 text-[10px] text-white">{it.b}</span> : null}</button>
+                          ))}
+                        </div>
+                        <div className="mb-3 flex items-center gap-2"><cur.Icon className={"h-5 w-5 " + cur.c} /><h3 className="font-display text-lg font-bold text-white">{cur.t}</h3></div>
+                        {body}
+                      </div>
+                    );
+                  })()}
                 </>
               )}
             </section>
