@@ -1793,36 +1793,99 @@ const daysLeft = (iso) => {
   return Math.round((a - b) / 86400000);
 };
 
-function ExamCountdown({ exams, classNo }) {
-  const list = (exams || []).filter((e) => (e.class_no == null || e.class_no === classNo) && daysLeft(e.starts_at) >= 0).slice(0, 3);
-  if (!list.length) return null;
+const examEnd = (e) => new Date(e.starts_at).getTime() + 90 * 60000;
+const examLeftText = (ms) => {
+  const m = Math.max(0, Math.floor(ms / 60000)); const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+  return d > 0 ? `${d} gün ${h} sa` : h > 0 ? `${h} sa ${mm} dk` : `${mm} dk`;
+};
+const trLow = (s) => String(s || "").toLocaleLowerCase("tr-TR");
+let examVipCache = null;
+
+function ExamCountdown({ exams, classNo, user, onPickClass, go }) {
+  const [now, setNow] = useState(Date.now());
+  const [tab, setTab] = useState(() => { try { return Number(localStorage.getItem("sinav_tab")) || 1; } catch (e) { return 1; } });
+  const [all, setAll] = useState(false);
+  const [vip, setVip] = useState(examVipCache || []);
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(t); }, []);
+  useEffect(() => {
+    if (examVipCache) return;
+    sb.rpc("vip_packages_list").then(({ data }) => { examVipCache = Array.isArray(data) ? data : []; setVip(examVipCache); });
+  }, []);
+  if (classNo >= 3) return null; // mezun
+  const known = classNo === 1 || classNo === 2;
+  const cls = known ? classNo : tab;
+  const pickTab = (n) => { setTab(n); setAll(false); try { localStorage.setItem("sinav_tab", String(n)); } catch (e) { /* önemli değil */ } };
+  const mine = (exams || []).filter((e) => e.class_no == null || e.class_no === cls);
+  const upcoming = mine.filter((e) => examEnd(e) > now);
+  if (!mine.length || !upcoming.length) {
+    if (known) return null;
+    if (!(exams || []).some((e) => examEnd(e) > now)) return null;
+  }
+  const next = upcoming[0];
+  const done = mine.length - upcoming.length;
+  const vipFor = (e) => vip.find((p) => { const k = (p.kind || "anatomi") === "anatomi" ? "anatomi" : trLow(p.title); return k && trLow(e.title).includes(k); });
+  const openVip = (p) => { try { sessionStorage.setItem("vip_sel", p.id); } catch (er) { /* önemli değil */ } go && go("vip"); };
+  const when = (e, long) => new Date(e.starts_at).toLocaleString("tr-TR", long ? { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" } : { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" });
+  const rest = upcoming.slice(1);
+  const shown = all ? rest : rest.slice(0, 3);
+  const nextMs = next ? new Date(next.starts_at).getTime() - now : 0;
+  const nv = next && vipFor(next);
   return (
     <div className="mt-4 w-full max-w-xl rounded-3xl border border-amber-300/25 bg-gradient-to-br from-amber-500/10 to-[#0a1a30]/90 p-4 text-left backdrop-blur-xl">
-      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-amber-200/90"><CalendarDays className="h-4 w-4" /> Sınav takvimi</div>
-      <div className="space-y-2">
-        {list.map((e, i) => {
-          const n = daysLeft(e.starts_at);
-          return (
-            <div key={e.id} className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-white">{e.title}</div>
-                <div className="text-xs text-slate-400">{EXAM_KIND[e.kind] || "Sınav"} · {new Date(e.starts_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "short" })}</div>
-              </div>
-              <div className={"shrink-0 rounded-2xl px-3 py-1.5 text-center " + (i === 0 ? "bg-amber-400/20 text-amber-100" : "bg-white/5 text-slate-200")}>
-                <div className="font-display text-xl font-extrabold leading-none">{n === 0 ? "Bugün" : n}</div>
-                {n > 0 && <div className="text-[10px] uppercase tracking-wide opacity-80">gün kaldı</div>}
-              </div>
-            </div>
-          );
-        })}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-amber-200/90"><CalendarDays className="h-4 w-4" /> {known ? `${cls}. sınıf sınav takvimi` : "Sınav takvimi"}</div>
+        {mine.length > 0 && <div className="text-[11px] text-slate-400">{done}/{mine.length} sınav bitti</div>}
       </div>
+      {!known && (
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1 text-sm font-semibold">
+            {[1, 2].map((n) => <button key={n} type="button" onClick={() => pickTab(n)} className={"rounded-lg py-2 " + (cls === n ? "bg-amber-400 text-slate-950" : "text-slate-300")}>{n}. sınıf</button>)}
+          </div>
+          {user && onPickClass && <button type="button" onClick={onPickClass} className="mt-2 w-full rounded-lg bg-white/5 px-3 py-2 text-left text-[12px] text-slate-300">Sınıfını seç, burada sadece senin sınavların görünsün <span className="font-semibold text-teal-300">Seç →</span></button>}
+        </>
+      )}
+      {mine.length > 0 && <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-amber-400" style={{ width: `${(done * 100) / mine.length}%` }} /></div>}
+      {!next && <div className="mt-3 text-sm text-slate-300">{cls}. sınıfın bu dönemki sınavları bitti. Geçmiş olsun!</div>}
+      {next && (
+        <div className="mt-3 rounded-2xl bg-black/25 p-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-200/80">{nextMs <= 0 ? "Şu an sınavda" : "Sıradaki sınav"}</div>
+          <div className="mt-0.5 flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <div className="font-display text-lg font-bold leading-tight text-white">{next.title}</div>
+              <div className="mt-0.5 text-xs text-slate-300">{EXAM_KIND[next.kind] || "Sınav"} · {when(next, true)}{next.place ? ` · ${next.place}` : ""}</div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="font-display text-2xl font-extrabold leading-none text-amber-100">{nextMs <= 0 ? "Başarılar!" : examLeftText(nextMs)}</div>
+              {nextMs > 0 && <div className="text-[10px] uppercase tracking-wide text-amber-200/70">kaldı</div>}
+            </div>
+          </div>
+          {nv && nextMs > 0 && <button type="button" onClick={() => openVip(nv)} className="mt-2.5 flex w-full items-center justify-between rounded-xl bg-amber-400 px-3 py-2 text-left text-sm font-bold text-slate-950"><span>VIP {(nv.kind || "anatomi") === "anatomi" ? "Anatomi" : nv.title} ile çalış</span><span>→</span></button>}
+        </div>
+      )}
+      {shown.length > 0 && (
+        <div className="mt-2 divide-y divide-white/5">
+          {shown.map((e) => {
+            const n = daysLeft(e.starts_at); const v = vipFor(e);
+            return (
+              <div key={e.id} className="flex items-center justify-between gap-3 py-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5"><span className="truncate text-sm font-semibold text-white">{e.title}</span>{v && <button type="button" onClick={() => openVip(v)} className="shrink-0 rounded bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-extrabold text-amber-200">VIP</button>}</div>
+                  <div className="text-xs text-slate-400">{when(e)}{e.place ? ` · ${e.place}` : ""}</div>
+                </div>
+                <div className="shrink-0 rounded-xl bg-white/5 px-2.5 py-1 text-center text-slate-200"><div className="font-display text-base font-extrabold leading-none">{n <= 0 ? "Bugün" : n}</div>{n > 0 && <div className="text-[9px] uppercase tracking-wide opacity-70">gün</div>}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {rest.length > 3 && <button type="button" onClick={() => setAll(!all)} className="mt-1 text-xs font-semibold text-teal-300">{all ? "Daha az göster" : `Tüm sınavları göster (${rest.length + 1})`}</button>}
     </div>
   );
 }
 
 function ExamAdmin({ setToast, reload }) {
   const [list, setList] = useState([]);
-  const [f, setF] = useState({ title: "", kind: "vize", at: "", cls: "" });
+  const [f, setF] = useState({ title: "", kind: "vize", at: "", cls: "", place: "" });
   const load = useCallback(async () => {
     const { data } = await sb.rpc("exam_events_list");
     setList(Array.isArray(data) ? data : []);
@@ -1831,9 +1894,11 @@ function ExamAdmin({ setToast, reload }) {
   const add = async () => {
     if (f.title.trim().length < 2) return setToast("Sınav adını yaz (örn. Nefroloji Vize).");
     if (!f.at) return setToast("Tarih seç.");
-    const { error } = await sb.rpc("admin_exam_add", { p_title: f.title.trim(), p_kind: f.kind, p_at: new Date(f.at).toISOString(), p_class: f.cls ? Number(f.cls) : null });
+    const args = { p_title: f.title.trim(), p_kind: f.kind, p_at: new Date(f.at).toISOString(), p_class: f.cls ? Number(f.cls) : null };
+    let { error } = await sb.rpc("admin_exam_add2", { ...args, p_place: f.place || "" });
+    if (error) ({ error } = await sb.rpc("admin_exam_add", args));
     if (error) return setToast("Eklenemedi. arsiv_sistemi.sql çalıştırıldı mı?");
-    setF({ title: "", kind: "vize", at: "", cls: "" }); setToast("Sınav eklendi."); load(); reload();
+    setF({ title: "", kind: "vize", at: "", cls: "", place: "" }); setToast("Sınav eklendi."); load(); reload();
   };
   const del = async (e) => {
     if (!(await ask(`"${e.title}" takvimden silinsin mi?`))) return;
@@ -1848,7 +1913,7 @@ function ExamAdmin({ setToast, reload }) {
         {list.length === 0 && <div className="text-xs text-slate-400">Henüz sınav eklenmemiş.</div>}
         {list.map((e) => (
           <div key={e.id} className="flex items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-200">
-            <span className="min-w-0 truncate">{e.title} · {EXAM_KIND[e.kind]} · {new Date(e.starts_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })}{e.class_no ? ` · ${e.class_no}. sınıf` : ""}</span>
+            <span className="min-w-0 truncate">{e.title} · {EXAM_KIND[e.kind]} · {new Date(e.starts_at).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" })}{e.class_no ? ` · ${e.class_no}. sınıf` : ""}{e.place ? ` · ${e.place}` : ""}</span>
             <button type="button" onClick={() => del(e)} className="shrink-0 text-rose-300"><Trash2 className="h-4 w-4" /></button>
           </div>
         ))}
@@ -1859,6 +1924,7 @@ function ExamAdmin({ setToast, reload }) {
         <select value={f.cls} onChange={(e) => setF({ ...f, cls: e.target.value })} className={inp}><option value="">Tüm sınıflar</option><option value="1">1. sınıf</option><option value="2">2. sınıf</option></select>
       </div>
       <input type="datetime-local" value={f.at} onChange={(e) => setF({ ...f, at: e.target.value })} className={inp + " mt-2"} />
+      <input value={f.place} onChange={(e) => setF({ ...f, place: e.target.value.slice(0, 40) })} placeholder="Derslik (örn. Z30, isteğe bağlı)" className={inp + " mt-2"} />
       <button type="button" onClick={add} className="mt-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white">Takvime ekle</button>
     </div>
   );
@@ -6287,7 +6353,7 @@ function AppInner() {
                 <path className="ecg" d="M0 62 H110 L130 62 L146 22 L168 104 L190 42 L206 62 H330 L350 62 L366 22 L388 104 L410 42 L426 62 H600" stroke="url(#g)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <DuelBanner duels={duels} go={go} />
-              <ExamCountdown exams={exams} classNo={classOf(profile?.entry_year)} />
+              <ExamCountdown exams={exams} classNo={classOf(profile?.entry_year)} user={user} onPickClass={() => setClassOpen(true)} go={go} />
               <div className="mt-6 grid w-full max-w-xl grid-cols-2 gap-3 text-left">
                 {tiles.map(({ id, Icon, title, sub, cls, ic, vip }, ti) => (
                   <button key={id} onClick={() => go(id)} className={`relative flex flex-col justify-between overflow-hidden rounded-3xl border bg-gradient-to-br p-4 transition active:scale-[0.97] ${cls} ${ti === tiles.length - 1 && tiles.length % 2 ? "col-span-2" : ""}`} style={{ minHeight: "7.5rem" }}>
