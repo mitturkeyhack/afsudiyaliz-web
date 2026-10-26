@@ -4213,6 +4213,7 @@ function VipCikmis({ pkg, user, profile, setToast, status, reload, onLogin, onEx
   const [agree, setAgree] = useState(false);
   const okKey = `cikmis_ok_${user?.id || "-"}`;
   const [accepted, setAccepted] = useState(() => { try { return localStorage.getItem(okKey) === "1"; } catch (e) { return false; } });
+  const [wrongIds, setWrongIds] = useState([]);
   const load = useCallback(async () => {
     if (!addon) return setSt({ full: false, data: null });
     if (user) {
@@ -4247,6 +4248,11 @@ function VipCikmis({ pkg, user, profile, setToast, status, reload, onLogin, onEx
   );
   const exams = D?.exams || [];
   const qsOf = (eid) => (D?.questions || []).filter((q) => q.exam === eid);
+  // Şıklı çözüm: sınav sayfasındaki soruları test gibi çözdürür
+  const cikTopics = Object.entries(D?.topics || {}).map(([id, t]) => ({ id, title: t.title }));
+  const solvable = (eid) => qsOf(eid).filter((q) => Array.isArray(q.options) && q.answer >= 0 && q.answer < q.options.length)
+    .map((q) => ({ id: q.id, topic: q.topic, stem: q.stem, options: q.options, answer: q.answer, explain: q.explain, exam: q.exam, img: q.img ? `/vip/cikmis/${q.img}.webp` : undefined, kind: VIP_NEG.test(q.stem) ? "degildir" : "" }));
+  const startQuiz = (list, title) => { setWrongIds([]); setView({ name: "quiz", list: vipShuffle(list), src: list, title, n: Math.random() }); window.scrollTo(0, 0); };
   const shell = (children) => (
     <div className="cik-protect relative select-none" onContextMenu={(e) => e.preventDefault()} onCopy={(e) => e.preventDefault()} onDragStart={(e) => e.preventDefault()} style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}>
       <style>{"@media print{.cik-protect{display:none!important}}"}</style>
@@ -4271,6 +4277,15 @@ function VipCikmis({ pkg, user, profile, setToast, status, reload, onLogin, onEx
         )}
     </div>
   );
+  if (view.name === "quiz" && st.full) return shell(
+    <div className="relative">
+      <VipWatermark text={wm} />
+      <VipQuiz key={view.n} list={view.list} title={view.title} topics={cikTopics}
+        onRecord={(id, ok) => { if (!ok) setWrongIds((w) => (w.includes(id) ? w : [...w, id])); }}
+        onExit={() => { setView({ name: "home" }); window.scrollTo(0, 0); }}
+        onAgain={() => { const L = view.src.filter((q) => wrongIds.includes(q.id)); if (L.length) startQuiz(L, `${view.title.replace(/ · yanlışlarım$/, "")} · yanlışlarım`); else { setView({ name: "home" }); setToast("Yanlışın yok, tebrikler!"); } }} />
+    </div>
+  );
   if (view.name === "exam" && D) {
     const ex = exams.find((e) => e.id === view.id);
     const list = qsOf(view.id);
@@ -4283,6 +4298,7 @@ function VipCikmis({ pkg, user, profile, setToast, status, reload, onLogin, onEx
             {list.slice(p * CIK_PER_PAGE, (p + 1) * CIK_PER_PAGE).map((q) => <CikQuestion key={q.id} q={q} topics={D.topics} exams={exams} />)}
           </CikPage>
         ))}
+        {st.full && solvable(view.id).length > 0 && <button type="button" onClick={() => startQuiz(solvable(view.id), `${ex?.title || "Geçmiş yıllar"} · test`)} className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950">Bu sınavı şıkları kapalı test gibi çöz</button>}
         {!st.full && lockCard}
       </div>
     );
