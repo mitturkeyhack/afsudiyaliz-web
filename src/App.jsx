@@ -4116,7 +4116,7 @@ function CikQuestion({ q, ex, topics, exams, showAll }) {
     <div className="border-b border-slate-200 pb-4 pt-4 first:pt-0 last:border-0">
       <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide">
         <span className="rounded bg-slate-900 px-1.5 py-0.5 text-white">Soru {q.no}</span>
-        {t && <span className={"rounded px-1.5 py-0.5 " + (t.scope === "vize" ? "bg-teal-100 text-teal-800" : "bg-violet-100 text-violet-800")}>{t.scope === "vize" ? "Vize konusu" : "Final konusu"} · {t.title}</span>}
+        {t && <span className={"rounded px-1.5 py-0.5 " + (t.scope === "vize" ? "bg-teal-100 text-teal-800" : "bg-violet-100 text-violet-800")}>{t.scope === "vize" ? "Vize konusu" : t.scope === "ek" ? "Ek konu" : "Final konusu"} · {t.title}</span>}
         {q.repeat?.length > 0 && <span className="rounded bg-amber-200 px-1.5 py-0.5 text-amber-900">Tekrar eden soru</span>}
         {q.hatali && <span className="rounded bg-rose-100 px-1.5 py-0.5 text-rose-800">Hatalı soru</span>}
       </div>
@@ -4191,7 +4191,7 @@ function CikAnalysis({ A, topics, preview }) {
           </div>
         ))}
       </div>
-      <div className="mt-1 flex gap-3 text-[11px] text-slate-500"><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-teal-500" />Vize konusu</span><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-violet-400" />Final konusu</span></div>
+      <div className="mt-1 flex gap-3 text-[11px] text-slate-500"><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-teal-500" />Vize konusu</span><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-violet-400" />{(A.topics || []).some((t) => t.scope === "ek") ? "Ek konu (slaytlarda yok)" : "Final konusu"}</span></div>
       <div className="mb-1 mt-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Soru kalıpları</div>
       {A.patterns.map((p) => <div key={p.k} className="flex justify-between border-b border-slate-100 py-1"><span>{p.k}</span><b>%{p.pct}</b></div>)}
       {!preview && (
