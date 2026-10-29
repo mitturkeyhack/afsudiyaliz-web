@@ -4584,7 +4584,31 @@ const vipStatusOf = (status, p) => {
 /* ---------- Ders paketleri (Hematoloji vb.): çıkmışlar + hoca analizi + soru havuzu + yanlış analizi ---------- */
 const VIP_DERS_FEATURES = ["Geçmiş yıllardan öğrenci analizi: sınav tarzı sorular, cevap anahtarı ve şık analizi", "Sınav analizi: soru kalıpları, tuzaklar ve en olası konular", "Her soruya \"şöyle de sorulabilir\" benzer sorular", "Soru havuzu ve yanlışlarına göre konu konu analiz"];
 const vipKind = (p) => p?.kind || "anatomi";
-const VIP_NEG = /değildir|yanlıştır|artmaz|beklenmez|çalışılmaz|sayılmayan|değil\b/i;
+const VIP_NEG = /değildir|yanlıştır|artmaz|beklenmez|çalışılmaz|sayılmayan|sayılmaz|değil\b/i;
+
+// Konu anlatımı: kısa ders sayfası. Bloklar: h (başlık), p (paragraf), li (madde listesi), tip (sınavda dikkat), tbl (tablo)
+const lessonItem = (s) => { const k = s.indexOf(": "); return k > 0 && k < 45 ? <><b className="text-slate-900">{s.slice(0, k)}:</b>{s.slice(k + 1)}</> : s; };
+function VipLessonBody({ blocks }) {
+  return (
+    <div className="space-y-2 text-[14px] leading-relaxed text-slate-800">
+      {(blocks || []).map((b, i) => {
+        if (b.h) return <div key={i} className="pt-2 text-[15px] font-bold text-slate-900">{b.h}</div>;
+        if (b.p) return <p key={i}>{b.p}</p>;
+        if (b.li) return <ul key={i} className="list-disc space-y-1 pl-5">{b.li.map((x, k) => <li key={k}>{lessonItem(x)}</li>)}</ul>;
+        if (b.tip) return <div key={i} className="rounded-lg border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-[13px]"><b className="text-amber-900">Sınavda dikkat: </b>{b.tip}</div>;
+        if (b.tbl) return (
+          <div key={i} className="overflow-x-auto">
+            <table className="w-full border-collapse text-[12.5px]">
+              <thead><tr>{b.tbl[0].map((c, k) => <th key={k} className="border border-slate-300 bg-slate-100 px-2 py-1 text-left font-bold text-slate-900">{c}</th>)}</tr></thead>
+              <tbody>{b.tbl.slice(1).map((r, k) => <tr key={k}>{r.map((c, j) => <td key={j} className={"border border-slate-300 px-2 py-1 align-top " + (j === 0 ? "font-semibold text-slate-900" : "")}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          </div>
+        );
+        return null;
+      })}
+    </div>
+  );
+}
 
 function VipCourse({ pkg, user, profile, onLogin, status, reload, setToast }) {
   const isAdminUser = profile?.role === "admin";
@@ -4700,12 +4724,14 @@ function VipCourse({ pkg, user, profile, onLogin, status, reload, setToast }) {
 
   const exams = D?.exams || [];
   const qsOf = (eid) => (D?.questions || []).filter((q) => q.exam === eid);
+  const lessons = D?.lessons || [];
+  const lessonsN = st.full ? lessons.length : (D?.lessons_n || 0);
   const lockCard = !st.full && (
     <div className="mt-3 space-y-3">
       <VipCampaign pkg={pkg} onEnd={() => { reload && reload(); }} />
       <div className="rounded-2xl border border-amber-300/40 bg-gradient-to-br from-amber-500/20 to-fuchsia-600/15 p-4">
         <div className="flex items-center gap-2"><Lock className="h-5 w-5 text-amber-200" /><div className="font-display text-lg font-bold text-white">Tamamı pakette</div></div>
-        <p className="mt-1 text-sm text-amber-50/90">{D ? `${D.analysis?.total || 0} sınav tarzı soru, tam sınav analizi, benzer sorular${D.pool_n ? ` ve ${D.pool_n} soruluk havuz` : ""} paketle açılır.` : "İçerik hazırlanıyor. Şimdi alırsan hazır olduğu an açılır."}</p>
+        <p className="mt-1 text-sm text-amber-50/90">{D ? `${D.analysis?.total || 0} sınav tarzı soru, tam sınav analizi, benzer sorular${D.lessons_n ? `, ${D.lessons_n} konuluk konu anlatımı` : ""}${D.pool_n ? ` ve ${D.pool_n} soruluk havuz` : ""} paketle açılır.` : "İçerik hazırlanıyor. Şimdi alırsan hazır olduğu an açılır."}</p>
         <div className="mt-3"><VipSales pkg={pkg} status={status} user={user} onLogin={onLogin} reload={reload} setToast={setToast} compact /></div>
       </div>
     </div>
@@ -4730,6 +4756,39 @@ function VipCourse({ pkg, user, profile, onLogin, status, reload, setToast }) {
           </CikPage>
         ))}
         {st.full && list.length > 0 && <button type="button" onClick={() => quiz(vipShuffle(examQs.filter((q) => q.src === "cikmis" && q.exam === view.id)), `${ex?.title || "Geçmiş yıllar"} · test`)} className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950">Bu sınavı şıkları kapalı test gibi çöz</button>}
+        {lockCard}
+      </div>
+    );
+  }
+  if (view.name === "konular" && D) return (
+    <div>{back}
+      <div className="mb-3"><div className="font-display text-lg font-bold text-white">Konu anlatımı</div><div className="text-xs text-slate-400">{st.full ? `${lessons.length} konu · kısa ve öz, sınavda çıkan yerler işaretli` : `Önizleme: ${lessons.length} konu açık · tamamı ${lessonsN} konu`}</div></div>
+      <div className="space-y-2">
+        {lessons.map((l, i) => {
+          const nq = all.filter((q) => q.topic === l.topic).length;
+          return (
+            <button key={l.id} type="button" onClick={() => go({ name: "konu", id: l.id })} className={STAFF_CARD + " flex w-full items-center gap-3 text-left"}>
+              <Lightbulb className="h-6 w-6 flex-none text-amber-300" /><span className="min-w-0 flex-1"><b className="font-display block text-white">{i + 1}. {l.title}</b><span className="block text-xs text-slate-400">{l.sub}{st.full && nq ? ` · ${nq} soru` : ""}</span></span>
+            </button>
+          );
+        })}
+      </div>
+      {lockCard}
+    </div>
+  );
+  if (view.name === "konu" && D) {
+    const i = lessons.findIndex((l) => l.id === view.id);
+    const l = lessons[i];
+    if (!l) return <div>{back}</div>;
+    const nq = all.filter((q) => q.topic === l.topic).length;
+    return shell(
+      <div><button type="button" onClick={() => go({ name: "konular" })} className="mb-3 text-sm font-semibold text-teal-300">← Konu listesi</button>
+        <CikPage brand={brand} head={l.title} page={i + 1} pages={st.full ? lessons.length : lessonsN} wm={wm} owner={owner}>
+          <div className="mb-2 text-[12px] text-slate-500">{l.sub}</div>
+          <VipLessonBody blocks={l.blocks} />
+        </CikPage>
+        {st.full && nq > 0 && <button type="button" onClick={() => startTopic(l.topic)} className="mb-2 w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-slate-950">Bu konudan {nq} soru çöz</button>}
+        {st.full && i < lessons.length - 1 && <button type="button" onClick={() => go({ name: "konu", id: lessons[i + 1].id })} className="w-full rounded-xl bg-white/10 py-3 text-sm font-semibold text-white">Sonraki konu: {lessons[i + 1].title} →</button>}
         {lockCard}
       </div>
     );
@@ -4845,6 +4904,8 @@ function VipCourse({ pkg, user, profile, onLogin, status, reload, setToast }) {
       {D && (
         <div className="space-y-2">
           {card(Sparkles, "text-amber-300", "Sınav analizi", st.full ? "Soru kalıpları, tuzaklar, en olası konular" : "Konu dağılımı ve soru kalıpları", () => go({ name: "analiz" }))}
+          {lessonsN > 0 && card(Lightbulb, "text-amber-200", "Konu anlatımı", st.full ? `${lessons.length} konu · kısa ve öz, sınavda çıkan yerler işaretli` : `${lessons.length} konu açık · tamamı ${lessonsN} konu`, () => go({ name: "konular" }),
+            st.full ? null : <span className="shrink-0 rounded-md bg-white/10 px-2 py-1 text-[11px] font-bold text-slate-200">Önizleme</span>)}
           {exams.map((e) => {
             const n = qsOf(e.id).length;
             return <div key={e.id}>{card(FileText, e.kind === "vize" ? "text-teal-300" : "text-violet-300", e.title, e.sub, () => go({ name: "exam", id: e.id }),
