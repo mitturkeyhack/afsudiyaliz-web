@@ -1351,18 +1351,24 @@ function KarnePage({ user, onLogin, quizHist, embedded }) {
   );
 }
 
+// Düello ödülü: düello kartında gösterilir. Boş bırakılırsa görünmez.
+const DUEL_PRIZE = "Ödül: her düellonun birincisine 10 günlük VIP paket";
+// Başlık "1. Sınıf ..." ya da "2. Sınıf ..." ile başlıyorsa düello o sınıfa özeldir.
+const duelClassOf = (title) => { const m = /^\s*([1-4])\.\s*s[ıi]n[ıi]f/i.exec(title || ""); return m ? Number(m[1]) : null; };
+
 function DuelBanner({ duels, go }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   const cur = duels.filter((d) => new Date(d.ends_at).getTime() > now).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))[0];
   if (!cur) return null;
+  const nOpen = duels.filter((d) => new Date(d.ends_at).getTime() > now).length;
   const st = new Date(cur.starts_at).getTime(), en = new Date(cur.ends_at).getTime();
   const soon = now < st;
   return (
     <button onClick={() => go("duello")} className="mt-6 flex w-full max-w-xl items-center gap-4 rounded-3xl border border-amber-400/50 bg-gradient-to-br from-amber-600/35 to-amber-950/70 p-4 text-left active:scale-[0.98]">
       <Trophy className="h-9 w-9 shrink-0 text-amber-200" />
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-display text-base font-bold text-white">{cur.title}</span>
+        <span className="block truncate font-display text-base font-bold text-white">{cur.title}{nOpen > 1 ? ` · +${nOpen - 1} düello` : ""}</span>
         <span className="text-xs text-amber-100/90">{soon ? `Başlamasına ${clock((st - now) / 1000)}` : `Şimdi açık! Bitişine ${clock((en - now) / 1000)}`}</span>
       </span>
       <span className="shrink-0 rounded-full bg-amber-400 px-3 py-1.5 text-xs font-semibold text-slate-950">{soon ? "Detay" : "Katıl"}</span>
@@ -1370,7 +1376,7 @@ function DuelBanner({ duels, go }) {
   );
 }
 
-function DuelPage({ user, onLogin, setToast, duels, openPod, needClass, onPickClass, onKarne }) {
+function DuelPage({ user, onLogin, setToast, duels, openPod, needClass, onPickClass, onKarne, classNo }) {
   const [now, setNow] = useState(Date.now());
   const [mine, setMine] = useState({});
   const [count, setCount] = useState({});
@@ -1570,10 +1576,9 @@ function DuelPage({ user, onLogin, setToast, duels, openPod, needClass, onPickCl
   }
 
   /* ---- Düello sayfası ---- */
-  const cur = duels.filter((d) => new Date(d.ends_at).getTime() > now).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))[0];
+  const curs = duels.filter((d) => new Date(d.ends_at).getTime() > now).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   const past = duels.filter((d) => new Date(d.ends_at).getTime() <= now);
-  let body = null;
-  if (cur) {
+  const duelCard = (cur) => {
     const st = new Date(cur.starts_at).getTime(), en = new Date(cur.ends_at).getTime();
     const lastStart = en - cur.duration_sec * 1000;
     const a = mine[cur.id];
@@ -1581,20 +1586,27 @@ function DuelPage({ user, onLogin, setToast, duels, openPod, needClass, onPickCl
     const done = a && !running && !a.disqualified;
     const dq = a && a.disqualified;
     const maxL = cur.max_leaves;
-    body = (
-      <div className={`${card} border-amber-400/40`}>
+    const dc = duelClassOf(cur.title);
+    const wrongClass = dc && classNo && classNo !== dc;
+    const noClass = dc && !classNo;
+    return (
+      <div key={cur.id} className={`${card} border-amber-400/40`}>
         <div className="flex items-center gap-3"><Trophy className="h-8 w-8 text-amber-300" /><h3 className="font-display text-xl font-bold text-white">{cur.title}</h3></div>
         <ul className="mt-3 space-y-1 text-sm text-slate-300">
           <li>📅 {dtText(cur.starts_at)} – {hm(cur.ends_at)}</li>
           <li>⏱ {Math.round(cur.duration_sec / 60)} dakika süre · {cur.question_ids.length} soru</li>
           <li>👥 {count[cur.id] ?? 0} kişi katıldı</li>
+          {DUEL_PRIZE && <li className="font-semibold text-amber-200">🎁 {DUEL_PRIZE}</li>}
+          {dc && <li className="text-xs text-slate-400">Bu düello {dc}. sınıflar içindir.</li>}
         </ul>
         <div className="mt-4">
           {now < st && <div className="rounded-2xl bg-white/5 p-4 text-center"><p className="text-xs text-slate-400">Başlamasına</p><p className="font-display text-3xl font-bold text-white">{clock((st - now) / 1000)}</p></div>}
           {now >= st && dq && <p className="rounded-2xl bg-rose-500/15 p-4 text-center text-sm text-rose-100">Katılımın iptal edildi{a.disq_reason ? `: ${a.disq_reason}` : ""}. Bir yanlışlık olduğunu düşünüyorsan yöneticiye ulaş.</p>}
           {now >= st && done && <p className="rounded-2xl bg-teal-500/15 p-4 text-center text-sm text-teal-100">Düelloyu tamamladın. Sonuçlar {hm(cur.ends_at)}'de açılacak.</p>}
           {now >= st && running && <button onClick={() => begin(cur)} disabled={busy} className={btn}>Devam et</button>}
-          {now >= st && !a && now <= lastStart && (
+          {now >= st && !a && now <= lastStart && wrongClass && <p className="rounded-2xl bg-white/5 p-4 text-center text-sm text-slate-300">Bu düello {dc}. sınıflar için. Kendi sınıfının düellosuna katılabilirsin.</p>}
+          {now >= st && !a && now <= lastStart && noClass && user && <button onClick={onPickClass} className={btn}>Katılmak için önce sınıfını seç</button>}
+          {now >= st && !a && now <= lastStart && !wrongClass && !(noClass && user) && (
             <>
               <button onClick={() => { ask(`${Math.round(cur.duration_sec / 60)} dakikalık sürenin başlayacak. Tek hakkın var.${maxL != null ? ` Düello sırasında başka sekmeye veya uygulamaya geçersen yöneticiye iletilir; ${maxL} uyarıdan sonra katılımın iptal edilir.` : ""} Hazır mısın?`, { title: "Düelloya başla", confirmText: "Başla" }).then((ok) => ok && begin(cur)); }} disabled={busy} className={btn}>Şimdi katıl</button>
               <p className="mt-2 text-center text-xs text-slate-500">En geç {hm(new Date(lastStart).toISOString())}'e kadar başlayabilirsin.</p>
@@ -1604,7 +1616,8 @@ function DuelPage({ user, onLogin, setToast, duels, openPod, needClass, onPickCl
         </div>
       </div>
     );
-  }
+  };
+  const body = curs.length ? <div className="space-y-3">{curs.map(duelCard)}</div> : null;
   return (
     <section className="mx-auto max-w-2xl">
       {head}
@@ -6514,7 +6527,7 @@ function AppInner() {
           {page === "test" && <TestPage hist={quizHist} onSave={saveQuiz} loggedIn={!!user} onLogin={() => setAuthOpen(true)} />}
 
           {/* DOĞRU MU, YANLIŞ MI */}
-          {page === "duello" && <DuelPage user={user} onLogin={() => setAuthOpen(true)} setToast={setToast} duels={duels} openPod={setPod} needClass={needClass} onPickClass={() => setClassOpen(true)} onKarne={() => go("karne")} />}
+          {page === "duello" && <DuelPage user={user} onLogin={() => setAuthOpen(true)} setToast={setToast} duels={duels} openPod={setPod} needClass={needClass} onPickClass={() => setClassOpen(true)} onKarne={() => go("karne")} classNo={classOf(profile?.entry_year)} />}
           {page === "profil" && <ProfilePage user={user} profile={profile} onLogin={() => setAuthOpen(true)} podiums={podiums} notes={dbNotes} quizHist={quizHist} onClass={() => setClassOpen(true)} setToast={setToast} />}
           {page === "vip" && <VipPage user={user} profile={profile} onLogin={() => setAuthOpen(true)} setToast={setToast} />}
           {page === "ekip" && <StaffPage profile={profile} uid={uid} setToast={setToast} exams={exams} reloadExams={loadExams} anns={anns} reloadAnns={loadAnns} reloadNotes={loadNotes} />}
