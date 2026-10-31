@@ -5,6 +5,7 @@ import {
   Search, Send, Upload, X, FileText, Lightbulb, Play, Users, LogOut, Shield, Trash2, Bell, Megaphone, Lock, Archive, CalendarDays, Crown, Copy, Sparkles, Smartphone, Clock,
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
+import { createPortal } from "react-dom";
 
 // Hata ekranı: bir telefonda site boş/siyah kalırsa hatayı ekrana yazar (bize ekran görüntüsü atılabilsin diye).
 const afsuErrHtml = (msg) => `<div style="min-height:100vh;background:#060a1a;color:#e2e8f0;font:15px/1.5 system-ui,-apple-system,sans-serif;padding:28px 20px">
@@ -1892,6 +1893,254 @@ function ExamCountdown({ exams, classNo, user, onPickClass, go }) {
         </div>
       )}
       {rest.length > 3 && <button type="button" onClick={() => setAll(!all)} className="mt-1 text-xs font-semibold text-teal-300">{all ? "Daha az göster" : `Tüm sınavları göster (${rest.length + 1})`}</button>}
+    </div>
+  );
+}
+
+/* ---------- Sınav sonrası soru toplama ---------- */
+const RC_LET = ["A", "B", "C", "D", "E"];
+const RC_STOP = new Set(["aşağıdakilerden", "hangisi", "hangisidir", "hangisinde", "değildir", "nedir", "olarak", "olan", "için", "ile", "bir", "veya", "yanlıştır", "doğrudur", "verilir", "denir"]);
+const rcWords = (s) => new Set(trLow(s).replace(/[^a-zçğıöşü0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 2 && !RC_STOP.has(w)));
+const rcSim = (a, b) => { if (!a.size || !b.size) return 0; let n = 0; a.forEach((w) => { if (b.has(w)) n++; }); return n / (a.size + b.size - n); };
+const rcLeft = (iso) => { const ms = new Date(iso).getTime() - Date.now(); if (ms <= 0) return "kapandı"; const h = Math.floor(ms / 3600000); return h >= 24 ? `${Math.floor(h / 24)} gün ${h % 24} sa kaldı` : `${h} sa ${Math.floor((ms % 3600000) / 60000)} dk kaldı`; };
+
+function ExamRecallCard({ user, setToast, onPickClass }) {
+  const [d, setD] = useState(null);
+  const [ex, setEx] = useState(null);
+  const load = useCallback(async () => {
+    if (!user || !sb) return;
+    const { data, error } = await sb.rpc("exam_recall_open");
+    setD(error || !data ? null : data);
+  }, [user]);
+  useEffect(() => { load(); const t = setInterval(load, 300000); return () => clearInterval(t); }, [load]);
+  if (d && !(d.exams || []).length && d.cls == null && d.any_open > 0 && onPickClass) return (
+    <button type="button" onClick={onPickClass} className="mt-4 w-full max-w-xl rounded-3xl border border-emerald-300/30 bg-emerald-500/10 p-4 text-left">
+      <div className="text-sm font-bold text-white">Sınav sorularını yaz, VIP kazan</div>
+      <div className="mt-1 text-xs text-slate-300">Hangi sınıfta olduğunu seçersen biten sınavlarının sorularını yazabilirsin. <span className="font-semibold text-emerald-300">Sınıfımı seç →</span></div>
+    </button>
+  );
+  if (!d || !(d.exams || []).length) return null;
+  const toNext = 3 - (d.credit % 3);
+  return (
+    <div className="mt-4 w-full max-w-xl rounded-3xl border border-emerald-300/30 bg-gradient-to-br from-emerald-500/15 to-[#0a1a30]/90 p-4 text-left backdrop-blur-xl">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-emerald-200"><ClipboardList className="h-4 w-4" /> Sınavdan yeni çıktın mı?</div>
+      <div className="font-display mt-1 text-lg font-bold leading-tight text-white">Hatırladığın soruları yaz, VIP kazan</div>
+      <p className="mt-1 text-xs leading-relaxed text-slate-300">Onaylanan her <b className="text-emerald-200">3 soruya 3 gün VIP</b>. Şıkları hatırlamasan da olur, sorunun ne sorduğunu yazman yeter.</p>
+      <div className="mt-3 space-y-2">
+        {d.exams.map((e) => (
+          <button key={e.id} type="button" onClick={() => setEx(e)} className="flex w-full items-center justify-between gap-3 rounded-2xl bg-black/25 px-3 py-2.5 text-left active:scale-[0.99]">
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-white">{e.title} <span className="text-xs font-normal text-slate-400">· {EXAM_KIND[e.kind] || "Sınav"}</span></span>
+              <span className="block text-[11px] text-slate-400">{e.mine > 0 ? `${e.mine} soru gönderdin · ` : ""}{rcLeft(e.closes_at)}</span>
+            </span>
+            <span className="shrink-0 rounded-xl bg-emerald-400 px-3 py-1.5 text-xs font-bold text-slate-950">Soru yaz</span>
+          </button>
+        ))}
+      </div>
+      {(d.approved > 0 || d.pending > 0) && (
+        <div className="mt-3 rounded-xl bg-white/5 px-3 py-2 text-[12px] text-slate-300">
+          <b className="text-white">{d.approved}</b> onaylı · <b className="text-white">{d.pending}</b> bekleyen{d.earned_days > 0 ? <> · <b className="text-emerald-200">{d.earned_days} gün VIP</b> kazandın</> : null}
+          <div className="mt-1.5 flex gap-1">{[0, 1, 2].map((i) => <span key={i} className={"h-1.5 flex-1 rounded-full " + (i < d.credit % 3 ? "bg-emerald-400" : "bg-white/10")} />)}</div>
+          <div className="mt-1 text-[11px] text-slate-400">Sıradaki 3 gün VIP için {toNext} onaylı soru daha</div>
+        </div>
+      )}
+      {ex && createPortal(<ExamRecallForm exam={ex} d={d} onClose={() => { setEx(null); load(); }} onSent={load} setToast={setToast} />, document.body)}
+    </div>
+  );
+}
+
+function ExamRecallForm({ exam, d, onClose, onSent, setToast }) {
+  const empty = { stem: "", opts: ["", "", "", "", ""], ans: -1, note: "" };
+  const [f, setF] = useState(empty);
+  const [pkg, setPkg] = useState(d.pref || d.pkgs?.[0]?.id || "");
+  const [mine, setMine] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const loadMine = useCallback(async () => { const { data } = await sb.rpc("exam_recall_mine", { p_exam: exam.id }); setMine(Array.isArray(data) ? data : []); }, [exam.id]);
+  useEffect(() => { loadMine(); }, [loadMine]);
+  const filled = f.opts.map((o, i) => [o.trim(), i]).filter(([o]) => o);
+  const send = async () => {
+    if (f.stem.trim().length < 8) return setErr("Soruyu biraz daha açık yaz.");
+    setBusy(true); setErr("");
+    const opts = filled.map(([o]) => o);
+    const ansIdx = f.ans >= 0 ? filled.findIndex(([, i]) => i === f.ans) : -1;
+    const { error } = await sb.rpc("exam_recall_submit", { p_exam: exam.id, p_stem: f.stem, p_options: opts, p_answer: ansIdx >= 0 ? ansIdx : null, p_note: f.note, p_pkg: pkg || null });
+    setBusy(false);
+    if (error) return setErr(/[ğüşıöçĞÜŞİÖÇ]/.test(error.message || "") ? error.message : "Gönderilemedi, bağlantını kontrol edip tekrar dene.");
+    setF(empty); setToast("Kaydedildi. Sıradaki soruyu yazabilirsin."); loadMine(); onSent();
+  };
+  const withdraw = async (id) => { const { data } = await sb.rpc("exam_recall_withdraw", { p_id: id }); if (data) { loadMine(); onSent(); } };
+  const ST = { bekliyor: ["Bekliyor", "bg-white/10 text-slate-300"], onay: ["Onaylandı", "bg-emerald-500/25 text-emerald-100"], red: ["Alınmadı", "bg-rose-500/20 text-rose-200"] };
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/75 p-3 sm:items-center" role="dialog" aria-modal="true">
+      <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl border border-emerald-300/40 bg-[#0a1a30] p-5 text-slate-200 shadow-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-[3px] text-emerald-200">{EXAM_KIND[exam.kind] || "Sınav"} soruları</div>
+            <div className="font-display mt-0.5 text-xl font-bold text-white">{exam.title}</div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Kapat" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/10"><X className="h-4 w-4" /></button>
+        </div>
+        <p className="mt-1 text-xs text-slate-400">Her soruyu ayrı gönder. Yazdıklarını sadece yönetim görür; doğruları kontrol edilip onaylanır.</p>
+        <div className="mb-1.5 mt-4 text-sm font-semibold text-white">Soru</div>
+        <textarea value={f.stem} onChange={(e) => setF({ ...f, stem: e.target.value.slice(0, 1200) })} rows={3} placeholder="Örn. Aşağıdakilerden hangisi böbreğin görevlerinden değildir?" className={inp + " resize-none"} />
+        <div className="mb-1.5 mt-3 text-sm font-semibold text-white">Şıklar <span className="text-xs font-normal text-slate-400">(hatırladıkların, boş bırakabilirsin)</span></div>
+        <div className="space-y-1.5">
+          {f.opts.map((o, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <button type="button" onClick={() => setF({ ...f, ans: f.ans === i ? -1 : i })} disabled={!o.trim()} title="Doğru cevap bu" className={"grid h-9 w-9 shrink-0 place-items-center rounded-full border text-xs font-bold disabled:opacity-30 " + (f.ans === i && o.trim() ? "border-emerald-300 bg-emerald-400 text-slate-950" : "border-white/20 text-slate-300")}>{RC_LET[i]}</button>
+              <input value={o} onChange={(e) => { const opts = f.opts.slice(); opts[i] = e.target.value.slice(0, 300); setF({ ...f, opts, ans: f.ans === i && !e.target.value.trim() ? -1 : f.ans }); }} placeholder={`${RC_LET[i]} şıkkı`} className={inp + " !py-2"} />
+            </div>
+          ))}
+        </div>
+        {filled.length > 0 && <div className="mt-1.5 text-[11px] text-slate-400">{f.ans >= 0 && f.opts[f.ans].trim() ? `Doğru bildiğin cevap: ${RC_LET[f.ans]}` : "Doğru cevabı biliyorsan harfine dokun."}</div>}
+        <div className="mb-1.5 mt-3 text-sm font-semibold text-white">Not <span className="text-xs font-normal text-slate-400">(isteğe bağlı)</span></div>
+        <input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value.slice(0, 400) })} placeholder="Örn. emin değilim, görselli soruydu, 5. soruydu…" className={inp + " !py-2"} />
+        {d.pkgs?.length > 0 && (
+          <>
+            <div className="mb-1.5 mt-3 text-sm font-semibold text-white">VIP ödülün hangi derse işlesin?</div>
+            <div className="flex flex-wrap gap-1.5">{d.pkgs.map((p) => <button key={p.id} type="button" onClick={() => setPkg(p.id)} className={"rounded-full border px-3 py-1.5 text-xs font-semibold " + (pkg === p.id ? "border-emerald-300 bg-emerald-400 text-slate-950" : "border-sky-300/20 text-slate-200")}>{p.title}</button>)}</div>
+          </>
+        )}
+        {err && <div className="mt-3 text-xs text-rose-300">{err}</div>}
+        <button type="button" disabled={busy || f.stem.trim().length < 8} onClick={send} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 py-3 text-sm font-bold text-slate-950 disabled:opacity-40"><Send className="h-4 w-4" />{busy ? "Gönderiliyor…" : "Soruyu gönder"}</button>
+        {mine.length > 0 && (
+          <div className="mt-5">
+            <div className="text-xs font-semibold text-slate-300">Bu sınav için gönderdiklerin ({mine.length})</div>
+            <div className="mt-1.5 space-y-1.5">
+              {mine.map((m) => (
+                <div key={m.id} className="flex items-start gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs">
+                  <span className="min-w-0 flex-1 break-words text-slate-200">{m.stem}</span>
+                  <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold " + ST[m.status][1]}>{ST[m.status][0]}</span>
+                  {m.status === "bekliyor" && <button type="button" onClick={() => withdraw(m.id)} aria-label="Geri çek" className="shrink-0 text-slate-400"><Trash2 className="h-3.5 w-3.5" /></button>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Yönetim: öğrencilerden gelen sınav soruları
+function ExamRecallAdmin({ setToast }) {
+  const [sum, setSum] = useState(null);
+  const [sel, setSel] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [tab, setTab] = useState("bekliyor");
+  const [edit, setEdit] = useState(null);
+  const [out, setOut] = useState("");
+  const loadSum = useCallback(async () => { const { data, error } = await sb.rpc("admin_exam_recall_summary"); setSum(error ? "err" : data || []); }, []);
+  const loadRows = useCallback(async (id) => { const { data } = await sb.rpc("admin_exam_recall_list", { p_exam: id }); setRows(Array.isArray(data) ? data : []); }, []);
+  useEffect(() => { loadSum(); }, [loadSum]);
+  useEffect(() => { if (sel) { loadRows(sel.id); setEdit(null); setOut(""); } }, [sel, loadRows]);
+  const sim = useMemo(() => {
+    const w = rows.map((r) => rcWords(r.stem)); const m = {};
+    rows.forEach((r, i) => { m[r.id] = rows.filter((x, j) => j !== i && rcSim(w[i], w[j]) >= 0.4).map((x) => x.id); });
+    return m;
+  }, [rows]);
+  const review = async (r, status, e) => {
+    const args = { p_id: r.id, p_status: status };
+    if (e) { const pairs = e.opts.map((o, i) => [o.trim(), i]).filter(([o]) => o); const ai = pairs.findIndex(([, i]) => i === e.ans); Object.assign(args, { p_stem: e.stem, p_options: pairs.map(([o]) => o), p_answer: ai >= 0 ? ai : null }); }
+    const { data, error } = await sb.rpc("admin_exam_recall_review", args);
+    if (error) return setToast(/[ğüşıöçİ]/.test(error.message || "") ? error.message : "Kaydedilemedi.");
+    setEdit(null);
+    setToast(status === "onay" ? (data?.rewarded_days ? `Onaylandı. ${r.name} ${data.rewarded_days} gün VIP kazandı.` : "Onaylandı.") : status === "red" ? "Reddedildi." : "Geri alındı.");
+    loadRows(sel.id); loadSum();
+  };
+  const exportText = () => {
+    const list = rows.filter((r) => r.status === "onay");
+    if (!list.length) return setToast("Önce soruları onayla.");
+    const seen = new Set(); const parts = [];
+    list.forEach((r) => {
+      if (seen.has(r.id)) return;
+      const same = (sim[r.id] || []).filter((id) => list.some((x) => x.id === id));
+      same.forEach((id) => seen.add(id)); seen.add(r.id);
+      let t = `${parts.length + 1}) ${r.stem}`;
+      (r.options || []).forEach((o, i) => { t += `\n${RC_LET[i] || i + 1}) ${o}`; });
+      if (r.answer != null) t += `\nÖğrencinin cevabı: ${RC_LET[r.answer]}`;
+      if (same.length) t += `\n(${same.length + 1} kişi benzerini yazdı)`;
+      same.forEach((id) => { const x = list.find((y) => y.id === id); if (x && x.stem !== r.stem) t += `\n  Benzer yazım: ${x.stem}`; });
+      if (r.note) t += `\nNot: ${r.note}`;
+      parts.push(t);
+    });
+    const txt = `${sel.title} · ${EXAM_KIND[sel.kind] || "Sınav"} · ${new Date(sel.starts_at).toLocaleDateString("tr-TR")}\n${parts.length} soru (öğrencilerin hatırladıkları)\n\n${parts.join("\n\n")}`;
+    setOut(txt);
+    navigator.clipboard?.writeText(txt).then(() => setToast("Kopyalandı. Claude'a yapıştırabilirsin."), () => setToast("Aşağıdaki metni seçip kopyala."));
+  };
+  if (sum === null) return <div className="text-sm text-slate-400">Yükleniyor…</div>;
+  if (sum === "err") return <div className="rounded-2xl border border-rose-300/30 p-4 text-sm text-rose-200">Soru toplama tabloları yok. sinav_sorulari.sql dosyasını Supabase'de çalıştır.</div>;
+  if (!sel) {
+    const withData = sum.filter((e) => e.total > 0 || e.open);
+    return (
+      <div className="space-y-2">
+        <p className="text-xs text-slate-400">Öğrenciler sınav bittikten sonra 3 gün boyunca soru yazabilir. Onayladığın her 3 soru için öğrenciye kendiliğinden 3 gün VIP verilir (var olan süresine eklenir).</p>
+        {!withData.length && <div className="rounded-2xl border border-dashed border-sky-300/20 p-6 text-center text-sm text-slate-400">Henüz biten sınav ya da gelen soru yok.</div>}
+        {withData.map((e) => (
+          <button key={e.id} type="button" onClick={() => { setSel(e); setTab(e.pending ? "bekliyor" : "tum"); }} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3 text-left">
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-white">{e.title}</span>
+              <span className="block text-[11px] text-slate-400">{e.class_no ? `${e.class_no}. sınıf · ` : ""}{new Date(e.starts_at).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} · {e.total} soru · {e.people} kişi{e.open ? " · toplama açık" : ""}</span>
+            </span>
+            {e.pending > 0 ? <span className="shrink-0 rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-bold text-white">{e.pending}</span> : <span className="shrink-0 text-[11px] text-emerald-300">{e.approved} onaylı</span>}
+          </button>
+        ))}
+      </div>
+    );
+  }
+  const shown = rows.filter((r) => tab === "tum" || r.status === tab);
+  const cnt = (s) => rows.filter((r) => r.status === s).length;
+  const byId = Object.fromEntries(rows.map((r, i) => [r.id, i + 1]));
+  return (
+    <div className="space-y-3">
+      <button type="button" onClick={() => { setSel(null); loadSum(); }} className="text-sm font-semibold text-teal-300">← Sınavlar</button>
+      <div className="font-display text-lg font-bold text-white">{sel.title} <span className="text-sm font-normal text-slate-400">· {rows.length} soru</span></div>
+      <div className="grid grid-cols-4 gap-1 rounded-xl bg-black/25 p-1 text-xs font-semibold">
+        {[["bekliyor", `Bekleyen ${cnt("bekliyor")}`], ["onay", `Onaylı ${cnt("onay")}`], ["red", `Red ${cnt("red")}`], ["tum", "Tümü"]].map(([k, t]) => <button key={k} type="button" onClick={() => setTab(k)} className={"rounded-lg py-2 " + (tab === k ? "bg-teal-500 text-slate-950" : "text-slate-300")}>{t}</button>)}
+      </div>
+      <button type="button" onClick={exportText} className="flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/30 bg-emerald-500/10 py-2.5 text-sm font-semibold text-emerald-100"><Copy className="h-4 w-4" /> Onaylıları analiz için kopyala</button>
+      {out && <textarea readOnly value={out} rows={6} onFocus={(e) => e.target.select()} className={inp + " text-xs"} />}
+      {!shown.length && <div className="rounded-2xl border border-dashed border-sky-300/20 p-5 text-center text-sm text-slate-400">Bu bölümde soru yok.</div>}
+      {shown.map((r) => {
+        const e = edit?.id === r.id ? edit : null;
+        const same = sim[r.id] || [];
+        return (
+          <div key={r.id} className="rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
+            <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+              <span>#{byId[r.id]} · {r.name} · {new Date(r.at).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+              <span className={r.status === "onay" ? "text-emerald-300" : r.status === "red" ? "text-rose-300" : "text-amber-200"}>{r.status === "onay" ? "Onaylı" : r.status === "red" ? "Red" : "Bekliyor"}</span>
+            </div>
+            {same.length > 0 && <div className="mt-1 text-[11px] font-semibold text-amber-200">Benzer: {same.map((id) => `#${byId[id]}`).join(", ")}</div>}
+            {e ? (
+              <div className="mt-2 space-y-1.5">
+                <textarea value={e.stem} onChange={(x) => setEdit({ ...e, stem: x.target.value })} rows={3} className={inp + " resize-none text-sm"} />
+                {e.opts.map((o, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <button type="button" onClick={() => setEdit({ ...e, ans: e.ans === i ? -1 : i })} className={"grid h-8 w-8 shrink-0 place-items-center rounded-full border text-xs font-bold " + (e.ans === i ? "border-emerald-300 bg-emerald-400 text-slate-950" : "border-white/20 text-slate-300")}>{RC_LET[i]}</button>
+                    <input value={o} onChange={(x) => { const opts = e.opts.slice(); opts[i] = x.target.value; setEdit({ ...e, opts }); }} className={inp + " !py-2"} />
+                  </div>
+                ))}
+                <div className="flex gap-2 pt-1">
+                  <button type="button" onClick={() => review(r, "onay", e)} className="flex-1 rounded-lg bg-emerald-500 py-2 text-xs font-bold text-slate-950">Kaydet ve onayla</button>
+                  <button type="button" onClick={() => setEdit(null)} className="rounded-lg border border-sky-300/20 px-3 py-2 text-xs font-semibold text-white">Vazgeç</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="mt-1.5 whitespace-pre-line text-sm font-semibold text-white">{r.stem}</div>
+                {(r.options || []).length > 0 && <div className="mt-1.5 space-y-0.5 text-[13px]">{r.options.map((o, i) => <div key={i} className={i === r.answer ? "font-semibold text-emerald-300" : "text-slate-300"}>{RC_LET[i]}) {o}{i === r.answer ? "  ✓" : ""}</div>)}</div>}
+                {r.note && <div className="mt-1.5 text-[12px] italic text-slate-400">Not: {r.note}</div>}
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {r.status !== "onay" && <button type="button" onClick={() => review(r, "onay")} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-slate-950">Onayla</button>}
+                  {r.status !== "red" && <button type="button" onClick={() => review(r, "red")} className="rounded-lg bg-rose-600/80 px-3 py-2 text-xs font-semibold text-white">Reddet</button>}
+                  <button type="button" onClick={() => { const opts = [...(r.options || [])]; while (opts.length < 5) opts.push(""); setEdit({ id: r.id, stem: r.stem, opts: opts.slice(0, 5), ans: r.answer ?? -1 }); }} className="rounded-lg border border-sky-300/20 px-3 py-2 text-xs font-semibold text-white">Düzelt</button>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -5809,7 +6058,7 @@ const pageFromHash = () => {
   return PAGES.some((p) => p.id === h) || h === "yonetim" || h === "hakkimizda" || h === "duello" || h === "karne" || h === "profil" || h === "arsiv" || h === "ekip" || h === "vip" ? h : "home";
 };
 
-// Tanıtım videosu: public/tanitim.mp4 için "/tanitim_sesli.mp4" ya da bir YouTube linki yaz.
+// Tanıtım videosu: public/tanitim.mp4 için "/tanitim.mp4" ya da bir YouTube linki yaz.
 const VIDEO_URL = "/tanitim_sesli.mp4";
 const VIDEO_PORTRAIT = true; // true: dikey (9:16) çerçeve, false: yatay çerçeve.
 const VIDEO_FIT = "cover"; // "cover": çerçeveyi doldurur (kenarlar kırpılabilir), "contain": videonun tamamı görünür.
@@ -6542,6 +6791,7 @@ function AppInner() {
               </svg>
               <DuelBanner duels={duels} go={go} />
               <ExamCountdown exams={exams} classNo={classOf(profile?.entry_year)} user={user} onPickClass={() => setClassOpen(true)} go={go} />
+              <ExamRecallCard user={user} setToast={setToast} onPickClass={() => setClassOpen(true)} />
               <div className="mt-6 grid w-full max-w-xl grid-cols-2 gap-3 text-left">
                 {tiles.map(({ id, Icon, title, sub, cls, ic, vip }, ti) => (
                   <button key={id} onClick={() => go(id)} className={`relative flex flex-col justify-between overflow-hidden rounded-3xl border bg-gradient-to-br p-4 transition active:scale-[0.97] ${cls} ${ti === tiles.length - 1 && tiles.length % 2 ? "col-span-2" : ""}`} style={{ minHeight: "7.5rem" }}>
@@ -6740,6 +6990,7 @@ function AppInner() {
                       { g: "İçerik ve etkinlik", items: [
                         { id: "duyuru", t: "Duyurular", d: `${anns.length} duyuru`, Icon: Megaphone, c: "text-rose-300" },
                         { id: "takvim", t: "Sınav takvimi", d: "Sınıfa göre geri sayım", Icon: CalendarDays, c: "text-amber-200" },
+                        { id: "sorular", t: "Öğrenciden sınav soruları", d: "Gelenleri onayla, VIP ödülü kendiliğinden", Icon: ClipboardList, c: "text-emerald-300" },
                         { id: "duello", t: "Düello", d: "Haftalık yarışma, sorular", Icon: Trophy, c: "text-yellow-300" },
                         { id: "anket", t: "Anketler", d: "Anket aç, kapat", Icon: ClipboardList, c: "text-cyan-300" },
                         { id: "arsiv", t: "Arşiv", d: "Eski dosya arşivi", Icon: Archive, c: "text-violet-300" },
@@ -6789,6 +7040,7 @@ function AppInner() {
                       bakim: <MaintenanceAdmin maint={maint} reload={loadMaint} setToast={setToast} />,
                       anket: <PollAdmin setToast={setToast} />,
                       takvim: <ExamAdmin setToast={setToast} reload={loadExams} />,
+                      sorular: <ExamRecallAdmin setToast={setToast} />,
                       arsiv: <ArchiveAdmin setToast={setToast} />,
                       duello: <DuelAdmin setToast={setToast} />,
                       duyuru: (
