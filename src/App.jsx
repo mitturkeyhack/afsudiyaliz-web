@@ -5809,8 +5809,8 @@ const pageFromHash = () => {
   return PAGES.some((p) => p.id === h) || h === "yonetim" || h === "hakkimizda" || h === "duello" || h === "karne" || h === "profil" || h === "arsiv" || h === "ekip" || h === "vip" ? h : "home";
 };
 
-// Tanıtım videosu: public/tanitim.mp4 için "/tanitim.mp4" ya da bir YouTube linki yaz.
-const VIDEO_URL = "/tanitim.mp4";
+// Tanıtım videosu: public/tanitim.mp4 için "/tanitim_sesli.mp4" ya da bir YouTube linki yaz.
+const VIDEO_URL = "/tanitim_sesli.mp4";
 const VIDEO_PORTRAIT = true; // true: dikey (9:16) çerçeve, false: yatay çerçeve.
 const VIDEO_FIT = "cover"; // "cover": çerçeveyi doldurur (kenarlar kırpılabilir), "contain": videonun tamamı görünür.
 
