@@ -4012,11 +4012,96 @@ function VipStudy({ pkg, user, profile, setToast, content, status, reload, onLog
   );
 }
 
+
+// VIP geri bildirim anketi: paket başına bir kez, ikinci açılışta çıkar. Doldurmadan kapanmaz.
+const FB_USEFUL = {
+  anatomi: ["Etkileşimli 3D iskelet", "Atlas görselli sorular", "Bilgi kartları", "Geçmiş yıllar soruları", "Deneme ve sınav provası"],
+  ders: ["Geçmiş yıllar soruları", "Sınav analizi", "Konu anlatımı", "Soru havuzu", "Sınav provası", "Yanlış analizim"],
+};
+const FB_SOURCE = ["WhatsApp grubu", "Instagram", "Arkadaş tavsiyesi", "Sınıfta duydum", "Diğer"];
+const FB_REASON = ["Ücretsiz deneme", "Geçmiş yıllar analizi", "Sınavın yaklaşması", "Uygun fiyat", "Arkadaşım aldı", "Ödül / hediye olarak açıldı"];
+const FB_PRICE = ["Ucuz", "Uygun", "Biraz pahalı", "Pahalı"];
+const FB_REC = ["Evet", "Belki", "Hayır"];
+function VipFeedbackGate({ pkg, user, profile, kind }) {
+  const [show, setShow] = useState(false);
+  const [f, setF] = useState({ rating: 0, useful: [], source: "", reason: "", price: "", recommend: "", note: "" });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    if (!user || profile?.role === "admin" || !sb) return;
+    const key = `vipfb_${pkg.id}_${user.id}`;
+    let n = 0;
+    try { n = Number(localStorage.getItem(key) || 0) + 1; localStorage.setItem(key, String(n)); } catch (e) { n = 2; }
+    if (n < 2) return;
+    let on = true;
+    sb.rpc("vip_feedback_status", { p_pkg: pkg.id }).then(({ data, error }) => { if (on && !error && data === false) setShow(true); });
+    return () => { on = false; };
+  }, [pkg.id, user, profile?.role]);
+  if (!show) return null;
+  const opts = FB_USEFUL[kind] || FB_USEFUL.ders;
+  const ok = f.rating > 0 && f.useful.length > 0 && f.source && f.reason && f.price && f.recommend;
+  const chip = (on) => "rounded-full border px-3 py-1.5 text-xs font-semibold " + (on ? "border-amber-300 bg-amber-400 text-slate-950" : "border-sky-300/20 text-slate-200");
+  const one = (k, list) => <div className="flex flex-wrap gap-1.5">{list.map((x) => <button key={x} type="button" onClick={() => setF({ ...f, [k]: x })} className={chip(f[k] === x)}>{x}</button>)}</div>;
+  const q = (t) => <div className="mb-1.5 mt-4 text-sm font-semibold text-white">{t}</div>;
+  const send = async () => {
+    if (!ok) return setErr("Yıldız ve işaretli soruları cevaplaman yeterli.");
+    setBusy(true); setErr("");
+    const { error } = await sb.rpc("vip_feedback_submit", { p_pkg: pkg.id, p_rating: f.rating, p_useful: f.useful, p_source: f.source, p_reason: f.reason, p_price: f.price, p_recommend: f.recommend, p_note: f.note });
+    setBusy(false);
+    if (error) return setErr("Gönderilemedi, bağlantını kontrol edip tekrar dene.");
+    setShow(false);
+  };
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/75 p-3 sm:items-center" role="dialog" aria-modal="true">
+      <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl border border-amber-300/40 bg-[#0a1a30] p-5 text-slate-200 shadow-2xl">
+        <div className="text-[11px] font-bold uppercase tracking-[3px] text-amber-200">30 saniyelik anket</div>
+        <div className="font-display mt-1 text-xl font-bold text-white">{pkg.title} paketini beğendin mi?</div>
+        <p className="mt-1 text-xs text-slate-400">Cevapların paketleri geliştirmemize yardım ediyor. Sadece bir kez soruyoruz.</p>
+        {q("Genel puanın")}
+        <div className="flex gap-1.5">{[1, 2, 3, 4, 5].map((n) => <button key={n} type="button" aria-label={`${n} yıldız`} onClick={() => setF({ ...f, rating: n })} className={"text-3xl leading-none " + (n <= f.rating ? "text-amber-300" : "text-slate-600")}>★</button>)}</div>
+        {q("En çok işine yarayan bölümler (birden fazla seçebilirsin)")}
+        <div className="flex flex-wrap gap-1.5">{opts.map((x) => <button key={x} type="button" onClick={() => setF({ ...f, useful: f.useful.includes(x) ? f.useful.filter((y) => y !== x) : [...f.useful, x] })} className={chip(f.useful.includes(x))}>{x}</button>)}</div>
+        {q("Paketi nereden duydun?")}{one("source", FB_SOURCE)}
+        {q("Almana en çok ne etki etti?")}{one("reason", FB_REASON)}
+        {q("Fiyat sence nasıl?")}{one("price", FB_PRICE)}
+        {q("Arkadaşına önerir misin?")}{one("recommend", FB_REC)}
+        {q("Ne eklememizi istersin? (isteğe bağlı)")}
+        <textarea value={f.note} onChange={(e) => setF({ ...f, note: e.target.value.slice(0, 600) })} rows={2} placeholder="Örn. şu dersi de istiyorum, şu bölüm şöyle olsun…" className="w-full rounded-xl border border-sky-300/15 bg-white/5 px-3 py-2 text-sm text-white" />
+        {err && <div className="mt-2 text-xs text-rose-300">{err}</div>}
+        <button type="button" disabled={busy || !ok} onClick={send} className="mt-4 w-full rounded-xl bg-amber-400 py-3 text-sm font-bold text-slate-950 disabled:opacity-40">{busy ? "Gönderiliyor…" : "Gönder ve devam et"}</button>
+      </div>
+    </div>
+  );
+}
+
+// Yönetim: paketin anket sonuçları
+function VipFeedbackAdmin({ pkg }) {
+  const [rows, setRows] = useState(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { if (!open) return; sb.rpc("admin_vip_feedback", { p_pkg: pkg.id }).then(({ data, error }) => setRows(error ? "err" : data || [])); }, [open, pkg.id]);
+  const cnt = (k) => { const m = {}; (rows || []).forEach((r) => [].concat(r[k] || []).forEach((v) => { if (v) m[v] = (m[v] || 0) + 1; })); return Object.entries(m).sort((a, b) => b[1] - a[1]); };
+  const bars = (title, k) => { const c = cnt(k); return c.length ? <div className="mt-3"><div className="text-xs font-semibold text-slate-300">{title}</div>{c.map(([v, n]) => <div key={v} className="mt-1 flex items-center gap-2 text-[11px]"><span className="w-36 shrink-0 truncate text-slate-300">{v}</span><span className="h-2 flex-1 overflow-hidden rounded bg-white/10"><span className="block h-full bg-amber-400" style={{ width: `${(n * 100) / rows.length}%` }} /></span><span className="w-8 shrink-0 text-right text-slate-400">{n}</span></div>)}</div> : null; };
+  return (
+    <div className="rounded-2xl border border-sky-300/15 bg-[#0a1a30]/90 p-3">
+      <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Öğrenci geri bildirimleri</div><button type="button" onClick={() => setOpen(!open)} className="text-xs text-teal-300">{open ? "Kapat" : "Göster"}</button></div>
+      {open && (rows === null ? <div className="mt-2 text-xs text-slate-400">Yükleniyor…</div>
+        : rows === "err" ? <div className="mt-2 text-xs text-rose-300">Anket tablosu yok. vip_geri_bildirim.sql dosyasını Supabase'de çalıştır.</div>
+        : !rows.length ? <div className="mt-2 text-xs text-slate-400">Henüz cevap yok. Anket, paketi ikinci kez açan öğrenciye çıkar.</div>
+        : <>
+            <div className="mt-2 text-sm text-white"><b>{rows.length}</b> cevap · ortalama <b className="text-amber-300">{(rows.reduce((a, r) => a + r.rating, 0) / rows.length).toFixed(1)} ★</b></div>
+            {bars("En çok işe yarayan", "useful")}{bars("Nereden duydu", "source")}{bars("Almasına etki eden", "reason")}{bars("Fiyat", "price")}{bars("Önerir mi", "recommend")}
+            {rows.some((r) => r.note) && <div className="mt-3"><div className="text-xs font-semibold text-slate-300">Yorumlar</div>{rows.filter((r) => r.note).map((r, i) => <div key={i} className="mt-1 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-slate-200"><b className="text-amber-200">{r.name} · {r.rating}★</b> {r.note}</div>)}</div>}
+          </>)}
+    </div>
+  );
+}
+
 function VipRunner({ pkg, user, profile, setToast, content, status, reload, onLogin, trial }) {
   const [tab, setTab] = useState("iskelet");
   const wm = user ? `${profile?.full_name || ""} ${user.email || ""}`.trim() : "Deneme sürümü · AFSÜ Diyaliz Team";
   return (
     <div>
+      {!trial && <VipFeedbackGate pkg={pkg} user={user} profile={profile} kind="anatomi" />}
       <div className="mb-4 grid grid-cols-2 gap-1.5 rounded-xl bg-white/5 p-1 text-sm font-semibold">
         {[["iskelet", "Etkileşimli iskelet"], ["calis", "Soru ve kartlar"]].map(([k, t]) => (
           <button key={k} type="button" onClick={() => setTab(k)} className={"rounded-lg py-2.5 " + (tab === k ? "bg-teal-500 text-slate-950" : "text-slate-300")}>{t}</button>
@@ -4894,6 +4979,7 @@ function VipCourse({ pkg, user, profile, onLogin, status, reload, setToast }) {
   );
   return shell(
     <div>
+      {st.full && <VipFeedbackGate pkg={pkg} user={user} profile={profile} kind="ders" />}
       {title}
       {st.draft && <div className="mb-3 rounded-xl bg-amber-500/15 p-3 text-xs text-amber-100">Taslak: bu içerik henüz öğrencilere açık değil, sadece sen görüyorsun.</div>}
       {!st.full && <VipCampaign pkg={pkg} onEnd={() => { reload && reload(); }} />}
@@ -5191,6 +5277,7 @@ function VipAdmin({ setToast }) {
           </div>
         </div>
       )}
+      <VipFeedbackAdmin key={"fb" + pk.id} pkg={pk} />
       {isDers && (
       <div>
         <div className="flex items-center justify-between"><div className="text-xs font-semibold text-slate-300">Ders bilgisi, fiyat ve görünürlük</div><button type="button" onClick={() => setCEdit(cEdit ? null : { id: pk.id, title: pk.title, description: pk.description || "", price_text: pk.price_base ?? pk.price_text ?? "", pay_info: pk.pay_info || "", valid_days: pk.valid_days ? String(pk.valid_days) : "", grade: pk.grade || 1, active: pk.active !== false })} className="text-xs text-teal-300">{cEdit ? "Kapat" : "Düzenle"}</button></div>
